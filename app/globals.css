@@ -1,0 +1,210 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ════════════════════════════════════════════════════════
+   AURO ARDON — Global Design System
+   ════════════════════════════════════════════════════════ */
+
+/* ─── CSS Variables ─────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --nav-height: 72px;
+
+  /* Brand palette as CSS vars (useful for inline styles) */
+  --color-champagne: #c49d52;
+  --color-bronze:    #8b5e34;
+  --color-ink:       #2e241b;
+  --color-muted:     #6f6256;
+  --color-cream:     #fdf8f0;
+  --color-sand:      #e6d7c3;
+  --color-border:    #d8c8b4;
+}
+
+/* ─── Base Reset & Smoothing ────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ─── Body Background ───────────────────────────────────── */
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 80% 55% at 5%  0%,  rgba(196, 157, 82, 0.13) 0%, transparent 58%),
+    radial-gradient(ellipse 60% 45% at 95% 5%,  rgba(139, 94, 52, 0.09)  0%, transparent 52%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(196, 157, 82, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #fbf6ee 0%, #f3ebdf 55%, #ede4d6 100%);
+  color: #1f1710;
+}
+
+/* ─── Text Selection ────────────────────────────────────── */
+::selection {
+  background: rgba(196, 157, 82, 0.22);
+  color: #2e241b;
+}
+
+/* ─── Custom Scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #f3ebdf; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #c49d52, #8b5e34);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: #8b5e34; }
+
+/* ─── Focus Ring ────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--color-champagne);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ─── Utility Layer ─────────────────────────────────────── */
+@layer utilities {
+
+  /* Typography */
+  .font-serif  { font-family: var(--font-display), Garamond, Georgia, serif; }
+
+  .text-balance { text-wrap: balance; }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #c49d52 0%, #8b5e34 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glassmorphism surfaces */
+  .glass {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  .glass-dark {
+    background: rgba(46, 36, 27, 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* Navbar transparency → blur transition */
+  .nav-blur {
+    background: rgba(251, 246, 238, 0.90);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(216, 200, 180, 0.45);
+  }
+
+  /* Luxe border */
+  .luxe-border {
+    border: 1px solid rgba(196, 157, 82, 0.28);
+  }
+
+  /* Shimmer skeleton effect */
+  .shimmer-bg {
+    background: linear-gradient(
+      90deg,
+      rgba(230, 215, 195, 0.4) 25%,
+      rgba(255, 255, 255, 0.7) 50%,
+      rgba(230, 215, 195, 0.4) 75%
+    );
+    background-size: 400px 100%;
+    animation: shimmer 2.2s linear infinite;
+  }
+
+  /* Hide scrollbar but keep scrollable */
+  .no-scrollbar          { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+}
+
+/* ─── Component Layer ───────────────────────────────────── */
+@layer components {
+
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full
+           bg-ink px-6 py-3 text-sm font-semibold uppercase
+           tracking-[0.18em] text-white shadow-luxe
+           transition-all duration-200
+           hover:bg-bronze hover:shadow-glow
+           active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* Outline button */
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full
+           border border-ink/25 bg-white/60 px-6 py-3
+           text-sm font-semibold uppercase tracking-[0.18em] text-ink
+           transition-all duration-200
+           hover:border-bronze hover:bg-white hover:text-bronze
+           active:scale-95 disabled:opacity-50;
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full
+           px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.16em] text-muted
+           transition-all duration-200
+           hover:bg-sand/50 hover:text-ink
+           active:scale-95;
+  }
+
+  /* Luxury card surface */
+  .card-luxe {
+    @apply rounded-4xl border border-white/65 bg-white/70
+           shadow-card backdrop-blur-sm
+           transition-shadow duration-300 hover:shadow-luxe;
+  }
+
+  /* Section eyebrow label */
+  .section-label {
+    @apply text-xs font-semibold uppercase tracking-[0.32em] text-bronze;
+  }
+
+  /* Display heading */
+  .heading-display {
+    @apply font-serif text-5xl leading-[1.06] text-ink md:text-6xl;
+  }
+
+  /* Sub-heading */
+  .heading-sub {
+    @apply font-serif text-3xl leading-snug text-ink md:text-4xl;
+  }
+
+  /* Input field */
+  .input-luxe {
+    @apply w-full rounded-2xl border border-border bg-white/65 px-4 py-3
+           text-sm text-ink placeholder-muted/55
+           transition-all duration-200
+           focus:border-champagne focus:bg-white
+           focus:ring-2 focus:ring-champagne/20 focus:outline-none;
+  }
+
+  /* Badge */
+  .badge-bronze {
+    @apply inline-flex items-center rounded-full border border-bronze/30
+           bg-white/70 px-3.5 py-1.5
+           text-xs font-semibold uppercase tracking-[0.24em] text-bronze
+           shadow-sm;
+  }
+
+  /* Product image placeholder */
+  .img-placeholder {
+    @apply flex items-center justify-center rounded-3xl bg-gradient-card
+           text-muted/40;
+  }
+}
+
+/* ─── Accessibility: reduced motion ────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
