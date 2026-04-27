@@ -5,8 +5,14 @@
 
 // ─── Enums ───────────────────────────────────────────────
 
-export type OrderStatus = "new" | "confirmed" | "delivered" | "cancelled";
-export type PaymentMethod = "mpesa" | "cash_on_delivery";
+export type OrderStatus =
+  | "PENDING_CONFIRMATION"
+  | "CONFIRMED"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED";
+export type PaymentMethod = "CASH_ON_DELIVERY" | "WHATSAPP";
+export type PaymentStatus = "PENDING" | "PAID";
 
 // ─── Category ────────────────────────────────────────────
 
@@ -51,8 +57,7 @@ export interface CartItem {
 // ─── Order ───────────────────────────────────────────────
 // Fields: id, customer_name, customer_email, customer_phone,
 //         customer_location, notes, payment_method, payment_status,
-//         order_status, subtotal, shipping_fee, total,
-//         mpesa_receipt_number, checkout_request_id, created_at
+//         order_status, subtotal, shipping_fee, total, created_at
 
 export interface Order {
   id: string;
@@ -62,13 +67,11 @@ export interface Order {
   customer_location: string;
   notes: string | null;
   payment_method: PaymentMethod;
-  payment_status: string;
+  payment_status: PaymentStatus;
   order_status: OrderStatus;
   subtotal: string;
   shipping_fee: string;
   total: string;
-  mpesa_receipt_number: string | null;
-  checkout_request_id: string | null;
   created_at: string;
 }
 
@@ -85,15 +88,27 @@ export interface OrderItem {
   created_at: string;
 }
 
-// ─── Admin User ──────────────────────────────────────────
-
-export interface AdminUser {
-  id: string;
-  email: string;
-  role: string;
-  active: boolean;
-  created_at: string;
+export interface AdminAnalyticsSeriesPoint {
+  label: string;
+  value: number;
 }
+
+export interface AdminTopProduct {
+  product_title: string;
+  quantity: number;
+  revenue: number;
+}
+
+export interface AdminAnalytics {
+  totalOrders: number;
+  ordersToday: number;
+  revenue: number;
+  mostOrderedProducts: AdminTopProduct[];
+  ordersPerDay: AdminAnalyticsSeriesPoint[];
+  topProductsChart: AdminAnalyticsSeriesPoint[];
+}
+
+// ─── Admin User ──────────────────────────────────────────
 
 // ─── Database Types ──────────────────────────────────────
 
@@ -104,11 +119,11 @@ export interface Database {
       products: { Row: Product; Insert: any; Update: any };
       orders: { Row: Order; Insert: any; Update: any };
       order_items: { Row: OrderItem; Insert: any; Update: any };
-      admin_users: { Row: AdminUser; Insert: any; Update: any };
     };
     Enums: {
       order_status: OrderStatus;
       payment_method: PaymentMethod;
+      payment_status: PaymentStatus;
     };
   };
 }

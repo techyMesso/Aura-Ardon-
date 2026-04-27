@@ -1,7 +1,16 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { hasPublicSupabaseEnv } from "@/lib/env";
+import { logger } from "@/lib/logger";
+import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
-import type { Category, Order, OrderItem, Product } from "@/lib/types";
+import type {
+  AdminAnalytics,
+  Category,
+  Order,
+  OrderItem,
+  OrderStatus,
+  Product
+} from "@/lib/types";
 
 // ─── PUBLIC (storefront) ──────────────────────────────────
 
@@ -14,7 +23,7 @@ async function listPublicProductsInner(): Promise<Product[]> {
   if (!hasPublicSupabaseEnv()) return [];
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createPublicServerSupabaseClient();
     const { data, error } = await supabase
       .from("products")
       .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
@@ -22,12 +31,14 @@ async function listPublicProductsInner(): Promise<Product[]> {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("[listPublicProducts]", error.message);
+      logger.error("Failed to list public products", { error: error.message });
       return [];
     }
     return data ?? [];
   } catch (err) {
-    console.error("[listPublicProducts] Supabase not configured", err);
+    logger.error("Public products unavailable", {
+      error: err instanceof Error ? err.message : String(err)
+    });
     return [];
   }
 }
@@ -46,7 +57,7 @@ async function listFeaturedProductsInner(limit = 6): Promise<Product[]> {
   if (!hasPublicSupabaseEnv()) return [];
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createPublicServerSupabaseClient();
     
     // Try to get featured products first
     const { data: featuredData, error: featuredError } = await supabase
@@ -58,7 +69,7 @@ async function listFeaturedProductsInner(limit = 6): Promise<Product[]> {
       .limit(limit);
 
     if (featuredError) {
-      console.error("[listFeaturedProducts]", featuredError.message);
+      logger.error("Failed to list featured products", { error: featuredError.message });
       return [];
     }
 
@@ -76,13 +87,17 @@ async function listFeaturedProductsInner(limit = 6): Promise<Product[]> {
       .limit(limit);
 
     if (newestError) {
-      console.error("[listFeaturedProducts] Fallback error:", newestError.message);
+      logger.error("Failed to list featured products fallback", {
+        error: newestError.message
+      });
       return [];
     }
 
     return newestData ?? [];
   } catch (err) {
-    console.error("[listFeaturedProducts]", err);
+    logger.error("Featured products unavailable", {
+      error: err instanceof Error ? err.message : String(err)
+    });
     return [];
   }
 }
@@ -101,7 +116,7 @@ export async function listProductsByCategory(
   if (!hasPublicSupabaseEnv()) return [];
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createPublicServerSupabaseClient();
 
     // First, resolve category slug → id
     const { data: cat } = await supabase
@@ -120,12 +135,18 @@ export async function listProductsByCategory(
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("[listProductsByCategory]", error.message);
+      logger.error("Failed to list products by category", {
+        categorySlug,
+        error: error.message
+      });
       return [];
     }
     return data ?? [];
   } catch (err) {
-    console.error("[listProductsByCategory]", err);
+    logger.error("Products by category unavailable", {
+      categorySlug,
+      error: err instanceof Error ? err.message : String(err)
+    });
     return [];
   }
 }
@@ -139,7 +160,7 @@ export async function getProductBySlug(
   if (!hasPublicSupabaseEnv()) return null;
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createPublicServerSupabaseClient();
     const { data, error } = await supabase
       .from("products")
       .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
@@ -161,19 +182,21 @@ async function listCategoriesInner(): Promise<Category[]> {
   if (!hasPublicSupabaseEnv()) return [];
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createPublicServerSupabaseClient();
     const { data, error } = await supabase
       .from("categories")
       .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
       .order("display_order", { ascending: true });
 
     if (error) {
-      console.error("[listCategories]", error.message);
+      logger.error("Failed to list categories", { error: error.message });
       return [];
     }
     return data ?? [];
   } catch (err) {
-    console.error("[listCategories]", err);
+    logger.error("Categories unavailable", {
+      error: err instanceof Error ? err.message : String(err)
+    });
     return [];
   }
 }
@@ -191,7 +214,7 @@ export const listCategories = unstable_cache(listCategoriesInner, ['categories']
  * Optimized to select only needed columns.
  */
 export async function listAdminDashboardData() {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createAdminSupabaseClient();
 
   const [
     { data: products, error: productsError },
@@ -199,7 +222,7 @@ export async function listAdminDashboardData() {
     { data: categories, error: categoriesError },
   ] = await Promise.all([
     supabase.from("products").select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at").order("created_at", { ascending: false }),
-    supabase.from("orders").select("id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, mpesa_receipt_number, checkout_request_id, created_at").order("created_at",  { ascending: false }),
+    supabase.from("orders").select("id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at").order("created_at",  { ascending: false }),
     supabase.from("categories").select("id, name, slug, parent_id, description, image_url, display_order, created_at").order("display_order", { ascending: true }),
   ]);
 
@@ -220,11 +243,11 @@ export async function listAdminDashboardData() {
 export async function getOrderWithItems(
   orderId: string
 ): Promise<{ order: Order; items: OrderItem[] } | null> {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createAdminSupabaseClient();
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, mpesa_receipt_number, checkout_request_id, created_at")
+    .select("id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at")
     .eq("id", orderId)
     .single();
 
@@ -239,4 +262,151 @@ export async function getOrderWithItems(
   if (itemsError) return null;
 
   return { order, items: items ?? [] };
+}
+
+type ListAdminOrdersParams = {
+  status?: OrderStatus | "ALL";
+  search?: string;
+  from?: string;
+  to?: string;
+};
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+export async function listAdminOrders(
+  params: ListAdminOrdersParams = {}
+): Promise<Order[]> {
+  const supabase = createAdminSupabaseClient();
+  const search = params.search?.trim();
+
+  let query = supabase
+    .from("orders")
+    .select(
+      "id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at"
+    )
+    .order("created_at", { ascending: false });
+
+  if (params.status && params.status !== "ALL") {
+    query = query.eq("order_status", params.status);
+  }
+
+  if (params.from) {
+    query = query.gte("created_at", `${params.from}T00:00:00.000Z`);
+  }
+
+  if (params.to) {
+    query = query.lte("created_at", `${params.to}T23:59:59.999Z`);
+  }
+
+  if (search) {
+    if (isUuid(search)) {
+      query = query.eq("id", search);
+    } else {
+      query = query.ilike("customer_phone", `%${search}%`);
+    }
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as Order[];
+}
+
+export async function getAdminAnalytics(): Promise<AdminAnalytics> {
+  const supabase = createAdminSupabaseClient();
+  const ordersResponse = await supabase
+    .from("orders")
+    .select("id, total, created_at")
+    .order("created_at", { ascending: true });
+  const itemsResponse = await supabase
+    .from("order_items")
+    .select("product_title, quantity, unit_price");
+
+  const orders = (ordersResponse.data ?? []) as Array<{
+    id: string;
+    total: string | number | null;
+    created_at: string;
+  }>;
+  const items = (itemsResponse.data ?? []) as Array<{
+    product_title: string;
+    quantity: number;
+    unit_price: string | number;
+  }>;
+  const ordersError = ordersResponse.error;
+  const itemsError = itemsResponse.error;
+
+  if (ordersError) {
+    throw new Error(ordersError.message);
+  }
+
+  if (itemsError) {
+    throw new Error(itemsError.message);
+  }
+
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  ).getTime();
+  const revenue = orders.reduce(
+    (sum, order) => sum + Number(order.total ?? 0),
+    0
+  );
+
+  const ordersToday = orders.filter(
+    order => new Date(order.created_at).getTime() >= startOfToday
+  ).length;
+
+  const ordersPerDayMap = new Map<string, number>();
+
+  for (const order of orders) {
+    const label = new Date(order.created_at).toLocaleDateString("en-KE", {
+      month: "short",
+      day: "numeric"
+    });
+    ordersPerDayMap.set(label, (ordersPerDayMap.get(label) ?? 0) + 1);
+  }
+
+  const productMap = new Map<string, { quantity: number; revenue: number }>();
+
+  for (const item of items) {
+    const current = productMap.get(item.product_title) ?? {
+      quantity: 0,
+      revenue: 0
+    };
+    current.quantity += item.quantity;
+    current.revenue += Number(item.unit_price) * item.quantity;
+    productMap.set(item.product_title, current);
+  }
+
+  const mostOrderedProducts = [...productMap.entries()]
+    .map(([product_title, values]) => ({
+      product_title,
+      quantity: values.quantity,
+      revenue: values.revenue
+    }))
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5);
+
+  return {
+    totalOrders: orders.length,
+    ordersToday,
+    revenue,
+    mostOrderedProducts,
+    ordersPerDay: [...ordersPerDayMap.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .slice(-14),
+    topProductsChart: mostOrderedProducts.map(product => ({
+      label: product.product_title,
+      value: product.quantity
+    }))
+  };
 }

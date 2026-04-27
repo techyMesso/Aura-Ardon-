@@ -57,7 +57,7 @@ export default function HowToOrderPage() {
             <div>
               <h3 className="mb-2 font-semibold text-xl text-ink">Checkout Securely</h3>
               <p className="text-muted">
-                Enter your delivery details and choose between M-Pesa or Cash on Delivery. No account creation needed — we offer guest checkout for your convenience.
+                Enter your name, phone, and location, then choose Cash on Delivery or WhatsApp Order. No account creation needed.
               </p>
             </div>
           </div>

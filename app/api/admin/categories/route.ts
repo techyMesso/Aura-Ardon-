@@ -17,6 +17,7 @@ const categorySchema = z.object({
 
 export async function GET() {
   try {
+    await assertAdminRequest();
     const supabase = createAdminSupabaseClient();
     const { data, error } = await supabase
       .from("categories")

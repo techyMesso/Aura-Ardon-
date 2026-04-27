@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 import { getSupabaseEnv } from "@/lib/env";
 
@@ -21,6 +22,17 @@ export async function createServerSupabaseClient() {
           // Server Components can read cookies but cannot always persist them.
         }
       }
+    }
+  });
+}
+
+export function createPublicServerSupabaseClient() {
+  const { url, anonKey } = getSupabaseEnv();
+
+  return createClient(url, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
     }
   });
 }

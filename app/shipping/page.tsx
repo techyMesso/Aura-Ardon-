@@ -93,8 +93,7 @@ export default function ShippingPage() {
           <div>
             <h2 className="section-label mb-6">Cash on Delivery (COD)</h2>
             <p className="text-muted">
-              We offer Cash on Delivery for all orders within Kenya. Please have the exact amount ready for our delivery person.
-              Note: COD orders above KSh 10,000 require a 50% deposit via M-Pesa before dispatch.
+              We offer Cash on Delivery for eligible orders within Kenya. Please have the exact amount ready when your package arrives, or confirm directly with us on WhatsApp if you need help before dispatch.
             </p>
           </div>
 

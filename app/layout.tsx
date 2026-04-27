@@ -28,14 +28,14 @@ export const metadata: Metadata = {
     template: "%s | Auro Ardon",
   },
   description:
-    "Shop premium handcrafted jewelry, lip care, and hair accessories from Nairobi. Pay with M-Pesa. Delivered across Kenya.",
+    "Shop premium handcrafted jewelry and accessories from Nairobi. Order through WhatsApp or cash on delivery.",
   keywords: [
     "African jewelry Nairobi",
     "stainless necklaces Kenya",
     "African bracelets",
     "lip gloss Nairobi",
     "hair accessories Kenya",
-    "M-Pesa online shopping",
+    "WhatsApp shopping Kenya",
   ],
   openGraph: {
     type:     "website",

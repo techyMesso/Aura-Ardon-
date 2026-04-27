@@ -30,24 +30,6 @@ export function getServiceRoleKey() {
   return getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
 }
 
-export function getMpesaEnv() {
-  const environment = getRequiredEnv("MPESA_ENVIRONMENT");
-
-  if (environment !== "sandbox" && environment !== "production") {
-    throw new Error("MPESA_ENVIRONMENT must be either 'sandbox' or 'production'.");
-  }
-
-  return {
-    environment,
-    consumerKey: getRequiredEnv("MPESA_CONSUMER_KEY"),
-    consumerSecret: getRequiredEnv("MPESA_CONSUMER_SECRET"),
-    shortcode: getRequiredEnv("MPESA_SHORTCODE"),
-    passkey: getRequiredEnv("MPESA_PASSKEY"),
-    callbackUrl: getRequiredEnv("MPESA_CALLBACK_URL"),
-    transactionType:
-      process.env.MPESA_TRANSACTION_TYPE ?? "CustomerPayBillOnline",
-    accountReference: process.env.MPESA_ACCOUNT_REFERENCE ?? "AuroArdon",
-    transactionDesc:
-      process.env.MPESA_TRANSACTION_DESC ?? "Luxury jewelry purchase"
-  } as const;
+export function getOrderStatusTokenSecret() {
+  return getRequiredEnv("ORDER_STATUS_TOKEN_SECRET");
 }

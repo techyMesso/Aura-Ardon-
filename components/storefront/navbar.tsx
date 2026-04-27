@@ -7,10 +7,10 @@ import { useCart, useCartValue } from "@/lib/cart";
 
 // ─── Nav links ────────────────────────────────────────────
 const NAV_LINKS = [
-  { label: "Shop All",         href: "/shop" },
-  { label: "Jewelry",           href: "/shop/jewelry" },
-  { label: "Lip Care",          href: "/shop/lip-care" },
-  { label: "Hair Accessories",  href: "/shop/hair-accessories" },
+  { label: "Shop All", href: "/shop" },
+  { label: "Jewelry", href: "/shop/jewelry" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ] as const;
 
 // ─── Navbar Component ─────────────────────────────────────
@@ -37,7 +37,7 @@ export function Navbar() {
       {/* ── Fixed Header ── */}
       <header
         className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-          scrolled ? "nav-blur shadow-sm" : "bg-transparent"
+          scrolled ? "nav-blur shadow-sm" : "border-b border-white/5 bg-[#111111]/88 backdrop-blur"
         }`}
         style={{ height: "var(--nav-height, 72px)" }}
       >
@@ -54,8 +54,8 @@ export function Navbar() {
               <Gem className="h-4 w-4 text-white" aria-hidden />
             </div>
             {/* Brand name */}
-            <span className="font-serif text-[1.45rem] leading-none tracking-tight text-ink">
-              Auro <span className="gradient-text">Ardon</span>
+            <span className="font-serif text-[1.45rem] leading-none tracking-tight text-white">
+              Auro <span className="text-[#c49d52]">Ardon</span>
             </span>
           </Link>
 
@@ -65,10 +65,10 @@ export function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className="relative text-sm font-semibold uppercase tracking-[0.15em] text-muted
-                           transition-colors duration-200 hover:text-bronze
+                className="relative text-sm font-semibold uppercase tracking-[0.15em] text-white/72
+                           transition-colors duration-200 hover:text-[#c49d52]
                            after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-0
-                           after:bg-bronze after:transition-all after:duration-300
+                           after:bg-[#c49d52] after:transition-all after:duration-300
                            hover:after:w-full"
               >
                 {label}
@@ -83,14 +83,14 @@ export function Navbar() {
               href="/cart"
               aria-label={`Shopping cart with ${itemCount} items`}
               className="relative flex h-10 w-10 items-center justify-center rounded-full
-                         border border-border/60 bg-white/60 text-ink
+                         border border-white/10 bg-white/8 text-white
                          transition-all duration-200
-                         hover:border-bronze hover:bg-white hover:text-bronze"
+                         hover:border-[#c49d52] hover:bg-white/14 hover:text-[#c49d52]"
             >
               <ShoppingBag className="h-4 w-4" aria-hidden />
               {itemCount > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center
-                                 rounded-full bg-bronze text-[10px] font-bold text-white">
+                                 rounded-full bg-[#c49d52] text-[10px] font-bold text-[#111111]">
                   {itemCount > 9 ? "9+" : itemCount}
                 </span>
               )}
@@ -102,8 +102,8 @@ export function Navbar() {
               aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
               aria-expanded={mobileOpen}
               className="flex h-10 w-10 items-center justify-center rounded-full
-                         border border-border/60 bg-white/60 text-ink
-                         transition-all duration-200 hover:border-bronze lg:hidden"
+                         border border-white/10 bg-white/8 text-white
+                         transition-all duration-200 hover:border-[#c49d52] lg:hidden"
             >
               {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
@@ -117,7 +117,7 @@ export function Navbar() {
           }`}
         >
           <nav
-            className="flex flex-col border-t border-border/40 bg-cream/96 px-5 py-3 backdrop-blur-lg"
+            className="flex flex-col border-t border-white/10 bg-[#111111]/97 px-5 py-3 backdrop-blur-lg"
             aria-label="Mobile navigation"
           >
             {NAV_LINKS.map(({ label, href }) => (
@@ -126,22 +126,12 @@ export function Navbar() {
                 href={href}
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center border-b border-border/30 py-4
-                           text-sm font-semibold uppercase tracking-[0.18em] text-ink
-                           transition-colors duration-150 hover:text-bronze"
+                           text-sm font-semibold uppercase tracking-[0.18em] text-white
+                           transition-colors duration-150 hover:text-[#c49d52]"
               >
                 {label}
               </Link>
             ))}
-
-            {/* Subtle admin link — not promoted */}
-            <Link
-              href="/admin"
-              onClick={() => setMobileOpen(false)}
-              className="mt-4 text-xs font-medium uppercase tracking-widest text-muted/50
-                         transition-colors hover:text-muted"
-            >
-              Admin portal
-            </Link>
           </nav>
         </div>
       </header>

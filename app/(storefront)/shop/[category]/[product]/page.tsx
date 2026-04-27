@@ -1,12 +1,7 @@
 import { notFound } from "next/navigation";
-import Image from "next/future/image";
-import Link from "next/link";
-import { Check } from "lucide-react";
 
 import { getProductBySlug, listCategories } from "@/lib/data";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
-import type { Product } from "@/lib/types";
+import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import { ProductDetailClient } from "./product-detail-client";
 
 interface ProductPageProps {
@@ -16,15 +11,15 @@ interface ProductPageProps {
 export async function generateStaticParams() {
   const categories = await listCategories();
   const params: Array<{ category: string; product: string }> = [];
-  
+  const supabase = createPublicServerSupabaseClient();
+
   for (const cat of categories) {
-    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
-    const supabase = await createServerSupabaseClient();
     const { data: products } = await supabase
       .from("products")
-      .select("slug,category_id")
-      .eq("category_id", cat.id);
-    
+      .select("slug")
+      .eq("category_id", cat.id)
+      .eq("active", true);
+
     if (products) {
       for (const p of products) {
         if (p.slug) {

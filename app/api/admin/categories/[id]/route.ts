@@ -20,6 +20,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    await assertAdminRequest();
     const { id } = await context.params;
     const supabase = createAdminSupabaseClient();
     const { data, error } = await supabase

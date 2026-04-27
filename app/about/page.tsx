@@ -1,4 +1,4 @@
-import Image from "next/future/image";
+import Image from "next/image";
 
 export const metadata = {
   title: "About Auro Ardon",

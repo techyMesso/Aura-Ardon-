@@ -1,6 +1,5 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { OrderManager } from "@/components/admin/order-manager";
-import type { Order } from "@/lib/types";
+import { listAdminOrders } from "@/lib/data";
 
 export const metadata = {
   title: "Orders Admin | Auro Ardon",
@@ -8,17 +7,7 @@ export const metadata = {
 };
 
 export default async function AdminOrdersPage() {
-  let orders: Order[] = [];
-  try {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false });
-    orders = (data ?? []) as Order[];
-  } catch (error) {
-    console.error("Failed to fetch orders:", error);
-  }
+  const orders = await listAdminOrders();
 
   return <OrderManager initialOrders={orders} />;
 }

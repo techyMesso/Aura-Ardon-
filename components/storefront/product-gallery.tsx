@@ -1,122 +1,98 @@
 "use client";
 
-import Image from "next/future/image";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, ShoppingCart, Check } from "lucide-react";
+import { Check, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 
-import { CheckoutModal } from "@/components/storefront/checkout-modal";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/lib/cart";
+import { formatCurrency } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
 interface ProductGalleryProps {
   products: Product[];
 }
 
-function slugify(text: string): string {
+function slugify(text: string) {
   return text.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
 export function ProductGallery({ products }: ProductGalleryProps) {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const { addItem } = useCart();
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
-  const handleAddToCart = (product: Product, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  function handleAddToCart(product: Product, event: React.MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
     addItem(product);
     setAddedProductId(product.id);
-    setTimeout(() => setAddedProductId(null), 2000);
-  };
+    window.setTimeout(() => setAddedProductId(null), 1800);
+  }
 
   return (
-    <>
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {products.map((product) => {
-          const categorySlug = slugify(product.category || "jewelry");
-          const isAdded = addedProductId === product.id;
-          return (
-            <article
-              key={product.id}
-              className="group overflow-hidden rounded-[2rem] border border-white/60 bg-white/70 shadow-luxe backdrop-blur"
-            >
-              <Link href={`/shop/${categorySlug}/${product.slug || product.id}`}>
-                <div className="relative aspect-[4/5] overflow-hidden">
-<Image
-  src={product.images[0] ?? "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=1200&q=80"}
-  alt={product.title}
-  fill
-  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-  className="object-cover transition duration-700 group-hover:scale-105"
-  loading="lazy"
-/>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {products.map(product => {
+        const categorySlug = slugify(product.category || "jewelry");
+        const image = product.images[0] || "/hero-jewelry.png";
+        const isAdded = addedProductId === product.id;
+
+        return (
+          <article
+            key={product.id}
+            className="group overflow-hidden rounded-[1.5rem] border border-border/60 bg-white/88 shadow-card transition hover:-translate-y-1 hover:shadow-luxe"
+          >
+            <Link href={`/shop/${categorySlug}/${product.slug || product.id}`} className="block">
+              <div className="relative aspect-[4/5] overflow-hidden bg-[#f7f0e4]">
+                <Image
+                  src={image}
+                  alt={product.title}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                  className="object-cover transition duration-500 group-hover:scale-105"
+                  loading="lazy"
+                />
+              </div>
+            </Link>
+            <div className="space-y-4 p-5">
+              <Link href={`/shop/${categorySlug}/${product.slug || product.id}`} className="block">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#c49d52]">
+                    {product.category}
+                  </p>
+                  <h3 className="font-serif text-2xl leading-tight text-ink">{product.title}</h3>
+                  <p className="text-lg font-semibold text-ink">{formatCurrency(product.price)}</p>
                 </div>
               </Link>
-              <div className="space-y-4 p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <Link href={`/shop/${categorySlug}/${product.slug || product.id}`}>
-                      <h3 className="font-serif text-3xl text-ink hover:text-bronze transition-colors">
-                        {product.title}
-                      </h3>
-                    </Link>
-                    <p className="mt-1 text-sm text-muted">{product.material}</p>
-                  </div>
-                  <ArrowUpRight className="h-5 w-5 text-bronze" />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge>{product.category}</Badge>
-                  <Badge>{product.stock_quantity} in atelier</Badge>
-                </div>
-                <p className="text-sm leading-6 text-muted">{product.description}</p>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-lg font-semibold text-ink">
-                    {formatCurrency(product.price)}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => handleAddToCart(product, e)}
-                      disabled={product.stock_quantity < 1 || isAdded}
-                      className={`flex items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.18em] transition ${
-                        isAdded
-                          ? "bg-green-600 text-white"
-                          : "border border-border/40 bg-white/60 text-ink hover:bg-sand/50"
-                      }`}
-                    >
-                      {isAdded ? (
-                        <>
-                          <Check className="mr-1 h-4 w-4" />
-                          Added
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart className="mr-1 h-4 w-4" />
-                          Cart
-                        </>
-                      )}
-                    </button>
-                    <Button
-                      onClick={() => setSelectedProduct(product)}
-                      disabled={product.stock_quantity < 1}
-                    >
-                      {product.stock_quantity < 1 ? "Sold out" : "Buy"}
-                    </Button>
-                  </div>
-                </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={event => handleAddToCart(product, event)}
+                  disabled={product.stock_quantity < 1 || isAdded}
+                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold uppercase tracking-[0.18em] transition ${
+                    isAdded
+                      ? "bg-green-600 text-white"
+                      : "border border-border/60 bg-white text-ink hover:bg-[#111111] hover:text-white"
+                  }`}
+                >
+                  {isAdded ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                  {isAdded ? "Added" : "Add to Cart"}
+                </button>
+                <Link
+                  href={`/shop/${categorySlug}/${product.slug || product.id}`}
+                  className={`inline-flex min-w-[118px] items-center justify-center rounded-full px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] ${
+                    product.stock_quantity < 1
+                      ? "pointer-events-none bg-sand text-muted"
+                      : "bg-[#111111] text-white transition hover:bg-[#1d1d1d]"
+                  }`}
+                >
+                  {product.stock_quantity < 1 ? "Sold Out" : "View Item"}
+                </Link>
               </div>
-            </article>
-          );
-        })}
-      </div>
-      <CheckoutModal
-        open={Boolean(selectedProduct)}
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-      />
-    </>
+            </div>
+          </article>
+        );
+      })}
+    </div>
   );
 }

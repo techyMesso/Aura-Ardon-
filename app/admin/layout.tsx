@@ -4,6 +4,8 @@ import { LogOut, Shield, LayoutDashboard, Package, FolderTree, ClipboardList, Fi
 import { Button } from "@/components/ui/button";
 import { requireAdminPage } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {

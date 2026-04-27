@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 import type { Product } from "@/lib/types";
 import { ProductForm } from "@/components/admin/product-form";
 
@@ -17,7 +18,7 @@ export default async function EditProductPage({
   let product: Product | null = null;
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
     const { data, error } = await supabase
       .from("products")
       .select("*")
@@ -27,7 +28,10 @@ export default async function EditProductPage({
       product = data as Product;
     }
   } catch (error) {
-    console.error("Failed to fetch product:", error);
+    logger.error("Failed to fetch admin product", {
+      id,
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
   if (!product) notFound();

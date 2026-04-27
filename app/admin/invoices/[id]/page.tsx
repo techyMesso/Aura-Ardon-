@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { getOrderWithItems } from "@/lib/data";
+import { logger } from "@/lib/logger";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { PrintButton } from "@/components/admin/print-button";
 
 export const metadata = {
   title: "Invoice | Auro Ardon",
@@ -21,7 +22,10 @@ export default async function InvoicePage({
   try {
     result = await getOrderWithItems(id);
   } catch (error) {
-    console.error("Failed to fetch order:", error);
+    logger.error("Failed to fetch invoice order", {
+      id,
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
   if (!result) notFound();
 
@@ -37,14 +41,7 @@ export default async function InvoicePage({
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to orders
         </Link>
-        <Button
-          variant="secondary"
-          onClick={() => window.print()}
-          className="print:hidden"
-        >
-          <Printer className="mr-2 h-4 w-4" />
-          Print invoice
-        </Button>
+        <PrintButton />
       </div>
 
       <div className="rounded-[2rem] border border-white/60 bg-white/70 p-8 shadow-luxe backdrop-blur">
@@ -82,22 +79,16 @@ export default async function InvoicePage({
             <div className="space-y-1">
               <div className="flex justify-between sm:justify-end">
                 <span className="text-muted">Payment Method:</span>
-                <span className="text-ink capitalize ml-2 sm:ml-0">{order.payment_method.replace("_", " ")}</span>
+                <span className="text-ink ml-2 sm:ml-0">{order.payment_method.toLowerCase().replace(/_/g, " ")}</span>
               </div>
               <div className="flex justify-between sm:justify-end">
                 <span className="text-muted">Payment Status:</span>
-                <span className="text-ink capitalize ml-2 sm:ml-0">{order.payment_status}</span>
+                <span className="text-ink ml-2 sm:ml-0">{order.payment_status.toLowerCase()}</span>
               </div>
               <div className="flex justify-between sm:justify-end">
                 <span className="text-muted">Order Status:</span>
-                      <Badge className="capitalize">{order.order_status}</Badge>
+                <Badge className="uppercase">{order.order_status.toLowerCase().replace(/_/g, " ")}</Badge>
               </div>
-              {order.mpesa_receipt_number && (
-                <div className="flex justify-between sm:justify-end">
-                  <span className="text-muted">M-Pesa Receipt:</span>
-                  <span className="text-ink font-mono text-sm ml-2 sm:ml-0">{order.mpesa_receipt_number}</span>
-                </div>
-              )}
             </div>
           </div>
         </div>

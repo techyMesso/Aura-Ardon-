@@ -1,26 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/future/image";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Loader2, MapPin, Mail, Phone, User, StickyNote } from "lucide-react";
+import { ArrowLeft, Check, Loader2, MapPin, MessageCircle, Phone, User } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useCart, useCartValue } from "@/lib/cart";
 import { formatCurrency } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 
-type PaymentMethod = "mpesa" | "cash_on_delivery";
-
-interface FormData {
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  customerLocation: string;
-  notes: string;
-  paymentMethod: PaymentMethod;
-}
+type PaymentMethod = "CASH_ON_DELIVERY" | "WHATSAPP";
 
 export function CheckoutPageClient() {
   const { items, clearCart } = useCart();
@@ -29,22 +18,26 @@ export function CheckoutPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormData>({
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH_ON_DELIVERY");
+  const [formData, setFormData] = useState({
     customerName: "",
-    customerEmail: "",
     customerPhone: "",
-    customerLocation: "",
-    notes: "",
-    paymentMethod: "mpesa"
+    customerLocation: ""
   });
+  const idempotencyKeyRef = useRef(
+    typeof crypto !== "undefined" ? crypto.randomUUID() : `checkout-${Date.now()}`
+  );
 
   if (items.length === 0 && !success) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-6">
-        <h1 className="font-serif text-4xl text-ink mb-3">Your cart is empty</h1>
-        <p className="text-muted mb-8">Add some items to your cart before checking out.</p>
-        <Link href="/shop" className="btn-primary">
-          Continue Shopping
+      <div className="flex min-h-[65vh] flex-col items-center justify-center px-6 text-center">
+        <h1 className="font-serif text-4xl text-ink">Your cart is empty</h1>
+        <p className="mt-3 max-w-md text-muted">
+          Add a few pieces first, then come back here to confirm delivery and payment.
+        </p>
+        <Link href="/shop" className="btn-primary mt-8 bg-[#111111] text-white hover:bg-[#1d1d1d]">
+          Shop Now
         </Link>
       </div>
     );
@@ -52,58 +45,60 @@ export function CheckoutPageClient() {
 
   if (success) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-6 py-12">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 mb-6">
+      <div className="mx-auto flex min-h-[65vh] max-w-2xl flex-col items-center justify-center px-6 py-14 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
           <Check className="h-10 w-10 text-green-600" />
         </div>
-        <h1 className="font-serif text-4xl text-ink mb-3">Order Placed!</h1>
-        <p className="text-muted mb-2">Thank you for your order.</p>
-        {orderId && (
-          <p className="text-sm text-muted mb-8">Order ID: {orderId.slice(0, 8)}...</p>
-        )}
-        {formData.paymentMethod === "mpesa" && (
-          <p className="text-sm text-muted mb-6 max-w-md">
-            We&apos;ve sent an M-Pesa STK prompt to {formData.customerPhone}.
-            Please complete the payment to confirm your order.
-          </p>
-        )}
-        {formData.paymentMethod === "cash_on_delivery" && (
-          <p className="text-sm text-muted mb-6 max-w-md">
-            Your order will be delivered to: {formData.customerLocation}.
-            Payment will be collected upon delivery.
-          </p>
-        )}
-        <Link href="/shop" className="btn-primary">
+        <h1 className="mt-6 font-serif text-4xl text-ink">Order confirmed</h1>
+        <p className="mt-3 text-muted">
+          We’ve saved your order{orderId ? ` (#${orderId.slice(0, 8).toUpperCase()})` : ""}.
+        </p>
+        <p className="mt-2 max-w-md text-sm leading-7 text-muted">
+          {paymentMethod === "WHATSAPP"
+            ? "Use the WhatsApp button below to send your saved order and we’ll confirm the next steps with you."
+            : "We’ll contact you using the phone number you provided and collect payment on delivery."}
+        </p>
+        {whatsappUrl ? (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary mt-8 bg-[#111111] text-white hover:bg-[#1d1d1d]"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Send WhatsApp Confirmation
+          </a>
+        ) : null}
+        <Link href="/shop" className="btn-outline mt-4">
           Continue Shopping
         </Link>
       </div>
     );
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event?: React.FormEvent) {
+    event?.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKeyRef.current
+        },
         body: JSON.stringify({
           items: items.map(item => ({
             productId: item.product.id,
-            quantity: item.quantity,
-            unitPrice: item.product.price
+            quantity: item.quantity
           })),
           customerName: formData.customerName,
-          customerEmail: formData.customerEmail || null,
-          customerPhone: formData.customerPhone.replace(/\D/g, ""),
+          customerEmail: null,
+          customerPhone: formData.customerPhone,
           customerLocation: formData.customerLocation,
-          notes: formData.notes || null,
-          paymentMethod: formData.paymentMethod,
-          subtotal: total,
-          shippingFee: 0,
-          totalAmount: total
+          notes: null,
+          paymentMethod
         })
       });
 
@@ -115,226 +110,231 @@ export function CheckoutPageClient() {
 
       clearCart();
       setOrderId(data.orderId);
+      setWhatsappUrl(data.whatsappUrl ?? null);
       setSuccess(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to place order");
+
+      if (data.whatsappUrl && paymentMethod === "WHATSAPP") {
+        window.location.href = data.whatsappUrl;
+      }
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Failed to place order"
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
-      <Link href="/cart" className="inline-flex items-center text-sm text-muted hover:text-bronze mb-8">
+    <div className="mx-auto max-w-7xl px-5 py-8 md:px-6 lg:px-10 lg:py-12">
+      <Link href="/cart" className="inline-flex items-center text-sm text-muted hover:text-bronze">
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Cart
+        Back to cart
       </Link>
 
-      <h1 className="heading-display">Checkout</h1>
-      <p className="text-muted mt-2 mb-10">{itemCount} {itemCount === 1 ? "item" : "items"} to order</p>
+      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-6">
+          <div>
+            <p className="section-label">Checkout</p>
+            <h1 className="mt-3 font-serif text-4xl text-ink sm:text-5xl">Simple, fast order confirmation</h1>
+            <p className="mt-3 max-w-xl text-base leading-7 text-muted">
+              Just enter your name, phone, and location. We’ll handle the rest through WhatsApp or cash on delivery.
+            </p>
+          </div>
 
-      <div className="grid gap-12 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="rounded-[2rem] border border-white/60 bg-white/70 p-8 shadow-luxe backdrop-blur">
-              <h2 className="font-serif text-2xl text-ink mb-6">Contact Information</h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border/60 bg-white/85 p-4 shadow-card">
+              <p className="text-sm font-semibold text-ink">Pay on Delivery Available</p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-white/85 p-4 shadow-card">
+              <p className="text-sm font-semibold text-ink">Fast Delivery in Nairobi</p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-white/85 p-4 shadow-card">
+              <p className="text-sm font-semibold text-ink">Order via WhatsApp</p>
+            </div>
+          </div>
 
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-2">
-                    <User className="inline h-4 w-4 mr-1" />
-                    Full Name *
-                  </label>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <section className="rounded-[1.75rem] border border-border/60 bg-white/88 p-6 shadow-card">
+              <h2 className="font-serif text-2xl text-ink">Delivery details</h2>
+              <div className="mt-5 space-y-4">
+                <label className="block">
+                  <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
+                    <User className="h-4 w-4 text-[#c49d52]" />
+                    Name
+                  </span>
                   <Input
+                    required
                     placeholder="Your full name"
                     value={formData.customerName}
-                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                    required
-                    className="input-luxe"
+                    onChange={event =>
+                      setFormData(current => ({ ...current, customerName: event.target.value }))
+                    }
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-2">
-                    <Mail className="inline h-4 w-4 mr-1" />
-                    Email (optional)
-                  </label>
-                  <Input
-                    type="email"
-                    placeholder="your@email.com"
-                    value={formData.customerEmail}
-                    onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                    className="input-luxe"
-                  />
-                  <p className="text-xs text-muted mt-1">For order updates and receipt</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-2">
-                    <Phone className="inline h-4 w-4 mr-1" />
-                    Phone Number *
-                  </label>
-                  <Input
-                    placeholder="0712 345 678"
-                    value={formData.customerPhone}
-                    onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                    required
-                    className="input-luxe"
-                  />
-                  <p className="text-xs text-muted mt-1">M-Pesa payments will be sent to this number</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-2">
-                    <MapPin className="inline h-4 w-4 mr-1" />
-                    Delivery Location *
-                  </label>
-                  <Input
-                    placeholder="e.g., Kilimani, Nairobi or Mombasa Road"
-                    value={formData.customerLocation}
-                    onChange={(e) => setFormData({ ...formData, customerLocation: e.target.value })}
-                    required
-                    className="input-luxe"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-2">
-                    <StickyNote className="inline h-4 w-4 mr-1" />
-                    Order Notes (optional)
-                  </label>
-                  <Textarea
-                    placeholder="Any special instructions for your order..."
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    rows={3}
-                    className="input-luxe resize-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[2rem] border border-white/60 bg-white/70 p-8 shadow-luxe backdrop-blur">
-              <h2 className="font-serif text-2xl text-ink mb-6">Payment Method</h2>
-
-              <div className="space-y-4">
-                <label className={`flex items-center justify-between p-5 rounded-2xl border cursor-pointer transition ${
-                  formData.paymentMethod === "mpesa"
-                    ? "border-champagne bg-champagne/10"
-                    : "border-border/40 hover:border-bronze"
-                }`}>
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="mpesa"
-                      checked={formData.paymentMethod === "mpesa"}
-                      onChange={() => setFormData({ ...formData, paymentMethod: "mpesa" })}
-                      className="h-5 w-5 text-bronze"
-                    />
-                    <div>
-                      <p className="font-semibold text-ink">M-Pesa</p>
-                      <p className="text-sm text-muted">Pay instantly via STK push</p>
-                    </div>
-                  </div>
-                  <span className="text-lg font-bold text-green-600">KES</span>
                 </label>
 
-                <label className={`flex items-center justify-between p-5 rounded-2xl border cursor-pointer transition ${
-                  formData.paymentMethod === "cash_on_delivery"
-                    ? "border-champagne bg-champagne/10"
-                    : "border-border/40 hover:border-bronze"
-                }`}>
-                  <div className="flex items-center gap-4">
+                <label className="block">
+                  <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
+                    <Phone className="h-4 w-4 text-[#c49d52]" />
+                    Phone
+                  </span>
+                  <Input
+                    required
+                    placeholder="0712 345 678"
+                    value={formData.customerPhone}
+                    onChange={event =>
+                      setFormData(current => ({ ...current, customerPhone: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
+                    <MapPin className="h-4 w-4 text-[#c49d52]" />
+                    Location
+                  </span>
+                  <Input
+                    required
+                    placeholder="Hostel, estate, campus gate, or pickup point"
+                    value={formData.customerLocation}
+                    onChange={event =>
+                      setFormData(current => ({ ...current, customerLocation: event.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="rounded-[1.75rem] border border-border/60 bg-white/88 p-6 shadow-card">
+              <h2 className="font-serif text-2xl text-ink">How would you like to order?</h2>
+              <div className="mt-5 space-y-3">
+                <label
+                  className={`block rounded-[1.25rem] border p-4 transition ${
+                    paymentMethod === "CASH_ON_DELIVERY"
+                      ? "border-[#c49d52] bg-[#fff8ed]"
+                      : "border-border/60 bg-white"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="cash_on_delivery"
-                      checked={formData.paymentMethod === "cash_on_delivery"}
-                      onChange={() => setFormData({ ...formData, paymentMethod: "cash_on_delivery" })}
-                      className="h-5 w-5 text-bronze"
+                      checked={paymentMethod === "CASH_ON_DELIVERY"}
+                      onChange={() => setPaymentMethod("CASH_ON_DELIVERY")}
+                      className="mt-1"
                     />
                     <div>
                       <p className="font-semibold text-ink">Cash on Delivery</p>
-                      <p className="text-sm text-muted">Pay when you receive your order</p>
+                      <p className="mt-1 text-sm text-muted">We confirm the order and you pay when it arrives.</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label
+                  className={`block rounded-[1.25rem] border p-4 transition ${
+                    paymentMethod === "WHATSAPP"
+                      ? "border-[#c49d52] bg-[#fff8ed]"
+                      : "border-border/60 bg-white"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      checked={paymentMethod === "WHATSAPP"}
+                      onChange={() => setPaymentMethod("WHATSAPP")}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-semibold text-ink">WhatsApp Order</p>
+                      <p className="mt-1 text-sm text-muted">We save the order and open WhatsApp so you can confirm it instantly.</p>
                     </div>
                   </div>
                 </label>
               </div>
+            </section>
 
-              {formData.paymentMethod === "mpesa" && (
-                <p className="text-sm text-muted mt-4">
-                  You&apos;ll receive an M-Pesa STK push prompt on your phone to complete payment.
-                </p>
-              )}
-            </div>
-
-            {error && (
-              <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700">
+            {error ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
-            )}
+            ) : null}
 
-            <Button type="submit" className="w-full py-4 text-base" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                `Place Order - ${formatCurrency(total)}`
-              )}
-            </Button>
+            <div className="hidden lg:block">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="min-h-[56px] w-full bg-[#111111] text-white hover:bg-[#1c1c1c]"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Placing order...
+                  </>
+                ) : (
+                  "Place Order"
+                )}
+              </Button>
+            </div>
           </form>
         </div>
 
-        <div className="lg:col-span-1">
-          <div className="sticky top-24 rounded-[2rem] border border-white/60 bg-white/70 p-8 shadow-luxe backdrop-blur">
-            <h2 className="font-serif text-2xl text-ink mb-6">Order Summary</h2>
-
-            <div className="space-y-4 max-h-64 overflow-y-auto">
-              {items.map((item) => {
-                const categorySlug = item.product.category?.toLowerCase().replace(/\s+/g, "-") || "jewelry";
-                return (
-                  <div key={item.product.id} className="flex gap-4">
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
-                      <Image
-                        src={item.product.images[0] || "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=100&q=80"}
-                        alt={item.product.title || "Product"}
-                        fill
-                        sizes="64px"
-                        className="object-cover"
-                      />
-                      <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-bronze text-white text-xs flex items-center justify-center">
-                        {item.quantity}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-ink truncate">
-                         {item.product.title}
-                      </p>
-                      <p className="text-xs text-muted">{item.quantity} x {formatCurrency(item.product.price)}</p>
-                    </div>
+        <aside className="lg:sticky lg:top-24 lg:h-fit">
+          <div className="rounded-[1.75rem] border border-border/60 bg-white/88 p-6 shadow-card">
+            <h2 className="font-serif text-2xl text-ink">Order summary</h2>
+            <div className="mt-5 space-y-3">
+              {items.map(item => (
+                <div key={item.product.id} className="flex items-start justify-between gap-4 text-sm">
+                  <div>
+                    <p className="font-medium text-ink">{item.product.title}</p>
+                    <p className="text-muted">{item.quantity} x {formatCurrency(item.product.price)}</p>
                   </div>
-                );
-              })}
+                  <p className="font-medium text-ink">
+                    {formatCurrency(Number(item.product.price) * item.quantity)}
+                  </p>
+                </div>
+              ))}
             </div>
 
-            <div className="border-t border-border mt-6 pt-6 space-y-3 text-sm">
-              <div className="flex justify-between text-muted">
-                <span>Subtotal</span>
-                <span>{formatCurrency(total)}</span>
+            <div className="mt-5 border-t border-border/60 pt-4">
+              <div className="flex items-center justify-between text-sm text-muted">
+                <span>Items</span>
+                <span>{itemCount}</span>
               </div>
-              <div className="flex justify-between text-muted">
+              <div className="mt-2 flex items-center justify-between text-sm text-muted">
                 <span>Delivery</span>
-                <span>Free</span>
+                <span>Free in Nairobi</span>
               </div>
-              <div className="border-t border-border pt-3 flex justify-between text-lg font-semibold text-ink">
+              <div className="mt-4 flex items-center justify-between text-lg font-semibold text-ink">
                 <span>Total</span>
                 <span>{formatCurrency(total)}</span>
               </div>
             </div>
           </div>
+        </aside>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted">Total</p>
+            <p className="text-lg font-semibold text-ink">{formatCurrency(total)}</p>
+          </div>
+          <Button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={loading}
+            className="min-h-[52px] min-w-[160px] bg-[#111111] text-white hover:bg-[#1c1c1c]"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Placing...
+              </>
+            ) : (
+              "Place Order"
+            )}
+          </Button>
         </div>
       </div>
     </div>

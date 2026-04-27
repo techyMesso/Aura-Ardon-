@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-
 export default function AdminError({
   error,
   reset,
@@ -9,11 +7,6 @@ export default function AdminError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    // Log error to console for debugging
-    console.error('Admin Error:', error);
-  }, [error]);
-
   return (
     <div className="flex min-h-[calc(100vh-64px)] items-center justify-center px-6 py-12">
       <div className="w-full max-w-xl text-center space-y-6">

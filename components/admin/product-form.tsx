@@ -6,11 +6,20 @@ import { ImageDropzone } from "@/components/admin/image-dropzone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatCurrency } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
 interface ProductFormProps {
   initialProduct?: Product | null;
+}
+
+// Reusable label for consistent mobile-friendly form labels
+function FormLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label className="block text-sm font-medium text-ink mb-1.5">
+      {children}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+  );
 }
 
 export function ProductForm({ initialProduct }: ProductFormProps) {
@@ -48,17 +57,17 @@ export function ProductForm({ initialProduct }: ProductFormProps) {
     setSaving(true);
     setError(null);
 
-     const payload = {
-       title,
-       description,
-       price: Number(price),
-       stock_quantity: Number(stockQuantity),
-       category,
-       material: material || null,
-       images,
-       active,
-       is_featured: isFeatured
-     };
+    const payload = {
+      title,
+      description,
+      price: Number(price),
+      stock_quantity: Number(stockQuantity),
+      category,
+      material: material || null,
+      images,
+      active,
+      is_featured: isFeatured
+    };
 
     try {
       const res = isEdit
@@ -84,86 +93,166 @@ export function ProductForm({ initialProduct }: ProductFormProps) {
     }
   }
 
+  // Mobile-friendly toggle switch
+  function Toggle({
+    checked,
+    onChange,
+    label
+  }: {
+    checked: boolean;
+    onChange: (v: boolean) => void;
+    label: string;
+  }) {
+    return (
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative flex items-center gap-3 p-3 rounded-xl border-2 transition-all min-h-[48px] ${
+          checked
+            ? "border-green-500 bg-green-50"
+            : "border-gray-200 bg-gray-50"
+        }`}
+      >
+        <span
+          className={`flex-shrink-0 w-11 h-6 rounded-full transition-colors ${
+            checked ? "bg-green-500" : "bg-gray-300"
+          }`}
+        >
+          <span
+            className={`block w-5 h-5 mt-0.5 rounded-full bg-white shadow transform transition-transform ${
+              checked ? "translate-x-5" : "translate-x-0.5"
+            }`}
+          />
+        </span>
+        <span className="text-sm font-medium text-ink">{label}</span>
+      </button>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <Input
-        placeholder="Signature gold cuff"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        required
-      />
-      <Textarea
-        placeholder="Describe craftsmanship, gemstone profile, and fit."
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        required
-      />
-      <div className="grid gap-4 sm:grid-cols-2">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Title */}
+      <div>
+        <FormLabel required>Product Title</FormLabel>
         <Input
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="Price in KES"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
+          placeholder="Signature gold cuff"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           required
-        />
-        <Input
-          type="number"
-          min="0"
-          step="1"
-          placeholder="Stock quantity"
-          value={stockQuantity}
-          onChange={(e) => setStockQuantity(e.target.value)}
-          required
+          className="min-h-[48px] text-base"
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Input
-          placeholder="Category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+
+      {/* Description */}
+      <div>
+        <FormLabel required>Description</FormLabel>
+        <Textarea
+          placeholder="Describe craftsmanship, gemstone profile, fit, and any care instructions..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           required
-        />
-        <Input
-          placeholder="Material (optional)"
-          value={material}
-          onChange={(e) => setMaterial(e.target.value)}
+          rows={4}
+          className="min-h-[120px] text-base resize-none"
         />
       </div>
-      <ImageDropzone value={images} onChange={(imgs) => setImages(imgs)} />
-      <div className="flex flex-wrap gap-6">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="active"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300"
+
+      {/* Price & Stock - side by side on larger screens, stacked on mobile */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <FormLabel required>Price (KES)</FormLabel>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="2500"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            required
+            className="min-h-[48px] text-base"
           />
-          <label htmlFor="active" className="text-sm text-ink">
-            Product active (visible in storefront)
-          </label>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="isFeatured"
-            checked={isFeatured}
-            onChange={(e) => setIsFeatured(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300"
+        <div>
+          <FormLabel required>Stock Qty</FormLabel>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            placeholder="10"
+            value={stockQuantity}
+            onChange={(e) => setStockQuantity(e.target.value)}
+            required
+            className="min-h-[48px] text-base"
           />
-          <label htmlFor="isFeatured" className="text-sm text-ink">
-            Featured product (highlight on homepage)
-          </label>
         </div>
       </div>
-      {error && <p className="text-sm text-red-700">{error}</p>}
-      <div className="flex gap-3">
-        <Button type="submit" disabled={saving}>
-          {saving ? "Saving..." : isEdit ? "Update product" : "Create product"}
+
+      {/* Category & Material */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <FormLabel required>Category</FormLabel>
+          <Input
+            placeholder="Jewelry"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+            className="min-h-[48px] text-base"
+          />
+        </div>
+        <div>
+          <FormLabel>Material</FormLabel>
+          <Input
+            placeholder="Stainless Steel"
+            value={material}
+            onChange={(e) => setMaterial(e.target.value)}
+            className="min-h-[48px] text-base"
+          />
+        </div>
+      </div>
+
+      {/* Images */}
+      <div>
+        <FormLabel>Product Images</FormLabel>
+        <ImageDropzone value={images} onChange={(imgs) => setImages(imgs)} />
+      </div>
+
+      {/* Status Toggles - big touch targets for mobile */}
+      <div className="space-y-3">
+        <Toggle
+          checked={active}
+          onChange={setActive}
+          label="Active (visible in shop)"
+        />
+        <Toggle
+          checked={isFeatured}
+          onChange={setIsFeatured}
+          label="Featured (show on homepage)"
+        />
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Actions - sticky on mobile for easy thumb access */}
+      <div className="flex flex-col sm:flex-row gap-3 pt-4 pb-8 sm:pb-0">
+        <Button
+          type="submit"
+          disabled={saving}
+          className="min-h-[48px] text-base"
+        >
+          {saving ? "Saving..." : isEdit ? "Update Product" : "Create Product"}
         </Button>
-        <Button type="button" variant="ghost" onClick={() => router.back()}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => router.back()}
+          className="min-h-[48px] text-base"
+        >
           Cancel
         </Button>
       </div>

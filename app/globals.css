@@ -14,7 +14,7 @@
   /* Brand palette as CSS vars (useful for inline styles) */
   --color-champagne: #c49d52;
   --color-bronze:    #8b5e34;
-  --color-ink:       #2e241b;
+  --color-ink:       #16120f;
   --color-muted:     #6f6256;
   --color-cream:     #fdf8f0;
   --color-sand:      #e6d7c3;
@@ -33,11 +33,10 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(ellipse 80% 55% at 5%  0%,  rgba(196, 157, 82, 0.13) 0%, transparent 58%),
-    radial-gradient(ellipse 60% 45% at 95% 5%,  rgba(139, 94, 52, 0.09)  0%, transparent 52%),
-    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(196, 157, 82, 0.06) 0%, transparent 60%),
-    linear-gradient(180deg, #fbf6ee 0%, #f3ebdf 55%, #ede4d6 100%);
-  color: #1f1710;
+    radial-gradient(ellipse 80% 55% at 5%  0%,  rgba(196, 157, 82, 0.12) 0%, transparent 58%),
+    radial-gradient(ellipse 60% 45% at 95% 5%,  rgba(22, 18, 15, 0.05) 0%, transparent 52%),
+    linear-gradient(180deg, #f8f2e8 0%, #f3eadb 50%, #efe5d5 100%);
+  color: #16120f;
 }
 
 /* ─── Text Selection ────────────────────────────────────── */
@@ -95,10 +94,10 @@ body {
 
   /* Navbar transparency → blur transition */
   .nav-blur {
-    background: rgba(251, 246, 238, 0.90);
+    background: rgba(17, 17, 17, 0.90);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    border-bottom: 1px solid rgba(216, 200, 180, 0.45);
+    border-bottom: 1px solid rgba(196, 157, 82, 0.12);
   }
 
   /* Luxe border */
@@ -169,7 +168,7 @@ body {
 
   /* Display heading */
   .heading-display {
-    @apply font-serif text-5xl leading-[1.06] text-ink md:text-6xl;
+    @apply font-serif text-5xl leading-[1.02] text-ink md:text-6xl;
   }
 
   /* Sub-heading */

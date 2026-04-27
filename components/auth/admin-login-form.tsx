@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 export function AdminLoginForm() {
   const [email, setEmail] = useState("");
@@ -19,15 +18,19 @@ export function AdminLoginForm() {
     setMessage(null);
 
     try {
-      const supabase = createBrowserSupabaseClient();
       const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: redirectTo }
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          redirectTo
+        })
       });
+      const payload = (await response.json()) as { error?: string };
 
-      if (authError) {
-        throw authError;
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Unable to start the sign-in flow.");
       }
 
       setMessage("Magic link sent. Use the email that matches ADMIN_EMAIL.");

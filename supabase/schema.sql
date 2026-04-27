@@ -7,13 +7,15 @@
 create extension if not exists "pgcrypto";
 
 -- ─── ENUM: order_status ──────────────────────────────────
--- NEW VALUES: new, confirmed, delivered, cancelled
--- Legacy: pending, processing, completed, failed, cancelled will be migrated
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'order_status') then
     create type public.order_status as enum (
-      'new', 'confirmed', 'delivered', 'cancelled'
+      'PENDING_CONFIRMATION',
+      'CONFIRMED',
+      'OUT_FOR_DELIVERY',
+      'DELIVERED',
+      'CANCELLED'
     );
   end if;
 end
@@ -24,20 +26,21 @@ do $$
 begin
   if not exists (select 1 from pg_type where typname = 'payment_method') then
     create type public.payment_method as enum (
-      'mpesa', 'cash_on_delivery'
+      'CASH_ON_DELIVERY', 'WHATSAPP'
     );
   end if;
 end
 $$;
 
--- ─── HELPER: is_admin() ──────────────────────────────────
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-as $$
-  select lower(coalesce(auth.jwt() ->> 'email', '')) =
-    lower(coalesce(current_setting('app.settings.admin_email', true), ''));
+-- ─── ENUM: payment_status ────────────────────────────────
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'payment_status') then
+    create type public.payment_status as enum (
+      'PENDING', 'PAID'
+    );
+  end if;
+end
 $$;
 
 -- ─── TABLE: categories ───────────────────────────────────
@@ -81,9 +84,6 @@ create index if not exists products_featured_idx    on public.products (is_featu
 create index if not exists products_active_idx      on public.products (active) where active = true;
 
 -- ─── TABLE: orders ───────────────────────────────────────
--- NEW FIELDS: customer_email, notes, payment_status, order_status, subtotal, shipping_fee, total
--- RENAME: total_amount → total, status → order_status
--- Keep: customer_name, customer_phone, customer_location, payment_method, mpesa_receipt_number, checkout_request_id
 create table if not exists public.orders (
   id                    uuid              primary key default gen_random_uuid(),
   customer_name         text              not null,
@@ -91,14 +91,13 @@ create table if not exists public.orders (
   customer_phone        text              not null,
   customer_location     text              not null,
   notes                 text,                            -- NEW
-  payment_method        public.payment_method not null default 'mpesa',
-  payment_status        text              default 'pending', -- NEW
-  order_status          public.order_status not null default 'new', -- NEW enum values
+  idempotency_key       text              not null unique,
+  payment_method        public.payment_method not null default 'CASH_ON_DELIVERY',
+  payment_status        public.payment_status not null default 'PENDING',
+  order_status          public.order_status not null default 'PENDING_CONFIRMATION',
   subtotal              numeric(12,2)     default 0,    -- NEW
   shipping_fee          numeric(12,2)     default 0,    -- NEW
-  total                 numeric(12,2)     not null,   -- RENAMED from total_amount
-  mpesa_receipt_number  text,                            -- EXISTING
-  checkout_request_id   text              unique,
+  total                 numeric(12,2)     not null,
   created_at            timestamptz       not null default timezone('utc', now())
 );
 
@@ -120,72 +119,305 @@ create table if not exists public.order_items (
 
 create index if not exists order_items_order_id_idx on public.order_items (order_id);
 
--- ─── TABLE: admin_users ──────────────────────────────────
-create table if not exists public.admin_users (
-  id        uuid        primary key default gen_random_uuid(),
-  email     text        not null unique,
-  role      text        default 'admin',
-  active    boolean     not null default true,
-  created_at timestamptz not null default timezone('utc', now())
-);
+-- ─── CHECKOUT TRANSACTION ────────────────────────────────
+-- This function owns the full checkout write path so stock reservation,
+-- order creation, and order item insertion either all succeed or all fail.
+create or replace function public.create_checkout_order(
+  checkout_customer_name text,
+  checkout_customer_email text,
+  checkout_customer_phone text,
+  checkout_customer_location text,
+  checkout_notes text,
+  checkout_payment_method public.payment_method,
+  checkout_idempotency_key text,
+  checkout_items jsonb
+)
+returns table (
+  order_id uuid,
+  subtotal numeric,
+  shipping_fee numeric,
+  total numeric,
+  payment_method public.payment_method,
+  payment_status public.payment_status,
+  order_status public.order_status,
+  replayed boolean,
+  item_summary jsonb
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inserted_order public.orders%rowtype;
+  existing_order public.orders%rowtype;
+  computed_subtotal numeric(12, 2);
+  computed_shipping_fee numeric(12, 2) := 0;
+  requested_product_count integer;
+  locked_product_count integer;
+  locked_products jsonb;
+  computed_item_summary jsonb;
+begin
+  if checkout_idempotency_key is null or btrim(checkout_idempotency_key) = '' then
+    raise exception 'Missing Idempotency-Key.';
+  end if;
+
+  if checkout_items is null or jsonb_typeof(checkout_items) <> 'array' or jsonb_array_length(checkout_items) = 0 then
+    raise exception 'Your cart is empty.';
+  end if;
+
+  if exists (
+    with requested_items as (
+      select
+        (item->>'product_id')::uuid as product_id,
+        (item->>'quantity')::integer as quantity
+      from jsonb_array_elements(checkout_items) as item
+    )
+    select 1
+    from requested_items
+    where product_id is null or quantity is null or quantity <= 0
+  ) then
+    raise exception 'Invalid quantity in cart.';
+  end if;
+
+  -- Serialize all attempts for the same logical checkout so retries, double-clicks,
+  -- and mobile reconnects cannot create more than one order.
+  perform pg_advisory_xact_lock(hashtextextended(checkout_idempotency_key, 0));
+
+  select *
+  into existing_order
+  from public.orders
+  where idempotency_key = checkout_idempotency_key;
+
+  if found then
+    select coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'title', oi.product_title,
+          'quantity', oi.quantity
+        )
+        order by oi.created_at asc
+      ),
+      '[]'::jsonb
+    )
+    into computed_item_summary
+    from public.order_items oi
+    where oi.order_id = existing_order.id;
+
+    return query
+    select
+      existing_order.id,
+      existing_order.subtotal,
+      existing_order.shipping_fee,
+      existing_order.total,
+      existing_order.payment_method,
+      existing_order.payment_status,
+      existing_order.order_status,
+      true,
+      computed_item_summary;
+    return;
+  end if;
+
+  -- Lock all requested product rows up front so concurrent checkouts cannot oversell.
+  -- This single fetch snapshot is then reused for validation, pricing, item inserts,
+  -- and stock updates inside the same transaction.
+  with requested_items as (
+    select
+      (item->>'product_id')::uuid as product_id,
+      (item->>'quantity')::integer as quantity
+    from jsonb_array_elements(checkout_items) as item
+  ),
+  grouped_items as (
+    select product_id, sum(quantity)::integer as quantity
+    from requested_items
+    group by product_id
+  ),
+  locked_rows as (
+    select
+      p.id,
+      p.title,
+      p.price,
+      p.stock_quantity,
+      p.active,
+      gi.quantity
+    from public.products p
+    join grouped_items gi on gi.product_id = p.id
+    for update
+  )
+  select
+    count(*)::integer,
+    count(lr.id)::integer,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'product_id', lr.id,
+          'title', lr.title,
+          'price', lr.price,
+          'stock_quantity', lr.stock_quantity,
+          'active', lr.active,
+          'quantity', lr.quantity
+        )
+      ) filter (where lr.id is not null),
+      '[]'::jsonb
+    )
+  into requested_product_count, locked_product_count, locked_products
+  from grouped_items gi
+  left join locked_rows lr on lr.id = gi.product_id;
+
+  if locked_product_count <> requested_product_count then
+    raise exception 'One or more items are not available.';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_to_recordset(locked_products) as lp(
+      product_id uuid,
+      title text,
+      price numeric,
+      stock_quantity integer,
+      active boolean,
+      quantity integer
+    )
+    where lp.active = false
+       or lp.stock_quantity < lp.quantity
+  ) then
+    raise exception 'One or more items are not available in the requested quantity.';
+  end if;
+
+  select coalesce(sum(lp.price * lp.quantity), 0)::numeric(12, 2)
+  into computed_subtotal
+  from jsonb_to_recordset(locked_products) as lp(
+    product_id uuid,
+    title text,
+    price numeric,
+    stock_quantity integer,
+    active boolean,
+    quantity integer
+  );
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'title', lp.title,
+        'quantity', lp.quantity
+      )
+      order by lp.title asc
+    ),
+    '[]'::jsonb
+  )
+  into computed_item_summary
+  from jsonb_to_recordset(locked_products) as lp(
+    product_id uuid,
+    title text,
+    price numeric,
+    stock_quantity integer,
+    active boolean,
+    quantity integer
+  );
+
+  insert into public.orders (
+    customer_name,
+    customer_email,
+    customer_phone,
+    customer_location,
+    notes,
+    idempotency_key,
+    payment_method,
+    payment_status,
+    order_status,
+    subtotal,
+    shipping_fee,
+    total
+  )
+  values (
+    checkout_customer_name,
+    checkout_customer_email,
+    checkout_customer_phone,
+    checkout_customer_location,
+    checkout_notes,
+    checkout_idempotency_key,
+    checkout_payment_method,
+    'PENDING',
+    'PENDING_CONFIRMATION',
+    computed_subtotal,
+    computed_shipping_fee,
+    computed_subtotal + computed_shipping_fee
+  )
+  returning *
+  into inserted_order;
+
+  insert into public.order_items (
+    order_id,
+    product_id,
+    product_title,
+    quantity,
+    unit_price
+  )
+  select
+    inserted_order.id,
+    lp.product_id,
+    lp.title,
+    lp.quantity,
+    lp.price
+  from jsonb_to_recordset(locked_products) as lp(
+    product_id uuid,
+    title text,
+    price numeric,
+    stock_quantity integer,
+    active boolean,
+    quantity integer
+  );
+
+  update public.products p
+  set stock_quantity = p.stock_quantity - lp.quantity
+  from jsonb_to_recordset(locked_products) as lp(
+    product_id uuid,
+    title text,
+    price numeric,
+    stock_quantity integer,
+    active boolean,
+    quantity integer
+  )
+  where p.id = lp.product_id;
+
+  return query
+  select
+    inserted_order.id,
+    inserted_order.subtotal,
+    inserted_order.shipping_fee,
+    inserted_order.total,
+    inserted_order.payment_method,
+    inserted_order.payment_status,
+    inserted_order.order_status,
+    false,
+    computed_item_summary;
+end;
+$$;
 
 -- ─── ROW LEVEL SECURITY ──────────────────────────────────
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
-alter table public.admin_users enable row level security;
 
 -- CATEGORIES
 drop policy if exists "Public can view categories" on public.categories;
 create policy "Public can view categories"
   on public.categories for select using (true);
 
-drop policy if exists "Admins can manage categories" on public.categories;
-create policy "Admins can manage categories"
-  on public.categories for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
-
 -- PRODUCTS: Public sees only active products
 drop policy if exists "Public can view active products" on public.products;
 create policy "Public can view active products"
   on public.products for select using (active = true);
-
-drop policy if exists "Admins can manage products" on public.products;
-create policy "Admins can manage products"
-  on public.products for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
 
 -- ORDERS
 drop policy if exists "Anyone can create orders" on public.orders;
 create policy "Anyone can create orders"
   on public.orders for insert with check (true);
 
-drop policy if exists "Admins can view orders" on public.orders;
-create policy "Admins can view orders"
-  on public.orders for select to authenticated
-  using (public.is_admin());
-
-drop policy if exists "Admins can update orders" on public.orders;
-create policy "Admins can update orders"
-  on public.orders for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
-
 -- ORDER ITEMS
 drop policy if exists "Anyone can insert order items" on public.order_items;
 create policy "Anyone can insert order items"
   on public.order_items for insert with check (true);
-
-drop policy if exists "Admins can view order items" on public.order_items;
-create policy "Admins can view order items"
-  on public.order_items for select to authenticated
-  using (public.is_admin());
-
--- ADMIN_USERS
-drop policy if exists "Admins can view admin_users" on public.admin_users;
-create policy "Admins can view admin_users"
-  on public.admin_users for select to authenticated
-  using (public.is_admin());
 
 -- ─── STORAGE ──────────────────────────────────────────────
 insert into storage.buckets (id, name, public)
@@ -196,25 +428,6 @@ drop policy if exists "Public can read product images" on storage.objects;
 create policy "Public can read product images"
   on storage.objects for select
   using (bucket_id = 'product-images');
-
-drop policy if exists "Admins can upload product images" on storage.objects;
-create policy "Admins can upload product images"
-  on storage.objects for insert to authenticated
-  with check (bucket_id = 'product-images' and public.is_admin());
-
-drop policy if exists "Admins can update product images" on storage.objects;
-create policy "Admins can update product images"
-  on storage.objects for update to authenticated
-  using (bucket_id = 'product-images' and public.is_admin())
-  with check (bucket_id = 'product-images' and public.is_admin());
-
-drop policy if exists "Admins can delete product images" on storage.objects;
-create policy "Admins can delete product images"
-  on storage.objects for delete to authenticated
-  using (bucket_id = 'product-images' and public.is_admin());
-
--- ─── DATABASE SETTINGS ───────────────────────────────────
-alter database postgres set "app.settings.admin_email" = 'admin@example.com';
 
 -- ─── SEED: default categories ────────────────────────────
 insert into public.categories (name, slug, description, display_order) values

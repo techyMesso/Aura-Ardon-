@@ -89,13 +89,14 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
 
   async function deleteCategory(id: string) {
     if (!confirm("Delete this category?")) return;
+    setError(null);
     try {
       const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
       setCategories((c) => c.filter((cat) => cat.id !== id));
       if (editingId === id) resetForm();
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : "Unable to delete category.");
     }
   }
 

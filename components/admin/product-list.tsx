@@ -16,6 +16,7 @@ interface ProductListProps {
 export function ProductList({ initialProducts }: ProductListProps) {
   const [products, setProducts] = useState(initialProducts);
   const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -26,6 +27,7 @@ export function ProductList({ initialProducts }: ProductListProps) {
 
   async function toggleActive(product: Product) {
     const newActive = !product.active;
+    setError(null);
     try {
       const response = await fetch(`/api/admin/products/${product.id}`, {
         method: "PATCH",
@@ -37,18 +39,19 @@ export function ProductList({ initialProducts }: ProductListProps) {
         current.map((p) => (p.id === product.id ? { ...p, active: newActive } : p))
       );
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : "Unable to update product.");
     }
   }
 
   async function deleteProduct(id: string) {
     if (!confirm("Delete this jewelry piece permanently?")) return;
+    setError(null);
     try {
       const response = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed");
       setProducts((current) => current.filter((p) => p.id !== id));
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : "Unable to delete product.");
     }
   }
 
@@ -71,6 +74,8 @@ export function ProductList({ initialProducts }: ProductListProps) {
           </Button>
         </Link>
       </div>
+
+      {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
       <div className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/70 shadow-luxe backdrop-blur">
         <div className="overflow-x-auto">

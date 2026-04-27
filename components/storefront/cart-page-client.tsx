@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/future/image";
+import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2, ArrowRight, ShoppingBag } from "lucide-react";
 

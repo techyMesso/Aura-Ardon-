@@ -1,5 +1,13 @@
 .next
 node_modules
+.codex
+.env
 .env.local
+.env.production
+.env.*.local
+.env.local.example
 *.log
 coverage
+dist
+build
+*.tsbuildinfo

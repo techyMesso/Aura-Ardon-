@@ -1,152 +1,215 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { logger } from "@/lib/logger";
+import { createOrderStatusToken } from "@/lib/order-status-token";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { normalizeKenyanPhoneNumber, toMoneyString } from "@/lib/utils";
+import { createWhatsAppOrderUrl, normalizeKenyanPhoneNumber } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
 const checkoutItemSchema = z.object({
   productId: z.string().uuid(),
-  quantity: z.number().int().positive(),
-  unitPrice: z.string()
+  quantity: z.number().int().positive()
 });
 
 const checkoutSchema = z.object({
-  items: z.array(checkoutItemSchema),
-  customerName: z.string().min(1),
+  items: z.array(checkoutItemSchema).min(1, "Your cart is empty."),
+  customerName: z.string().trim().min(1, "Customer name is required."),
   customerEmail: z.string().email().optional().nullable(),
-  customerPhone: z.string().min(9),
-  customerLocation: z.string().min(1),
-  notes: z.string().optional().nullable(),
-  paymentMethod: z.enum(["mpesa", "cash_on_delivery"]),
-  subtotal: z.string(),
-  shippingFee: z.string(),
-  totalAmount: z.string()
+  customerPhone: z.string().trim().min(9, "Phone number is required."),
+  customerLocation: z.string().trim().min(1, "Delivery location is required."),
+  notes: z.string().trim().max(1000).optional().nullable(),
+  paymentMethod: z.enum(["CASH_ON_DELIVERY", "WHATSAPP"])
 });
 
+interface CheckoutOrderResult {
+  order_id: string;
+  subtotal: string | number;
+  shipping_fee: string | number;
+  total: string | number;
+  payment_method: "CASH_ON_DELIVERY" | "WHATSAPP";
+  payment_status: "PENDING" | "PAID";
+  order_status:
+    | "PENDING_CONFIRMATION"
+    | "CONFIRMED"
+    | "OUT_FOR_DELIVERY"
+    | "DELIVERED"
+    | "CANCELLED";
+  replayed: boolean;
+  item_summary: Array<{
+    title: string;
+    quantity: number;
+  }>;
+}
+
+function getCheckoutErrorStatus(message: string) {
+  if (message.includes("timed out")) {
+    return 504;
+  }
+
+  if (
+    message.includes("Insufficient stock") ||
+    message.includes("is out of stock")
+  ) {
+    return 409;
+  }
+
+  if (
+    message.includes("not available") ||
+    message.includes("Invalid quantity") ||
+    message.includes("empty")
+  ) {
+    return 400;
+  }
+
+  return 500;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+
+    promise.then(
+      value => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
+const CHECKOUT_DB_TIMEOUT_MS = 5000;
+
 export async function POST(request: Request) {
+  const startedAt = Date.now();
+
   try {
+    const ip = getClientIp(request.headers);
+    const rateLimit = checkRateLimit({
+      key: `checkout:${ip}`,
+      limit: 10,
+      windowMs: 5 * 60 * 1000
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: "Too many checkout attempts. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": `${rateLimit.retryAfterSeconds}`
+          }
+        }
+      );
+    }
+
+    const idempotencyKey = request.headers.get("Idempotency-Key")?.trim();
+
+    if (!idempotencyKey) {
+      return NextResponse.json(
+        { error: "Missing Idempotency-Key header." },
+        { status: 400 }
+      );
+    }
+
     const payload = checkoutSchema.parse(await request.json());
     const supabase = createAdminSupabaseClient();
 
-    // Validate stock for each item
-    for (const item of payload.items) {
-      const { data: product, error: productError } = await supabase
-        .from("products")
-        .select("stock_quantity")
-        .eq("id", item.productId)
-        .single();
+    // The database function performs the entire checkout inside one transaction:
+    // 1. Fetch all requested products in one query and lock them for update
+    // 2. Process availability and pricing from the locked in-memory snapshot
+    // 3. Reuse an existing order when the same Idempotency-Key is retried
+    // 4. Otherwise perform one transactional write path and return the saved item summary
+    const checkoutOperation = Promise.resolve(
+      supabase
+        .rpc("create_checkout_order" as never, {
+          checkout_customer_name: payload.customerName,
+          checkout_customer_email: payload.customerEmail ?? null,
+          checkout_customer_phone: normalizeKenyanPhoneNumber(payload.customerPhone),
+          checkout_customer_location: payload.customerLocation,
+          checkout_notes: payload.notes ?? null,
+          checkout_payment_method: payload.paymentMethod,
+          checkout_idempotency_key: idempotencyKey,
+          checkout_items: payload.items.map(item => ({
+            product_id: item.productId,
+            quantity: item.quantity
+          }))
+        } as never)
+        .single()
+    ) as Promise<{
+      data: CheckoutOrderResult | null;
+      error: { message: string } | null;
+    }>;
 
-      if (productError || !product) {
-        throw new Error(`Product not found`);
-      }
+    const { data, error } = await withTimeout(
+      checkoutOperation,
+      CHECKOUT_DB_TIMEOUT_MS,
+      "Checkout timed out while waiting for the database."
+    );
 
-      const productData = product as { stock_quantity: number };
-      if (productData.stock_quantity < item.quantity) {
-        throw new Error(`Insufficient stock for one or more items`);
-      }
+    if (error || !data) {
+      throw new Error(error?.message ?? "Unable to create order.");
     }
 
-    // Calculate totals
-    const subtotal = Number(payload.subtotal) || 0;
-    const shippingFee = Number(payload.shippingFee) || 0;
-    const total = Number(payload.totalAmount) || subtotal + shippingFee;
+    const order = data as CheckoutOrderResult;
 
-    // Create the order with new field names
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        customer_name: payload.customerName,
-        customer_email: payload.customerEmail || null,
-        customer_phone: normalizeKenyanPhoneNumber(payload.customerPhone),
-        customer_location: payload.customerLocation,
-        notes: payload.notes || null,
-        payment_method: payload.paymentMethod,
-        payment_status: "pending",
-        order_status: "new",
-        subtotal: toMoneyString(subtotal),
-        shipping_fee: toMoneyString(shippingFee),
-        total: toMoneyString(total),
-        checkout_request_id: payload.paymentMethod === "mpesa" 
-          ? `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`
-          : null
-      } as never)
-      .select()
-      .single();
+    const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
-    if (orderError) {
-      throw new Error(orderError.message);
+    if (!whatsappNumber) {
+      throw new Error("Missing required environment variable: NEXT_PUBLIC_WHATSAPP_NUMBER");
     }
 
-    // Create order items
-    const orderData = order as { id: string };
-    const orderItems = payload.items.map(item => ({
-      order_id: orderData.id,
-      product_id: item.productId,
-      product_title: "", // Will fill below
-      quantity: item.quantity,
-      unit_price: item.unitPrice
-    }));
+    const whatsappUrl = createWhatsAppOrderUrl({
+      phoneNumber: whatsappNumber,
+      orderId: order.order_id,
+      customerName: payload.customerName,
+      deliveryLocation: payload.customerLocation,
+      total: order.total,
+      items: order.item_summary
+    });
+    const orderStatusToken = createOrderStatusToken(order.order_id);
 
-    // Fetch product names
-    for (let i = 0; i < payload.items.length; i++) {
-      const item = payload.items[i];
-      const { data: product } = await supabase
-        .from("products")
-        .select("title")
-        .eq("id", item.productId)
-        .single();
+    const successMessage =
+      payload.paymentMethod === "CASH_ON_DELIVERY"
+        ? "Order placed. We'll contact you for delivery. Payment will be collected on delivery."
+        : "Order placed. We'll confirm the details with you on WhatsApp before payment.";
 
-      if (product) {
-        const productData = product as { title: string };
-        orderItems[i].product_title = productData.title;
-      }
-    }
-
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems as never);
-
-    if (itemsError) {
-      throw new Error(itemsError.message);
-    }
-
-    // For M-Pesa, initiate STK push (simplified - would integrate with M-Pesa API in production)
-    if (payload.paymentMethod === "mpesa") {
-      // In production, you would call the M-Pesa API here
-      // For now, we'll just create the order with pending status
-    }
-
-    // Update stock quantities
-    for (const item of payload.items) {
-      const { data: product } = await supabase
-        .from("products")
-        .select("stock_quantity")
-        .eq("id", item.productId)
-        .single();
-
-      if (product) {
-        const productData = product as { stock_quantity: number };
-        await supabase
-          .from("products")
-          .update({ stock_quantity: productData.stock_quantity - item.quantity } as never)
-          .eq("id", item.productId);
-      }
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      orderId: orderData.id,
-      message: payload.paymentMethod === "cash_on_delivery" 
-        ? "Order placed successfully. We'll contact you for delivery."
-        : "Order placed. Please complete M-Pesa payment."
-    }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      orderId: order.order_id,
+      subtotal: order.subtotal,
+      shippingFee: order.shipping_fee,
+      total: order.total,
+      whatsappUrl,
+      orderStatusToken,
+      replayed: order.replayed,
+      message: successMessage
+    }, { status: order.replayed ? 200 : 201 });
 
   } catch (caughtError) {
-    const message = caughtError instanceof Error 
-      ? caughtError.message 
-      : "Failed to process order";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const message =
+      caughtError instanceof z.ZodError
+        ? caughtError.issues[0]?.message ?? "Invalid checkout payload."
+        : caughtError instanceof Error
+          ? caughtError.message
+          : "Failed to process order";
+    const status =
+      caughtError instanceof z.ZodError ? 400 : getCheckoutErrorStatus(message);
+
+    logger.error("Checkout request failed", {
+      durationMs: Date.now() - startedAt,
+      error: message,
+      status
+    });
+
+    return NextResponse.json({ error: message }, { status });
   }
 }

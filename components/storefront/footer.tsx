@@ -60,8 +60,7 @@ export function Footer() {
             </Link>
 
             <p className="mt-1 max-w-xs text-sm leading-7 text-muted">
-              African modern luxury — handcrafted jewelry, nourishing lip care,
-              and elegant hair accessories, delivered across Nairobi and Kenya.
+              Elegant jewelry and accessories for bold women who want premium style with a simple ordering experience.
             </p>
 
             {/* Social icons */}
@@ -100,7 +99,7 @@ export function Footer() {
             <h3 className="section-label mb-5">Shop</h3>
             <ul className="space-y-3">
               {SHOP_LINKS.map(({ label, href }) => (
-                <li key={href}>
+                <li key={`${href}-${label}`}>
                   <Link
                     href={href}
                     className="text-sm text-muted transition-colors duration-150 hover:text-ink"
@@ -151,11 +150,11 @@ export function Footer() {
             {/* Payment methods card */}
             <div className="mt-7 rounded-2xl border border-border/60 bg-white/55 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink">
-                We accept
+                Ordering options
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-lg bg-[#4bb85f] px-3 py-1 text-xs font-bold text-white shadow-sm">
-                  M-Pesa
+                <span className="rounded-lg bg-[#111111] px-3 py-1 text-xs font-bold text-white shadow-sm">
+                  WhatsApp
                 </span>
                 <span className="rounded-lg border border-border bg-white px-3 py-1
                                  text-xs font-semibold text-muted">

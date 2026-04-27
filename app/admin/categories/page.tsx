@@ -1,5 +1,7 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 import { CategoryManager } from "@/components/admin/category-manager";
+import type { Category } from "@/lib/types";
 
 export const metadata = {
   title: "Categories Admin | Auro Ardon",
@@ -7,16 +9,18 @@ export const metadata = {
 };
 
 export default async function AdminCategoriesPage() {
-  let categories = [];
+  let categories: Category[] = [];
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
     const { data } = await supabase
       .from("categories")
       .select("*")
       .order("display_order", { ascending: true });
     categories = data ?? [];
   } catch (error) {
-    console.error("Failed to fetch categories:", error);
+    logger.error("Failed to fetch admin categories", {
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
   return <CategoryManager initialCategories={categories} />;

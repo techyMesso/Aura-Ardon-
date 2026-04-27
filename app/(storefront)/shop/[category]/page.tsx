@@ -29,14 +29,34 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   };
 }
 
+// Well-known category slugs used throughout the site. If DB is empty we still render the page.
+const KNOWN_CATEGORIES: Record<string, { name: string; description: string }> = {
+  jewelry: { name: "Jewelry", description: "Handcrafted stainless steel and African beaded jewelry" },
+  "lip-care": { name: "Lip Care", description: "Nourishing lip glosses, oils and balms" },
+  "hair-accessories": { name: "Hair Accessories", description: "Stylish pushbacks, hair bands, clips and flower clips" },
+};
+
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category: slug } = await params;
   const categories = await listCategories();
-  const category = categories.find((c) => c.slug === slug);
+  const dbCategory = categories.find((c) => c.slug === slug);
+  const fallback = KNOWN_CATEGORIES[slug];
 
-  if (!category) {
+  // Only 404 when the slug is neither in the DB nor a known category.
+  if (!dbCategory && !fallback) {
     notFound();
   }
+
+  const category = dbCategory ?? {
+    id: "",
+    name: fallback!.name,
+    slug,
+    parent_id: null,
+    description: fallback!.description,
+    image_url: null,
+    display_order: 0,
+    created_at: "",
+  };
 
   const products = await listProductsByCategory(slug);
 

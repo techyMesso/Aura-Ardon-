@@ -36,3 +36,71 @@ export function normalizeKenyanPhoneNumber(phone: string) {
 export function toMoneyString(amount: number) {
   return amount.toFixed(2);
 }
+
+export interface WhatsAppOrderItem {
+  title: string;
+  quantity: number;
+}
+
+export interface WhatsAppMessageOrder {
+  orderId: string;
+  customerName: string;
+  total: string | number;
+  items: WhatsAppOrderItem[];
+  confirmationMessage?: string;
+  deliveryLocation?: string | null;
+}
+
+interface WhatsAppOrderLinkInput extends WhatsAppMessageOrder {
+  phoneNumber: string;
+}
+
+export function generateWhatsAppMessage({
+  orderId,
+  customerName,
+  total,
+  items,
+  confirmationMessage = "Your order has been received. We will contact you shortly.",
+  deliveryLocation
+}: WhatsAppMessageOrder) {
+  const itemSummary = items.map(item => `${item.title} x${item.quantity}`).join(", ");
+  const formattedTotal = typeof total === "number" ? toMoneyString(total) : total;
+  const messageParts = [
+    `Hello ${customerName}, your order #${orderId} has been received.`,
+    confirmationMessage,
+    `Items: ${itemSummary}`,
+    `Total: KES ${formattedTotal}`
+  ];
+
+  if (deliveryLocation) {
+    messageParts.push(`Delivery location: ${deliveryLocation}`);
+  }
+
+  return messageParts.join("\n");
+}
+
+export function createWhatsAppLink(phoneNumber: string, message: string) {
+  const normalizedPhoneNumber = phoneNumber.replace(/[^\d]/g, "");
+
+  return `https://wa.me/${normalizedPhoneNumber}?text=${encodeURIComponent(message)}`;
+}
+
+export function createWhatsAppOrderUrl({
+  phoneNumber,
+  orderId,
+  customerName,
+  deliveryLocation,
+  total,
+  items
+}: WhatsAppOrderLinkInput) {
+  const message = generateWhatsAppMessage({
+    orderId,
+    customerName,
+    total,
+    items,
+    confirmationMessage: "We will confirm the next steps with you shortly.",
+    deliveryLocation
+  });
+
+  return createWhatsAppLink(phoneNumber, message);
+}
