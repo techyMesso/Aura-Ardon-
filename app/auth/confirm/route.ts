@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
 
   const user = data?.user;
 
-  // Verify user email matches admin email
   if (!user?.email || user.email.toLowerCase() !== adminEmail) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
