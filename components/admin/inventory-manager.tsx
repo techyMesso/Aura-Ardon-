@@ -74,12 +74,12 @@ export function InventoryManager({ initialProducts }: InventoryManagerProps) {
     setError(null);
 
     const payload = {
-      title: form.title,
-      description: form.description,
+      title: form.title.trim(),
+      description: form.description.trim(),
       price: Number(form.price),
       stock_quantity: Number(form.stock_quantity),
-      category: form.category,
-      material: form.material,
+      category: form.category.trim(),
+      material: form.material.trim(),
       images: form.images
     };
 
@@ -282,11 +282,12 @@ export function InventoryManager({ initialProducts }: InventoryManagerProps) {
               required
             />
             <Input
-              placeholder="Material (optional)"
+              placeholder="Material"
               value={form.material}
               onChange={(event) =>
                 setForm((current) => ({ ...current, material: event.target.value }))
               }
+              required
             />
           </div>
           <ImageDropzone

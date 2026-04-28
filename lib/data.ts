@@ -127,10 +127,12 @@ export async function listProductsByCategory(
 
     if (!cat || !("id" in cat)) return [];
 
+    const categoryRecord = cat as { id: string; name: string };
+    const categoryId = categoryRecord.id;
     const { data, error } = await supabase
       .from("products")
       .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
-      .eq("category_id", (cat as { id: string }).id)
+      .eq("category_id", categoryId)
       .eq("active", true)
       .order("created_at", { ascending: false });
 
@@ -141,7 +143,27 @@ export async function listProductsByCategory(
       });
       return [];
     }
-    return data ?? [];
+
+    if (data?.length) {
+      return data;
+    }
+
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("products")
+      .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
+      .eq("category", categoryRecord.name)
+      .eq("active", true)
+      .order("created_at", { ascending: false });
+
+    if (legacyError) {
+      logger.error("Failed to list legacy products by category", {
+        categorySlug,
+        error: legacyError.message
+      });
+      return [];
+    }
+
+    return legacyData ?? [];
   } catch (err) {
     logger.error("Products by category unavailable", {
       categorySlug,
@@ -167,8 +189,18 @@ export async function getProductBySlug(
       .eq("slug", slug)
       .single();
 
-    if (error) return null;
-    return data ?? null;
+    if (!error && data) {
+      return data;
+    }
+
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("products")
+      .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
+      .eq("id", slug)
+      .single();
+
+    if (legacyError) return null;
+    return legacyData ?? null;
   } catch {
     return null;
   }

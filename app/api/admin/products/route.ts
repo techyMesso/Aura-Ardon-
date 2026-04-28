@@ -19,11 +19,44 @@ const productSchema = z.object({
   is_featured: z.boolean().optional()
 });
 
+async function resolveCategoryId(category: string) {
+  const supabase = createAdminSupabaseClient();
+  const normalizedCategory = category.trim();
+  const normalizedSlug = normalizedCategory
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, slug")
+    .or(`name.ilike.${normalizedCategory},slug.eq.${normalizedSlug}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const categoryRecord = data as { id: string } | null;
+  return categoryRecord?.id ?? null;
+}
+
+function createProductSlug(title: string) {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export async function POST(request: Request) {
   try {
     await assertAdminRequest();
     const payload = productSchema.parse(await request.json());
     const supabase = createAdminSupabaseClient();
+    const categoryId = await resolveCategoryId(payload.category);
+    const slug = createProductSlug(payload.title);
     const { data, error } = await supabase
       .from("products")
       .insert({
@@ -32,11 +65,12 @@ export async function POST(request: Request) {
         price: toMoneyString(payload.price),
         stock_quantity: payload.stock_quantity,
         category: payload.category,
+        category_id: categoryId,
         material: payload.material,
         images: payload.images,
         active: payload.active ?? true,
         is_featured: payload.is_featured ?? false,
-        slug: null
+        slug
       } as never)
       .select("*")
       .single();

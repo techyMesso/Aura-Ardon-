@@ -19,6 +19,37 @@ const updateSchema = z.object({
   is_featured: z.boolean().optional()
 });
 
+async function resolveCategoryId(category: string) {
+  const supabase = createAdminSupabaseClient();
+  const normalizedCategory = category.trim();
+  const normalizedSlug = normalizedCategory
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, slug")
+    .or(`name.ilike.${normalizedCategory},slug.eq.${normalizedSlug}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const categoryRecord = data as { id: string } | null;
+  return categoryRecord?.id ?? null;
+}
+
+function createProductSlug(title: string) {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -30,11 +61,17 @@ export async function PATCH(
     const supabase = createAdminSupabaseClient();
 
     const updates: Record<string, any> = {};
-    if (payload.title !== undefined) updates.title = payload.title;
+    if (payload.title !== undefined) {
+      updates.title = payload.title;
+      updates.slug = createProductSlug(payload.title);
+    }
     if (payload.description !== undefined) updates.description = payload.description;
     if (payload.price !== undefined) updates.price = toMoneyString(payload.price);
     if (payload.stock_quantity !== undefined) updates.stock_quantity = payload.stock_quantity;
-    if (payload.category !== undefined) updates.category = payload.category;
+    if (payload.category !== undefined) {
+      updates.category = payload.category;
+      updates.category_id = await resolveCategoryId(payload.category);
+    }
     if (payload.material !== undefined) updates.material = payload.material;
     if (payload.images !== undefined) updates.images = payload.images;
     if (payload.active !== undefined) updates.active = payload.active;
