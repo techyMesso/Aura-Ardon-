@@ -8,12 +8,12 @@ import { toMoneyString } from "@/lib/utils";
 export const runtime = "nodejs";
 
 const updateSchema = z.object({
-  title: z.string().min(2).max(120).optional(),
-  description: z.string().min(12).optional(),
+  title: z.string().trim().min(2).max(120).optional(),
+  description: z.string().trim().min(12).optional(),
   price: z.coerce.number().positive().optional(),
   stock_quantity: z.coerce.number().int().min(0).optional(),
-  category: z.string().min(2).max(80).optional(),
-  material: z.string().max(80).nullable().optional(),
+  category: z.string().trim().min(2).max(80).optional(),
+  material: z.string().trim().min(1, "Material cannot be empty.").max(80).optional(),
   images: z.array(z.string().url()).min(1).optional(),
   active: z.boolean().optional(),
   is_featured: z.boolean().optional()

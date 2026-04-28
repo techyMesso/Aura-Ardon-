@@ -58,12 +58,12 @@ export function ProductForm({ initialProduct }: ProductFormProps) {
     setError(null);
 
     const payload = {
-      title,
-      description,
+      title: title.trim(),
+      description: description.trim(),
       price: Number(price),
       stock_quantity: Number(stockQuantity),
-      category,
-      material: material || null,
+      category: category.trim(),
+      material: material.trim(),
       images,
       active,
       is_featured: isFeatured
@@ -201,11 +201,12 @@ export function ProductForm({ initialProduct }: ProductFormProps) {
           />
         </div>
         <div>
-          <FormLabel>Material</FormLabel>
+          <FormLabel required>Material</FormLabel>
           <Input
             placeholder="Stainless Steel"
             value={material}
             onChange={(e) => setMaterial(e.target.value)}
+            required
             className="min-h-[48px] text-base"
           />
         </div>

@@ -8,12 +8,12 @@ import { toMoneyString } from "@/lib/utils";
 export const runtime = "nodejs";
 
 const productSchema = z.object({
-  title: z.string().min(2).max(120),
-  description: z.string().min(12),
+  title: z.string().trim().min(2).max(120),
+  description: z.string().trim().min(12),
   price: z.coerce.number().positive(),
   stock_quantity: z.coerce.number().int().min(0),
-  category: z.string().min(2).max(80),
-  material: z.string().max(80).nullable().optional(),
+  category: z.string().trim().min(2).max(80),
+  material: z.string().trim().min(1, "Material is required.").max(80),
   images: z.array(z.string().url()).min(1),
   active: z.boolean().optional(),
   is_featured: z.boolean().optional()
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         price: toMoneyString(payload.price),
         stock_quantity: payload.stock_quantity,
         category: payload.category,
-        material: payload.material || null,
+        material: payload.material,
         images: payload.images,
         active: payload.active ?? true,
         is_featured: payload.is_featured ?? false,
