@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -15,6 +16,7 @@ function getHashParams(hash: string) {
 }
 
 export default function AuthCallbackPage() {
+  const router = useRouter();
   const [state, setState] = useState<CallbackState>({
     status: "loading",
     message: "Finalizing your sign-in..."
@@ -52,19 +54,19 @@ export default function AuthCallbackPage() {
         }
 
         const {
-          data: { user },
+          data: { session },
           error
-        } = await supabase.auth.getUser();
+        } = await supabase.auth.getSession();
 
         if (error) {
           throw error;
         }
 
-        if (!user?.email) {
-          throw new Error("We could not verify the signed-in user.");
+        if (!session?.user?.email) {
+          throw new Error("Session could not be persisted after sign-in.");
         }
 
-        window.location.replace("/admin");
+        router.replace("/admin");
       } catch (caughtError) {
         await supabase.auth.signOut();
 

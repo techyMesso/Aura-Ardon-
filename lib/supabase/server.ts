@@ -3,6 +3,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 import { getSupabaseEnv } from "@/lib/env";
+import { normalizeSupabaseCookieOptions } from "@/lib/supabase/cookies";
 
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
@@ -16,7 +17,7 @@ export async function createServerSupabaseClient() {
       setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
+            cookieStore.set(name, value, normalizeSupabaseCookieOptions(options));
           });
         } catch {
           // Server Components can read cookies but cannot always persist them.

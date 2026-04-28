@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
+import { normalizeSupabaseCookieOptions } from "@/lib/supabase/cookies";
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -12,16 +14,14 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
 
+  if (!supabaseUrl || !supabaseAnonKey || !adminEmail) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
-
-    if (!supabaseUrl || !supabaseAnonKey || !adminEmail) {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-
-   // Allow unauthenticated access to admin login page
-   if (request.nextUrl.pathname === "/admin/login") {
-     return response;
-   }
+  // Allow unauthenticated access to admin login page
+  if (request.nextUrl.pathname === "/admin/login") {
+    return response;
+  }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -30,8 +30,23 @@ export async function middleware(request: NextRequest) {
       },
       setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          request.cookies.set(name, value);
-          response.cookies.set(name, value, options);
+          const normalizedOptions = normalizeSupabaseCookieOptions(options, request.url);
+
+          request.cookies.set({ name, value, ...normalizedOptions });
+        });
+
+        response = NextResponse.next({
+          request: {
+            headers: request.headers
+          }
+        });
+
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(
+            name,
+            value,
+            normalizeSupabaseCookieOptions(options, request.url)
+          );
         });
       }
     }
