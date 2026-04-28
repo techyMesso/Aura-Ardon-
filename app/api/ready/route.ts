@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 
-import { hasPublicSupabaseEnv } from "@/lib/env";
+import { hasPublicSupabaseEnv, getOptionalSiteUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const ready = hasPublicSupabaseEnv() && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const requiresSiteUrl = process.env.NODE_ENV === "production";
+  const hasSiteUrl = Boolean(getOptionalSiteUrl());
+  const ready =
+    hasPublicSupabaseEnv() &&
+    Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) &&
+    (!requiresSiteUrl || hasSiteUrl);
 
   if (!ready) {
     logger.error("Readiness probe failed", {
       hasPublicSupabaseEnv: hasPublicSupabaseEnv(),
-      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      requiresSiteUrl,
+      hasSiteUrl
     });
 
     return NextResponse.json(
@@ -34,4 +41,3 @@ export async function GET() {
     { status: 200 }
   );
 }
-

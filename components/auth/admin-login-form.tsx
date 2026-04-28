@@ -18,13 +18,11 @@ export function AdminLoginForm() {
     setMessage(null);
 
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
       const response = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          redirectTo
+          email
         })
       });
       const payload = (await response.json()) as { error?: string };

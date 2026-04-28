@@ -23,7 +23,7 @@ async function loadRoute() {
 }
 
 function buildRequest(idempotencyKey: string, ip = "198.51.100.24") {
-  return new Request("http://localhost/api/checkout", {
+  return new Request("https://example.test/api/checkout", {
     method: "POST",
     headers: {
       "content-type": "application/json",

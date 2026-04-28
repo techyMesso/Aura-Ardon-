@@ -73,6 +73,7 @@ Copy `.env.production.example` or `.env.local.example` and fill in the values.
 
 | Variable | Purpose |
 | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Canonical app origin used for auth redirects in production |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key used by browser/public server clients |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | WhatsApp number used to generate `wa.me` links |
@@ -160,7 +161,7 @@ Then update `.env.local` with real values.
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open the local app URL printed by Next.js after `npm run dev`.
 
 ## Available Scripts
 
@@ -214,6 +215,8 @@ Relevant routes:
 - `POST /api/admin/login`
 - `GET /auth/callback`
 - `/admin/*`
+
+Set `NEXT_PUBLIC_SITE_URL` to your deployed domain in production so Supabase magic links always return to the correct origin, for example `https://your-app.vercel.app`.
 
 Admin APIs are protected through `assertAdminRequest()` in [lib/auth.ts](./lib/auth.ts).
 

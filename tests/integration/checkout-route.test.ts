@@ -24,7 +24,7 @@ async function loadRoute() {
 }
 
 function createCheckoutRequest(idempotencyKey: string, body?: Record<string, unknown>) {
-  return new Request("http://localhost/api/checkout", {
+  return new Request("https://example.test/api/checkout", {
     method: "POST",
     headers: {
       "content-type": "application/json",

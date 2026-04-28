@@ -2,15 +2,34 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { getAdminEmail, getSupabaseEnv } from "@/lib/env";
+import { buildSiteUrl, getAdminEmail, getSupabaseEnv } from "@/lib/env";
 import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+const SUPABASE_AUTH_TIMEOUT_MS = 8000;
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  redirectTo: z.string().url()
+  email: z.string().email()
 });
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+
+    promise.then(
+      value => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request.headers);
@@ -34,15 +53,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload = loginSchema.parse(await request.json());
-    const requestOrigin = request.nextUrl.origin;
-    const redirectUrl = new URL(payload.redirectTo);
-
-    if (redirectUrl.origin !== requestOrigin || redirectUrl.pathname !== "/auth/callback") {
-      return NextResponse.json(
-        { error: "Invalid admin redirect target." },
-        { status: 400 }
-      );
-    }
 
     if (payload.email.toLowerCase() !== getAdminEmail()) {
       return NextResponse.json(
@@ -52,6 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { url, anonKey } = getSupabaseEnv();
+    const callbackUrl = buildSiteUrl("/auth/callback", request.nextUrl.origin);
     const supabase = createClient(url, anonKey, {
       auth: {
         autoRefreshToken: false,
@@ -59,10 +70,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: payload.email,
-      options: { emailRedirectTo: redirectUrl.toString() }
-    });
+    const { error } = await withTimeout(
+      supabase.auth.signInWithOtp({
+        email: payload.email,
+        options: { emailRedirectTo: callbackUrl.toString() }
+      }),
+      SUPABASE_AUTH_TIMEOUT_MS,
+      "Admin sign-in timed out while contacting Supabase."
+    );
 
     if (error) {
       throw error;
@@ -76,7 +91,15 @@ export async function POST(request: NextRequest) {
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to start the sign-in flow.";
+    const status =
+      message === "Missing required environment variable: NEXT_PUBLIC_SITE_URL"
+        ? 500
+        : message === "A request origin is required when NEXT_PUBLIC_SITE_URL is not configured."
+          ? 500
+          : message.includes("timed out")
+            ? 504
+            : 400;
 
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status });
   }
 }

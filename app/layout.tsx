@@ -1,25 +1,6 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
 
 import "./globals.css";
-
-// ─── Display / Serif font ─────────────────────────────────
-// Used for all headings, hero text, and brand mark.
-const display = Cormorant_Garamond({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
-
-// ─── Body / Sans font ─────────────────────────────────────
-// Used for all body text, buttons, nav links, labels.
-const body = Manrope({
-  subsets: ["latin"],
-  variable: "--font-body",
-  weight: ["300", "400", "500", "600", "700", "800"],
-  display: "swap",
-});
 
 // ─── Default SEO metadata ─────────────────────────────────
 export const metadata: Metadata = {
@@ -51,7 +32,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${display.variable} ${body.variable}`}>
+    <html lang="en" suppressHydrationWarning>
       <body className="font-sans bg-background text-foreground antialiased">
         {children}
       </body>
