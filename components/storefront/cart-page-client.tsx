@@ -46,7 +46,7 @@ export function CartPageClient() {
             const productPath = getCanonicalProductPath(item.product, categoryMap);
             const atStockLimit = item.quantity >= item.product.stock_quantity;
             const media = (
-              <div className="relative aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-xl bg-[#eee2d0] sm:w-36 sm:rounded-2xl">
+              <div className="relative aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-xl bg-sand sm:w-36 sm:rounded-2xl">
                 <Image
                   src={getSafeCatalogImageUrl(item.product.images[0]) || "/hero-jewelry.png"}
                   alt={item.product.title}

@@ -47,7 +47,7 @@ export function CheckoutPageClient() {
         <p className="mt-3 max-w-md text-muted">
           Add a few pieces first, then come back here to confirm delivery and payment.
         </p>
-        <Link href="/shop" className="btn-primary mt-8 bg-[#111111] text-white hover:bg-[#1d1d1d]">
+        <Link href="/shop" className="btn-primary mt-8 bg-bronze text-white hover:bg-rose">
           Shop Now
         </Link>
       </div>
@@ -90,7 +90,7 @@ export function CheckoutPageClient() {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary mt-8 bg-[#111111] text-white hover:bg-[#1d1d1d]"
+            className="btn-primary mt-8 bg-bronze text-white hover:bg-rose"
           >
             <MessageCircle className="h-4 w-4" />
             Send WhatsApp Confirmation
@@ -192,7 +192,7 @@ export function CheckoutPageClient() {
               <div className="mt-5 space-y-4">
                 <label className="block">
                   <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
-                    <User className="h-4 w-4 text-[#c49d52]" />
+                    <User className="h-4 w-4 text-bronze" />
                     Name
                   </span>
                   <Input
@@ -207,7 +207,7 @@ export function CheckoutPageClient() {
 
                 <label className="block">
                   <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
-                    <Phone className="h-4 w-4 text-[#c49d52]" />
+                    <Phone className="h-4 w-4 text-bronze" />
                     Phone
                   </span>
                   <Input
@@ -237,7 +237,7 @@ export function CheckoutPageClient() {
 
                 <label className="block">
                   <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
-                    <MapPin className="h-4 w-4 text-[#c49d52]" />
+                    <MapPin className="h-4 w-4 text-bronze" />
                     Location
                   </span>
                   <Input
@@ -258,7 +258,7 @@ export function CheckoutPageClient() {
                 <label
                   className={`block rounded-[1.25rem] border p-4 transition ${
                     paymentMethod === "CASH_ON_DELIVERY"
-                      ? "border-[#c49d52] bg-[#fff8ed]"
+                      ? "border-bronze bg-sand/45"
                       : "border-border/60 bg-white"
                   }`}
                 >
@@ -280,7 +280,7 @@ export function CheckoutPageClient() {
                 <label
                   className={`block rounded-[1.25rem] border p-4 transition ${
                     paymentMethod === "WHATSAPP"
-                      ? "border-[#c49d52] bg-[#fff8ed]"
+                      ? "border-bronze bg-sand/45"
                       : "border-border/60 bg-white"
                   }`}
                 >
@@ -316,7 +316,7 @@ export function CheckoutPageClient() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="min-h-[56px] w-full bg-[#111111] text-white hover:bg-[#1c1c1c]"
+                className="min-h-[56px] w-full bg-bronze text-white hover:bg-rose"
               >
                 {loading ? (
                   <>
@@ -376,7 +376,7 @@ export function CheckoutPageClient() {
             type="button"
             onClick={() => formRef.current?.requestSubmit()}
             disabled={loading}
-            className="min-h-[52px] min-w-[160px] bg-[#111111] text-white hover:bg-[#1c1c1c]"
+            className="min-h-[52px] min-w-[160px] bg-bronze text-white hover:bg-rose"
           >
             {loading ? (
               <>

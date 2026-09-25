@@ -154,7 +154,7 @@ export function ProductDetailClient({
             ref={mainImageButtonRef}
             type="button"
             onClick={() => setLightboxOpen(true)}
-            className="group relative block aspect-[4/5] w-full overflow-hidden rounded-[1.75rem] bg-[#eee2d0] shadow-card [touch-action:pinch-zoom]"
+            className="group relative block aspect-[4/5] w-full overflow-hidden rounded-[1.75rem] bg-sand shadow-card [touch-action:pinch-zoom]"
             aria-label={`Open enlarged image of ${product.title}`}
           >
             <Image
@@ -165,7 +165,7 @@ export function ProductDetailClient({
               sizes="(max-width: 1024px) 100vw, 54vw"
               className="object-cover transition duration-500 group-hover:scale-[1.02]"
             />
-            <span className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full bg-[#111111]/82 text-white backdrop-blur">
+            <span className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full bg-ink/82 text-white backdrop-blur">
               <Expand className="h-4 w-4" aria-hidden />
             </span>
           </button>
@@ -180,7 +180,7 @@ export function ProductDetailClient({
                   aria-label={`Show image ${index + 1}`}
                   aria-pressed={selectedIndex === index}
                   className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 transition sm:h-24 sm:w-24 ${
-                    selectedIndex === index ? "border-[#c49d52]" : "border-transparent"
+                    selectedIndex === index ? "border-bronze" : "border-transparent"
                   }`}
                 >
                   <Image src={image} alt="" fill sizes="96px" className="object-cover" />
@@ -191,7 +191,7 @@ export function ProductDetailClient({
         </section>
 
         <section className="lg:sticky lg:top-24 lg:h-fit">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#c49d52]">{category.name}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bronze">{category.name}</p>
           <h1 className="mt-3 font-serif text-4xl leading-[1.03] text-ink sm:text-5xl">{product.title}</h1>
           <p className="mt-4 text-2xl font-semibold text-ink">{formatCurrency(product.price)}</p>
 
@@ -243,7 +243,7 @@ export function ProductDetailClient({
                 type="button"
                 onClick={handleAddToCart}
                 disabled={remaining < 1}
-                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-[#111111] px-5 text-sm font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#29231e] disabled:bg-sand disabled:text-muted"
+                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-bronze px-5 text-sm font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-rose disabled:bg-sand disabled:text-muted"
               >
                 <Check className="h-4 w-4" aria-hidden />
                 {soldOut ? "Sold out" : remaining < 1 ? "Cart limit reached" : "Add to cart"}
@@ -268,7 +268,7 @@ export function ProductDetailClient({
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-white/96 px-3 py-2.5 shadow-[0_-8px_30px_rgba(31,23,16,0.12)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-white/96 px-3 py-2.5 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center gap-2">
           <div className="min-w-0 flex-1 pl-1">
             <p className="truncate text-xs font-semibold text-ink">{product.title}</p>
@@ -278,7 +278,7 @@ export function ProductDetailClient({
             type="button"
             onClick={handleAddToCart}
             disabled={remaining < 1}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#111111] px-4 text-xs font-semibold uppercase tracking-[0.1em] text-white disabled:bg-sand disabled:text-muted"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-bronze px-4 text-xs font-semibold uppercase tracking-[0.1em] text-white disabled:bg-sand disabled:text-muted"
           >
             {soldOut ? "Sold out" : remaining < 1 ? "Limit reached" : "Add to cart"}
           </button>
@@ -287,7 +287,7 @@ export function ProductDetailClient({
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#c49d52] text-[#111111]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bronze text-white"
               aria-label={soldOut ? "Ask about this product restock on WhatsApp" : "Order this product via WhatsApp"}
             >
               <MessageCircle className="h-5 w-5" aria-hidden />

@@ -10,18 +10,18 @@ const config: Config = {
     extend: {
       // ─── Brand Color Palette ────────────────────────────────
       colors: {
-        background: "#f8f4ec",
-        foreground: "#1f1710",
-        cream:      "#fdf8f0",
-        sand:       "#e6d7c3",
-        champagne:  "#c49d52",
-        gold:       "#d4a843",
-        bronze:     "#8b5e34",
-        ink:        "#2e241b",
-        card:       "#fffaf4",
-        border:     "#d8c8b4",
-        muted:      "#6f6256",
-        rose:       "#c9897a",
+        background: "#FFF7F8",
+        foreground: "#2B1425",
+        cream:      "#FFF9FA",
+        sand:       "#F7D8DE",
+        champagne:  "#F4C2C2",
+        gold:       "#B64D7D",
+        bronze:     "#7B2D5E",
+        ink:        "#2B1425",
+        card:       "#FFFCFD",
+        border:     "#E8B6C4",
+        muted:      "#755B68",
+        rose:       "#B64D7D",
       },
 
       // ─── Typography ─────────────────────────────────────────
@@ -32,10 +32,10 @@ const config: Config = {
 
       // ─── Shadows ────────────────────────────────────────────
       boxShadow: {
-        luxe:  "0 20px 70px rgba(31, 23, 16, 0.09)",
-        card:  "0 4px 24px rgba(31, 23, 16, 0.06)",
-        glow:  "0 0 48px rgba(196, 157, 82, 0.25)",
-        inner: "inset 0 2px 8px rgba(31, 23, 16, 0.06)",
+        luxe:  "0 20px 70px rgba(43, 20, 37, 0.10)",
+        card:  "0 4px 24px rgba(43, 20, 37, 0.07)",
+        glow:  "0 0 48px rgba(182, 77, 125, 0.28)",
+        inner: "inset 0 2px 8px rgba(43, 20, 37, 0.06)",
       },
 
       // ─── Border Radius ──────────────────────────────────────
@@ -90,9 +90,9 @@ const config: Config = {
 
       // ─── Background Images ──────────────────────────────────
       backgroundImage: {
-        "gradient-luxe": "linear-gradient(135deg, #c49d52 0%, #8b5e34 100%)",
-        "gradient-warm": "linear-gradient(180deg, #fbf6ee 0%, #f0e8d8 100%)",
-        "gradient-card": "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(230,215,195,0.5) 100%)",
+        "gradient-luxe": "linear-gradient(135deg, #7B2D5E 0%, #B64D7D 100%)",
+        "gradient-warm": "linear-gradient(180deg, #FFF9FA 0%, #F7D8DE 100%)",
+        "gradient-card": "linear-gradient(135deg, rgba(255,252,253,0.95) 0%, rgba(247,216,222,0.55) 100%)",
       },
     },
   },

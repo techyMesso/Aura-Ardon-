@@ -12,13 +12,16 @@
   --nav-height: 72px;
 
   /* Brand palette as CSS vars (useful for inline styles) */
-  --color-champagne: #c49d52;
-  --color-bronze:    #8b5e34;
-  --color-ink:       #16120f;
-  --color-muted:     #6f6256;
-  --color-cream:     #fdf8f0;
-  --color-sand:      #e6d7c3;
-  --color-border:    #d8c8b4;
+  --color-background: #FFF7F8;
+  --color-champagne: #F4C2C2;
+  --color-bronze:    #7B2D5E;
+  --color-rose:      #B64D7D;
+  --color-ink:       #2B1425;
+  --color-muted:     #755B68;
+  --color-cream:     #FFF9FA;
+  --color-sand:      #F7D8DE;
+  --color-card:      #FFFCFD;
+  --color-border:    #E8B6C4;
 }
 
 /* ─── Base Reset & Smoothing ────────────────────────────── */
@@ -33,30 +36,30 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(ellipse 80% 55% at 5%  0%,  rgba(196, 157, 82, 0.12) 0%, transparent 58%),
-    radial-gradient(ellipse 60% 45% at 95% 5%,  rgba(22, 18, 15, 0.05) 0%, transparent 52%),
-    linear-gradient(180deg, #f8f2e8 0%, #f3eadb 50%, #efe5d5 100%);
-  color: #16120f;
+    radial-gradient(ellipse 80% 55% at 5% 0%, rgba(244, 194, 194, 0.48) 0%, transparent 58%),
+    radial-gradient(ellipse 60% 45% at 95% 5%, rgba(123, 45, 94, 0.10) 0%, transparent 52%),
+    linear-gradient(180deg, #FFF9FA 0%, #FFF7F8 50%, #F7D8DE 100%);
+  color: var(--color-ink);
 }
 
 /* ─── Text Selection ────────────────────────────────────── */
 ::selection {
-  background: rgba(196, 157, 82, 0.22);
-  color: #2e241b;
+  background: rgba(244, 194, 194, 0.72);
+  color: var(--color-ink);
 }
 
 /* ─── Custom Scrollbar ──────────────────────────────────── */
 ::-webkit-scrollbar       { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #f3ebdf; }
+::-webkit-scrollbar-track { background: var(--color-cream); }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #c49d52, #8b5e34);
+  background: linear-gradient(180deg, #B64D7D, #7B2D5E);
   border-radius: 99px;
 }
-::-webkit-scrollbar-thumb:hover { background: #8b5e34; }
+::-webkit-scrollbar-thumb:hover { background: #7B2D5E; }
 
 /* ─── Focus Ring ────────────────────────────────────────── */
 *:focus-visible {
-  outline: 2px solid var(--color-champagne);
+  outline: 2px solid var(--color-rose);
   outline-offset: 3px;
   border-radius: 6px;
 }
@@ -71,7 +74,7 @@ body {
 
   /* Gradient text */
   .gradient-text {
-    background: linear-gradient(135deg, #c49d52 0%, #8b5e34 100%);
+    background: linear-gradient(135deg, #7B2D5E 0%, #B64D7D 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -86,7 +89,7 @@ body {
   }
 
   .glass-dark {
-    background: rgba(46, 36, 27, 0.82);
+    background: rgba(43, 20, 37, 0.82);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -94,24 +97,24 @@ body {
 
   /* Navbar transparency → blur transition */
   .nav-blur {
-    background: rgba(17, 17, 17, 0.90);
+    background: rgba(43, 20, 37, 0.92);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    border-bottom: 1px solid rgba(196, 157, 82, 0.12);
+    border-bottom: 1px solid rgba(232, 182, 196, 0.45);
   }
 
   /* Luxe border */
   .luxe-border {
-    border: 1px solid rgba(196, 157, 82, 0.28);
+    border: 1px solid rgba(232, 182, 196, 0.72);
   }
 
   /* Shimmer skeleton effect */
   .shimmer-bg {
     background: linear-gradient(
       90deg,
-      rgba(230, 215, 195, 0.4) 25%,
-      rgba(255, 255, 255, 0.7) 50%,
-      rgba(230, 215, 195, 0.4) 75%
+      rgba(247, 216, 222, 0.55) 25%,
+      rgba(255, 252, 253, 0.9) 50%,
+      rgba(247, 216, 222, 0.55) 75%
     );
     background-size: 400px 100%;
     animation: shimmer 2.2s linear infinite;
@@ -128,10 +131,10 @@ body {
   /* Primary button */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-full
-           bg-ink px-6 py-3 text-sm font-semibold uppercase
+           bg-bronze px-6 py-3 text-sm font-semibold uppercase
            tracking-[0.18em] text-white shadow-luxe
            transition-all duration-200
-           hover:bg-bronze hover:shadow-glow
+           hover:bg-rose hover:shadow-glow
            active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
   }
 
@@ -141,7 +144,7 @@ body {
            border border-ink/25 bg-white/60 px-6 py-3
            text-sm font-semibold uppercase tracking-[0.18em] text-ink
            transition-all duration-200
-           hover:border-bronze hover:bg-white hover:text-bronze
+           hover:border-bronze hover:bg-cream hover:text-bronze
            active:scale-95 disabled:opacity-50;
   }
 
@@ -156,7 +159,7 @@ body {
 
   /* Luxury card surface */
   .card-luxe {
-    @apply rounded-4xl border border-white/65 bg-white/70
+    @apply rounded-4xl border border-white/65 bg-card/80
            shadow-card backdrop-blur-sm
            transition-shadow duration-300 hover:shadow-luxe;
   }
@@ -178,11 +181,11 @@ body {
 
   /* Input field */
   .input-luxe {
-    @apply w-full rounded-2xl border border-border bg-white/65 px-4 py-3
+    @apply w-full rounded-2xl border border-border bg-card/85 px-4 py-3
            text-sm text-ink placeholder-muted/55
            transition-all duration-200
-           focus:border-champagne focus:bg-white
-           focus:ring-2 focus:ring-champagne/20 focus:outline-none;
+           focus:border-bronze focus:bg-card
+           focus:ring-2 focus:ring-champagne/50 focus:outline-none;
   }
 
   /* Badge */

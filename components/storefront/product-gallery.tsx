@@ -57,7 +57,7 @@ export function ProductGallery({
           const limitReached = !soldOut && remaining < 1;
           const isAdded = addedProductId === product.id;
           const media = (
-            <div className="relative aspect-[4/5] overflow-hidden bg-[#eee2d0]">
+            <div className="relative aspect-[4/5] overflow-hidden bg-sand">
               <Image
                 src={coverImage}
                 alt={`${product.title}${category ? ` from the ${category.name} collection` : ""}`}
@@ -77,16 +77,16 @@ export function ProductGallery({
               ) : null}
               <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-1.5 md:left-3 md:top-3">
                 {soldOut ? (
-                  <span className="rounded-full bg-[#111111]/88 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                  <span className="rounded-full bg-ink/88 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
                     Sold out
                   </span>
                 ) : product.stock_quantity <= 3 ? (
-                  <span className="rounded-full bg-[#fff8ed]/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-bronze shadow-sm">
+                  <span className="rounded-full bg-cream/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-bronze shadow-sm">
                     Low stock
                   </span>
                 ) : null}
                 {product.is_featured ? (
-                  <span className="rounded-full bg-[#c49d52]/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#111111] shadow-sm">
+                  <span className="rounded-full bg-bronze/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
                     Featured
                   </span>
                 ) : null}
@@ -135,7 +135,7 @@ export function ProductGallery({
                   className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full px-2 text-[11px] font-semibold uppercase tracking-[0.08em] transition md:gap-2 md:px-4 md:text-xs md:tracking-[0.12em] ${
                     isAdded
                       ? "bg-emerald-700 text-white"
-                      : "border border-border bg-white text-ink hover:border-ink hover:bg-[#111111] hover:text-white disabled:border-transparent disabled:bg-sand/60 disabled:text-muted"
+                      : "border border-border bg-white text-ink hover:border-bronze hover:bg-bronze hover:text-white disabled:border-transparent disabled:bg-sand/60 disabled:text-muted"
                   }`}
                 >
                   {isAdded ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />}

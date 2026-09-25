@@ -89,7 +89,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
 
   return (
     <div>
-      <div className="sticky top-[72px] z-30 -mx-5 mb-8 border-y border-border/60 bg-[#f7efe3]/95 px-5 py-4 shadow-sm backdrop-blur md:-mx-6 md:px-6 lg:-mx-10 lg:px-10">
+      <div className="sticky top-[72px] z-30 -mx-5 mb-8 border-y border-border/60 bg-cream/95 px-5 py-4 shadow-sm backdrop-blur md:-mx-6 md:px-6 lg:-mx-10 lg:px-10">
         <div className="mx-auto grid max-w-7xl gap-3 md:grid-cols-[minmax(220px,1fr)_220px_auto] md:items-center">
           <label className="relative block min-w-0">
             <span className="sr-only">Search this collection</span>
@@ -123,7 +123,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
               type="checkbox"
               checked={inStock}
               onChange={event => updateParam("inStock", event.target.checked ? "1" : null)}
-              className="h-4 w-4 accent-[#8b5e34]"
+              className="h-4 w-4 accent-bronze"
             />
             In stock only
           </label>

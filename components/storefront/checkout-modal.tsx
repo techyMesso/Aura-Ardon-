@@ -39,7 +39,7 @@ export function CheckoutModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1b140f]/55 p-4 backdrop-blur">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-4 backdrop-blur">
       <div className="w-full max-w-xl rounded-[2rem] border border-white/20 bg-card p-8 shadow-luxe">
         <div className="mb-6 flex items-start justify-between">
           <div>

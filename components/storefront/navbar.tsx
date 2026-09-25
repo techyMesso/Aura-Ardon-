@@ -63,7 +63,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
         className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
           scrolled
             ? "nav-blur shadow-sm"
-            : "border-b border-white/5 bg-[#111111]/95 backdrop-blur"
+            : "border-b border-champagne/20 bg-ink/95 backdrop-blur"
         }`}
         style={{ height: "var(--nav-height, 72px)" }}
       >
@@ -77,7 +77,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
               <Gem className="h-4 w-4 text-white" aria-hidden />
             </span>
             <span className="font-serif text-[1.45rem] leading-none tracking-tight text-white">
-              Auro <span className="text-[#c49d52]">Ardon</span>
+              Auro <span className="text-champagne">Ardon</span>
             </span>
           </Link>
 
@@ -87,10 +87,10 @@ export function Navbar({ categories }: { categories: Category[] }) {
                 key={link.href}
                 href={link.href}
                 aria-current={isActive(link.href) ? "page" : undefined}
-                className={`relative py-3 text-xs font-semibold uppercase tracking-[0.14em] transition-colors after:absolute after:bottom-1 after:left-0 after:h-px after:bg-[#c49d52] after:transition-all ${
+                className={`relative py-3 text-xs font-semibold uppercase tracking-[0.14em] transition-colors after:absolute after:bottom-1 after:left-0 after:h-px after:bg-champagne after:transition-all ${
                   isActive(link.href)
-                    ? "text-[#c49d52] after:w-full"
-                    : "text-white/72 after:w-0 hover:text-[#c49d52] hover:after:w-full"
+                    ? "text-champagne after:w-full"
+                    : "text-white/72 after:w-0 hover:text-champagne hover:after:w-full"
                 }`}
               >
                 {link.label}
@@ -103,15 +103,15 @@ export function Navbar({ categories }: { categories: Category[] }) {
               href="/cart"
               aria-label={`Shopping cart with ${itemCount} items`}
               aria-current={pathname === "/cart" ? "page" : undefined}
-              className={`relative flex h-11 w-11 items-center justify-center rounded-full border text-white transition hover:border-[#c49d52] hover:text-[#c49d52] ${
-                pathname === "/cart" ? "border-[#c49d52]" : "border-white/10 bg-white/5"
+              className={`relative flex h-11 w-11 items-center justify-center rounded-full border text-white transition hover:border-champagne hover:text-champagne ${
+                pathname === "/cart" ? "border-champagne" : "border-white/10 bg-white/5"
               }`}
             >
               <ShoppingBag className="h-4 w-4" aria-hidden />
               {itemCount > 0 ? (
                 <span
                   key={itemCount}
-                  className="absolute -right-1 -top-1 flex h-5 min-w-5 animate-pulse-soft items-center justify-center rounded-full bg-[#c49d52] px-1 text-[10px] font-bold text-[#111111]"
+                  className="absolute -right-1 -top-1 flex h-5 min-w-5 animate-pulse-soft items-center justify-center rounded-full bg-champagne px-1 text-[10px] font-bold text-ink"
                 >
                   {itemCount > 9 ? "9+" : itemCount}
                 </span>
@@ -123,7 +123,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
               aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
               aria-expanded={mobileOpen}
               aria-controls="mobile-navigation"
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:border-[#c49d52] xl:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:border-champagne xl:hidden"
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -132,7 +132,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
 
         <div
           id="mobile-navigation"
-          className={`max-h-[calc(100vh-72px)] overflow-y-auto border-t border-white/10 bg-[#111111]/98 transition-all xl:hidden ${
+          className={`max-h-[calc(100vh-72px)] overflow-y-auto border-t border-champagne/20 bg-ink/98 transition-all xl:hidden ${
             mobileOpen ? "visible opacity-100" : "invisible max-h-0 opacity-0"
           }`}
         >
@@ -144,7 +144,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
                 onClick={() => setMobileOpen(false)}
                 aria-current={isActive(link.href) ? "page" : undefined}
                 className={`flex min-h-12 items-center border-b border-white/10 text-sm font-semibold uppercase tracking-[0.16em] transition-colors ${
-                  isActive(link.href) ? "text-[#c49d52]" : "text-white hover:text-[#c49d52]"
+                  isActive(link.href) ? "text-champagne" : "text-white hover:text-champagne"
                 }`}
               >
                 {link.label}

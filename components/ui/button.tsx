@@ -8,9 +8,9 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
   default:
-    "bg-ink text-white shadow-luxe transition hover:bg-[#3d3025] disabled:opacity-60",
+    "bg-bronze text-white shadow-luxe transition hover:bg-rose disabled:opacity-60",
   secondary:
-    "bg-champagne text-ink transition hover:bg-[#b88e40] disabled:opacity-60",
+    "bg-sand text-ink transition hover:bg-champagne disabled:opacity-60",
   ghost:
     "bg-transparent text-ink transition hover:bg-white/70 disabled:opacity-60",
   destructive:

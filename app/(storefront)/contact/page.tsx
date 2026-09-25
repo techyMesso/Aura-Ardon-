@@ -53,8 +53,8 @@ export default function ContactPage() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-[#111111] p-7 text-white shadow-luxe">
-            <MessageCircle className="h-5 w-5 text-[#c49d52]" aria-hidden />
+          <div className="rounded-[2rem] bg-ink p-7 text-white shadow-luxe">
+            <MessageCircle className="h-5 w-5 text-champagne" aria-hidden />
             <h2 className="mt-4 font-serif text-2xl">What happens next?</h2>
             <p className="mt-2 text-sm leading-6 text-white/68">
               WhatsApp opens with every detail you entered. Review the message, tap send, and continue directly with the store.

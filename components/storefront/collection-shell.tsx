@@ -20,7 +20,7 @@ export function CollectionShell({
   return (
     <div className="min-h-screen">
       <div className="mx-auto max-w-7xl px-5 py-8 md:px-6 lg:px-10 lg:py-12">
-        <header className="relative mb-6 overflow-hidden rounded-[1.75rem] bg-[#111111] px-6 py-10 text-center text-white shadow-luxe sm:py-12">
+        <header className="relative mb-6 overflow-hidden rounded-[1.75rem] bg-ink px-6 py-10 text-center text-white shadow-luxe sm:py-12">
           {categoryImage ? (
             <>
               <Image
@@ -31,11 +31,11 @@ export function CollectionShell({
                 sizes="(max-width: 1280px) 100vw, 1280px"
                 className="object-cover opacity-35"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#111111]/95 via-[#111111]/78 to-[#111111]/88" />
+              <div className="absolute inset-0 bg-gradient-to-r from-ink/95 via-ink/78 to-ink/88" />
             </>
           ) : null}
           <div className="relative mx-auto max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#c49d52]">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-champagne">
               {activeCategory ? "Collection" : "Auro Ardon collections"}
             </p>
             <h1 className="mt-3 font-serif text-4xl leading-tight text-white sm:text-6xl">
