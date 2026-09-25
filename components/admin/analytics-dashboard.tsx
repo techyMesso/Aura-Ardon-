@@ -1,191 +1,276 @@
-import { BarChart3, Package2, ReceiptText, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
+  Clock3,
+  PackageCheck,
+  PackageOpen,
+  ReceiptText,
+  WalletCards
+} from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import {
+  OrderStatusBadge,
+  PaymentStatusBadge
+} from "@/components/admin/order-status-badge";
+import type { AdminDashboardOverview } from "@/lib/admin-dashboard";
 import { formatCurrency } from "@/lib/utils";
-import type { AdminAnalytics } from "@/lib/types";
 
 interface AnalyticsDashboardProps {
-  analytics: AdminAnalytics;
+  dashboard: AdminDashboardOverview;
 }
 
-function MiniLineChart({
-  points
+function AdminStatCard({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  tone = "default"
 }: {
-  points: Array<{ label: string; value: number }>;
+  label: string;
+  value: string | number;
+  detail: string;
+  icon: typeof WalletCards;
+  tone?: "default" | "attention";
 }) {
-  const width = 560;
-  const height = 220;
-  const maxValue = Math.max(...points.map(point => point.value), 1);
-
-  const path = points
-    .map((point, index) => {
-      const x = points.length === 1 ? width / 2 : (index / (points.length - 1)) * width;
-      const y = height - (point.value / maxValue) * (height - 20) - 10;
-      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-    })
-    .join(" ");
-
   return (
-    <div className="rounded-2xl border border-border bg-white/80 p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">
-            Orders per day
-          </p>
-          <p className="mt-1 text-sm text-muted">Last {points.length} recorded day buckets</p>
-        </div>
-        <BarChart3 className="h-5 w-5 text-bronze" />
+    <article
+      className={`rounded-[1.75rem] border p-5 shadow-card backdrop-blur-sm ${
+        tone === "attention"
+          ? "border-rose/25 bg-sand/50"
+          : "border-white/65 bg-card/80"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">{label}</p>
+        <span className="rounded-full bg-bronze/10 p-2 text-bronze">
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </span>
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-56 w-full">
-        <path
-          d={path}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3"
-          className="text-bronze"
-        />
-        {points.map((point, index) => {
-          const x = points.length === 1 ? width / 2 : (index / (points.length - 1)) * width;
-          const y = height - (point.value / maxValue) * (height - 20) - 10;
-          return <circle key={point.label} cx={x} cy={y} r="4" className="fill-ink" />;
-        })}
-      </svg>
-      <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-muted md:grid-cols-4">
-        {points.map(point => (
-          <div key={point.label} className="rounded-xl border border-border/70 px-3 py-2">
-            <p>{point.label}</p>
-            <p className="mt-1 font-semibold text-ink">{point.value}</p>
-          </div>
-        ))}
+      <p className="mt-5 font-serif text-3xl text-ink sm:text-4xl">{value}</p>
+      <p className="mt-2 text-sm text-muted">{detail}</p>
+    </article>
+  );
+}
+
+function EmptyState({
+  title,
+  description,
+  href,
+  action
+}: {
+  title: string;
+  description: string;
+  href: string;
+  action: string;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed border-border bg-cream/70 p-6 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="font-medium text-ink">{title}</p>
+        <p className="mt-1 text-sm text-muted">{description}</p>
       </div>
+      <Link
+        href={href}
+        className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-bronze transition hover:text-rose"
+      >
+        {action}
+        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+      </Link>
     </div>
   );
 }
 
-function MiniBarChart({
-  points
-}: {
-  points: Array<{ label: string; value: number }>;
-}) {
-  const maxValue = Math.max(...points.map(point => point.value), 1);
+function formatOrderDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Date unavailable";
+  }
+
+  return new Intl.DateTimeFormat("en-KE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+}
+
+function LowStockAlert({ dashboard }: { dashboard: AdminDashboardOverview }) {
+  if (!dashboard.lowStockProducts.length) {
+    return (
+      <EmptyState
+        title={dashboard.activeProducts ? "Inventory is comfortably stocked" : "No products to monitor yet"}
+        description={
+          dashboard.activeProducts
+            ? "Every product is above the low-stock threshold of five pieces."
+            : "Add your first jewelry piece to begin tracking inventory."
+        }
+        href={dashboard.activeProducts ? "/admin/products" : "/admin/products/new"}
+        action={dashboard.activeProducts ? "View inventory" : "Add product"}
+      />
+    );
+  }
 
   return (
-    <div className="rounded-2xl border border-border bg-white/80 p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">
-            Top products
-          </p>
-          <p className="mt-1 text-sm text-muted">By units ordered</p>
-        </div>
-        <Package2 className="h-5 w-5 text-bronze" />
-      </div>
-      <div className="space-y-3">
-        {points.map(point => (
-          <div key={point.label} className="space-y-1">
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="truncate text-ink">{point.label}</span>
-              <span className="font-semibold text-ink">{point.value}</span>
-            </div>
-            <div className="h-2 rounded-full bg-sand">
-              <div
-                className="h-2 rounded-full bg-bronze"
-                style={{ width: `${(point.value / maxValue) * 100}%` }}
-              />
-            </div>
+    <div className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border bg-white/75">
+      {dashboard.lowStockProducts.map(product => (
+        <div key={product.id} className="flex items-center justify-between gap-4 px-4 py-4">
+          <div className="min-w-0">
+            <p className="truncate font-medium text-ink">{product.title}</p>
+            <p className="mt-1 text-sm text-muted">
+              {product.stock_quantity === 0
+                ? "Out of stock"
+                : `${product.stock_quantity} ${product.stock_quantity === 1 ? "piece" : "pieces"} remaining`}
+            </p>
           </div>
-        ))}
-      </div>
+          <Link
+            href={`/admin/products/${product.id}/edit`}
+            className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-bronze transition hover:text-rose"
+          >
+            Edit
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+      ))}
     </div>
   );
 }
 
-export function AnalyticsDashboard({ analytics }: AnalyticsDashboardProps) {
-  const averageOrderValue =
-    analytics.totalOrders > 0 ? analytics.revenue / analytics.totalOrders : 0;
+export function AnalyticsDashboard({ dashboard }: AnalyticsDashboardProps) {
+  const stats = [
+    {
+      label: "Revenue",
+      value: formatCurrency(dashboard.revenue),
+      detail: "Across all recorded orders",
+      icon: WalletCards
+    },
+    {
+      label: "Order count",
+      value: dashboard.totalOrders,
+      detail: "Orders received to date",
+      icon: ReceiptText
+    },
+    {
+      label: "Pending confirmation",
+      value: dashboard.pendingConfirmationOrders,
+      detail: "Orders awaiting your reply",
+      icon: Clock3,
+      tone: "attention" as const
+    },
+    {
+      label: "Delivered",
+      value: dashboard.deliveredOrders,
+      detail: "Successfully fulfilled orders",
+      icon: CheckCircle2
+    },
+    {
+      label: "Active products",
+      value: dashboard.activeProducts,
+      detail: "Visible in the storefront",
+      icon: PackageCheck
+    },
+    {
+      label: "Low stock",
+      value: dashboard.lowStockProducts.length,
+      detail: "At five pieces or fewer",
+      icon: AlertTriangle,
+      tone: dashboard.lowStockProducts.length ? ("attention" as const) : undefined
+    }
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-white/50 bg-white/70 p-6 shadow-luxe backdrop-blur">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">
-              Total orders
+      <section className="rounded-[2rem] border border-white/65 bg-gradient-card p-6 shadow-luxe backdrop-blur sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bronze">Dashboard overview</p>
+        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="font-serif text-4xl text-ink sm:text-5xl">Today&apos;s atelier pulse</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+              A focused view of sales, fulfillment, and inventory that need your attention.
             </p>
-            <ReceiptText className="h-5 w-5 text-bronze" />
           </div>
-          <p className="mt-4 font-serif text-4xl text-ink">{analytics.totalOrders}</p>
+          <Link
+            href="/admin/orders"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-bronze px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white shadow-card transition hover:bg-rose"
+          >
+            Review orders
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </div>
+      </section>
 
-        <div className="rounded-2xl border border-white/50 bg-white/70 p-6 shadow-luxe backdrop-blur">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">
-              Orders today
-            </p>
-            <TrendingUp className="h-5 w-5 text-bronze" />
-          </div>
-          <p className="mt-4 font-serif text-4xl text-ink">{analytics.ordersToday}</p>
-        </div>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {stats.map(stat => (
+          <AdminStatCard key={stat.label} {...stat} />
+        ))}
+      </section>
 
-        <div className="rounded-2xl border border-white/50 bg-white/70 p-6 shadow-luxe backdrop-blur">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">
-              Revenue
-            </p>
-            <BarChart3 className="h-5 w-5 text-bronze" />
-          </div>
-          <p className="mt-4 font-serif text-4xl text-ink">
-            {formatCurrency(analytics.revenue)}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-white/50 bg-white/70 p-6 shadow-luxe backdrop-blur">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">
-              Average order
-            </p>
-            <Package2 className="h-5 w-5 text-bronze" />
-          </div>
-          <p className="mt-4 font-serif text-4xl text-ink">
-            {formatCurrency(averageOrderValue)}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
-        <MiniLineChart points={analytics.ordersPerDay} />
-        <MiniBarChart points={analytics.topProductsChart} />
-      </div>
-
-      <section className="rounded-2xl border border-white/50 bg-white/70 p-6 shadow-luxe backdrop-blur">
-        <div className="mb-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">
-            Product demand
-          </p>
-          <h2 className="mt-2 font-serif text-3xl text-ink">Most ordered products</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {analytics.mostOrderedProducts.map(product => (
-            <div key={product.product_title} className="rounded-xl border border-border bg-white/80 p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-medium text-ink">{product.product_title}</p>
-                  <p className="mt-1 text-sm text-muted">
-                    {formatCurrency(product.revenue)} revenue
-                  </p>
-                </div>
-                <Badge className="border-blue-200 bg-blue-100 text-blue-900">
-                  {product.quantity} units
-                </Badge>
-              </div>
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.9fr)]">
+        <div className="rounded-[2rem] border border-white/65 bg-white/75 p-5 shadow-card backdrop-blur sm:p-6">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">Fulfillment</p>
+              <h3 className="mt-2 font-serif text-3xl text-ink">Recent orders</h3>
             </div>
-          ))}
-          {!analytics.mostOrderedProducts.length ? (
-            <div className="rounded-xl border border-border bg-white/80 p-4 text-sm text-muted">
-              Products will appear here after the first few orders are processed.
+            <Link href="/admin/orders" className="text-sm font-semibold text-bronze transition hover:text-rose">
+              View all
+            </Link>
+          </div>
+
+          {dashboard.recentOrders.length ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-[720px] w-full text-left text-sm">
+                <thead className="border-y border-border/70 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                  <tr>
+                    <th className="px-3 py-3">Customer</th>
+                    <th className="px-3 py-3">Total</th>
+                    <th className="px-3 py-3">Payment</th>
+                    <th className="px-3 py-3">Order</th>
+                    <th className="px-3 py-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {dashboard.recentOrders.map(order => (
+                    <tr key={order.id} className="transition hover:bg-sand/20">
+                      <td className="px-3 py-4 font-medium text-ink">
+                        <Link href={`/admin/orders?order=${order.id}`} className="transition hover:text-bronze">
+                          {order.customer_name}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-4 font-semibold text-ink">{formatCurrency(order.total)}</td>
+                      <td className="px-3 py-4"><PaymentStatusBadge status={order.payment_status} /></td>
+                      <td className="px-3 py-4">
+                        <OrderStatusBadge status={order.order_status} />
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-muted">{formatOrderDate(order.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : null}
+          ) : (
+            <EmptyState
+              title="No orders have arrived yet"
+              description="New customer orders will appear here as soon as they are placed."
+              href="/admin/orders"
+              action="Open orders"
+            />
+          )}
         </div>
+
+        <aside className="rounded-[2rem] border border-rose/20 bg-gradient-warm p-5 shadow-card sm:p-6">
+          <div className="mb-5 flex items-start gap-3">
+            <span className="rounded-full bg-rose/10 p-2 text-rose">
+              <PackageOpen className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">Inventory watch</p>
+              <h3 className="mt-2 font-serif text-3xl text-ink">Low-stock alerts</h3>
+            </div>
+          </div>
+          <LowStockAlert dashboard={dashboard} />
+        </aside>
       </section>
     </div>
   );

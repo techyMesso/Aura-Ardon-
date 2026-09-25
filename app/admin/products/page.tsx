@@ -10,6 +10,7 @@ export const metadata = {
 
 export default async function AdminProductsPage() {
   let products: Product[] = [];
+  let loadError: string | null = null;
   try {
     const supabase = createAdminSupabaseClient();
     const { data } = await supabase
@@ -18,10 +19,11 @@ export default async function AdminProductsPage() {
       .order("created_at", { ascending: false });
     products = data ?? [];
   } catch (error) {
+    loadError = "Unable to load products. Please refresh the page and try again.";
     logger.error("Failed to fetch admin products", {
       error: error instanceof Error ? error.message : String(error)
     });
   }
 
-  return <ProductList initialProducts={products} />;
+  return <ProductList initialProducts={products} initialError={loadError} />;
 }

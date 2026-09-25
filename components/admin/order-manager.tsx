@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ExternalLink, Search, Truck, MessageCircle } from "lucide-react";
 
-import { OrderStatusBadge } from "@/components/admin/order-status-badge";
-import { Badge } from "@/components/ui/badge";
+import {
+  OrderStatusBadge,
+  PaymentStatusBadge
+} from "@/components/admin/order-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +16,8 @@ import {
   getAllowedOrderStatuses,
   getOrderStatusLabel,
   getPaymentMethodLabel,
-  ORDER_STATUSES
+  ORDER_STATUSES,
+  PAYMENT_STATUSES
 } from "@/lib/admin-orders";
 import { formatCurrency } from "@/lib/utils";
 import type { Order, OrderItem, OrderStatus } from "@/lib/types";
@@ -41,9 +45,13 @@ function formatDateTime(value: string) {
 }
 
 export function OrderManager({ initialOrders }: OrderManagerProps) {
+  const searchParams = useSearchParams();
+  const requestedOrderId = searchParams.get("order");
   const [orders, setOrders] = useState(initialOrders);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
-    initialOrders[0]?.id ?? null
+    initialOrders.some(order => order.id === requestedOrderId)
+      ? requestedOrderId
+      : initialOrders[0]?.id ?? null
   );
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedItems, setSelectedItems] = useState<OrderItem[]>([]);
@@ -51,8 +59,10 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     status: "ALL",
+    paymentStatus: "ALL",
     search: "",
     from: "",
     to: ""
@@ -109,6 +119,12 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
     };
   }, [selectedOrderId]);
 
+  useEffect(() => {
+    if (requestedOrderId && orders.some(order => order.id === requestedOrderId)) {
+      setSelectedOrderId(requestedOrderId);
+    }
+  }, [orders, requestedOrderId]);
+
   const activeWhatsAppUrl =
     selectedOrder && selectedItems.length
       ? buildAdminOrderWhatsAppUrl(selectedOrder, selectedItems)
@@ -117,12 +133,17 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
   async function refreshOrders(nextFilters = filters) {
     setLoadingOrders(true);
     setError(null);
+    setSuccess(null);
 
     try {
       const params = new URLSearchParams();
 
       if (nextFilters.status && nextFilters.status !== "ALL") {
         params.set("status", nextFilters.status);
+      }
+
+      if (nextFilters.paymentStatus && nextFilters.paymentStatus !== "ALL") {
+        params.set("paymentStatus", nextFilters.paymentStatus);
       }
 
       if (nextFilters.search.trim()) {
@@ -161,6 +182,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
   async function updateStatus(id: string, status: OrderStatus) {
     setSavingId(id);
     setError(null);
+    setSuccess(null);
 
     try {
       const response = await fetch(`/api/admin/orders/${id}`, {
@@ -181,6 +203,9 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
       if (selectedOrder?.id === id) {
         setSelectedOrder(payload.order);
       }
+      setSuccess(
+        `Order #${id.slice(0, 8).toUpperCase()} updated to ${getOrderStatusLabel(status)}.`
+      );
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -208,17 +233,21 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
             </p>
             <h2 className="font-serif text-3xl text-ink">Fulfillment queue</h2>
             <p className="mt-2 text-sm text-muted">
-              Search by full order ID or phone number, then advance the order through fulfillment.
+              Search by customer name, phone number, or full order ID, then advance fulfillment safely.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" onClick={() => void refreshOrders()}>
-              Refresh
+            <Button
+              variant="ghost"
+              onClick={() => void refreshOrders()}
+              disabled={loadingOrders}
+            >
+              {loadingOrders ? "Refreshing..." : "Refresh"}
             </Button>
           </div>
         </div>
 
-        <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <label className="space-y-2 text-sm text-muted">
             <span>Status</span>
             <select
@@ -232,6 +261,24 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
               {ORDER_STATUSES.map(status => (
                 <option key={status} value={status}>
                   {getOrderStatusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-2 text-sm text-muted">
+            <span>Payment</span>
+            <select
+              className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-bronze"
+              value={filters.paymentStatus}
+              onChange={event =>
+                setFilters(current => ({ ...current, paymentStatus: event.target.value }))
+              }
+            >
+              <option value="ALL">All payments</option>
+              {PAYMENT_STATUSES.map(status => (
+                <option key={status} value={status}>
+                  {status === "PAID" ? "Paid" : "Pending payment"}
                 </option>
               ))}
             </select>
@@ -260,12 +307,12 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
           </label>
 
           <label className="space-y-2 text-sm text-muted">
-            <span>Order ID / phone</span>
+            <span>Customer / phone / order ID</span>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input
                 className="pl-10"
-                placeholder="Search..."
+                placeholder="Name, phone, or full ID"
                 value={filters.search}
                 onChange={event =>
                   setFilters(current => ({ ...current, search: event.target.value }))
@@ -276,11 +323,19 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2">
-          <Button onClick={() => void refreshOrders()}>Apply filters</Button>
+          <Button onClick={() => void refreshOrders()} disabled={loadingOrders}>
+            {loadingOrders ? "Applying..." : "Apply filters"}
+          </Button>
           <Button
             variant="ghost"
             onClick={() => {
-              const cleared = { status: "ALL", search: "", from: "", to: "" };
+              const cleared = {
+                status: "ALL",
+                paymentStatus: "ALL",
+                search: "",
+                from: "",
+                to: ""
+              };
               setFilters(cleared);
               void refreshOrders(cleared);
             }}
@@ -289,46 +344,93 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
           </Button>
         </div>
 
-        {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
+        {error ? <p className="mb-4 text-sm text-red-700" role="alert">{error}</p> : null}
+        {success ? (
+          <p className="mb-4 text-sm text-green-800" aria-live="polite">
+            {success}
+          </p>
+        ) : null}
 
-        <div className="overflow-hidden rounded-2xl border border-border">
+        <div className="space-y-3 md:hidden">
+          {orders.map(order => (
+            <button
+              key={order.id}
+              type="button"
+              className={`w-full rounded-xl border p-4 text-left transition hover:border-bronze focus:outline-none focus:ring-2 focus:ring-bronze/50 ${
+                selectedOrderId === order.id ? "border-bronze bg-sand/40" : "border-border bg-white/80"
+              }`}
+              onClick={() => setSelectedOrderId(order.id)}
+              aria-pressed={selectedOrderId === order.id}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-ink">#{order.id.slice(0, 8).toUpperCase()}</p>
+                  <p className="mt-1 text-sm text-muted">{order.customer_name}</p>
+                  <p className="text-sm text-muted">{order.customer_phone}</p>
+                </div>
+                <OrderStatusBadge status={order.order_status} />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-sm">
+                <span className="font-medium text-ink">{formatCurrency(order.total)}</span>
+                <PaymentStatusBadge status={order.payment_status} />
+                <span className="text-muted">{formatDateTime(order.created_at)}</span>
+              </div>
+            </button>
+          ))}
+          {!orders.length ? (
+            <p className="rounded-xl border border-border px-4 py-12 text-center text-sm text-muted">
+              {loadingOrders ? "Loading orders..." : "No orders matched the current filters."}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="hidden overflow-hidden rounded-2xl border border-border md:block">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border text-sm">
+            <table className="min-w-[720px] divide-y divide-border text-sm">
               <thead className="bg-sand/50 text-left uppercase tracking-[0.18em] text-muted">
                 <tr>
                   <th className="px-4 py-3">Order ID</th>
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Location</th>
+                  <th className="hidden px-4 py-3 xl:table-cell">Location</th>
                   <th className="px-4 py-3">Total</th>
                   <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Created</th>
+                  <th className="hidden px-4 py-3 lg:table-cell">Created</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-white/80">
                 {orders.map(order => (
                   <tr
                     key={order.id}
-                    className={`cursor-pointer transition hover:bg-sand/40 ${
+                    className={`transition hover:bg-sand/40 ${
                       selectedOrderId === order.id ? "bg-sand/50" : ""
                     }`}
-                    onClick={() => setSelectedOrderId(order.id)}
                   >
                     <td className="px-4 py-4 font-medium text-ink">
-                      {order.id.slice(0, 8).toUpperCase()}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrderId(order.id)}
+                        className="rounded text-left font-medium text-ink underline-offset-4 transition hover:text-bronze hover:underline focus:outline-none focus:ring-2 focus:ring-champagne"
+                        aria-pressed={selectedOrderId === order.id}
+                      >
+                        {order.id.slice(0, 8).toUpperCase()}
+                      </button>
                     </td>
                     <td className="px-4 py-4 text-ink">{order.customer_name}</td>
                     <td className="px-4 py-4 text-muted">{order.customer_phone}</td>
-                    <td className="px-4 py-4 text-muted">{order.customer_location}</td>
+                    <td className="hidden px-4 py-4 text-muted xl:table-cell">{order.customer_location}</td>
                     <td className="px-4 py-4 text-ink">{formatCurrency(order.total)}</td>
-                    <td className="px-4 py-4 text-muted">
-                      {getPaymentMethodLabel(order.payment_method)}
+                    <td className="px-4 py-4">
+                      <div className="space-y-1">
+                        <p className="text-muted">{getPaymentMethodLabel(order.payment_method)}</p>
+                        <PaymentStatusBadge status={order.payment_status} />
+                      </div>
                     </td>
                     <td className="px-4 py-4">
                       <OrderStatusBadge status={order.order_status} />
                     </td>
-                    <td className="px-4 py-4 text-muted">
+                    <td className="hidden px-4 py-4 text-muted lg:table-cell">
                       {formatDateTime(order.created_at)}
                     </td>
                   </tr>
@@ -390,9 +492,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                   Method: {getPaymentMethodLabel(selectedOrder.payment_method)}
                 </p>
                 <div className="mt-2">
-                  <Badge className="border-yellow-200 bg-yellow-100 text-yellow-900">
-                    {selectedOrder.payment_status.toLowerCase()}
-                  </Badge>
+                  <PaymentStatusBadge status={selectedOrder.payment_status} />
                 </div>
               </div>
             </div>
@@ -480,6 +580,11 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                   ))}
                 </select>
               </label>
+              {savingId === selectedOrder.id ? (
+                <p className="text-sm text-muted" aria-live="polite">
+                  Saving status update...
+                </p>
+              ) : null}
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <Button

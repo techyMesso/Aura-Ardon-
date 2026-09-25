@@ -2,7 +2,8 @@ import type {
   Order,
   OrderItem,
   OrderStatus,
-  PaymentMethod
+  PaymentMethod,
+  PaymentStatus
 } from "@/lib/types";
 import {
   createWhatsAppLink,
@@ -18,6 +19,8 @@ export const ORDER_STATUSES: OrderStatus[] = [
   "CANCELLED"
 ];
 
+export const PAYMENT_STATUSES = ["PENDING", "PAID"] as const satisfies readonly PaymentStatus[];
+
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING_CONFIRMATION: ["PENDING_CONFIRMATION", "CONFIRMED", "CANCELLED"],
   CONFIRMED: ["CONFIRMED", "OUT_FOR_DELIVERY", "CANCELLED"],
@@ -28,6 +31,10 @@ const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 
 export function getOrderStatusLabel(status: OrderStatus) {
   return status.toLowerCase().replace(/_/g, " ");
+}
+
+export function getPaymentStatusLabel(status: PaymentStatus) {
+  return status === "PAID" ? "Paid" : "Pending payment";
 }
 
 export function getPaymentMethodLabel(method: PaymentMethod) {
@@ -60,6 +67,42 @@ export function getOrderStatusBadgeClassName(status: OrderStatus) {
     default:
       return "";
   }
+}
+
+export function getPaymentStatusBadgeClassName(status: PaymentStatus) {
+  return status === "PAID"
+    ? "border-green-200 bg-green-100 text-green-900"
+    : "border-yellow-200 bg-yellow-100 text-yellow-900";
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+function quotePostgrestLikeValue(value: string) {
+  const escaped = value
+    .replace(/\\/g, "\\\\")
+    .replace(/[%_]/g, "\\$&")
+    .replace(/"/g, '\\"');
+
+  return `"%${escaped}%"`;
+}
+
+/** Builds the safely quoted OR clause used for the admin order search. */
+export function buildAdminOrderSearchFilter(search: string) {
+  const likeValue = quotePostgrestLikeValue(search);
+  const filters = [
+    `customer_name.ilike.${likeValue}`,
+    `customer_phone.ilike.${likeValue}`
+  ];
+
+  if (isUuid(search)) {
+    filters.push(`id.eq.${search}`);
+  }
+
+  return filters.join(",");
 }
 
 export function buildAdminOrderWhatsAppUrl(order: Order, items: OrderItem[]) {

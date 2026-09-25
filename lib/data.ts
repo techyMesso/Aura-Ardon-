@@ -3,6 +3,7 @@ import { getSafeCatalogImageUrl } from "@/lib/catalog";
 import { hasPublicSupabaseEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
+import { buildAdminOrderSearchFilter } from "@/lib/admin-orders";
 import { unstable_cache } from "next/cache";
 import type {
   AdminAnalytics,
@@ -10,6 +11,7 @@ import type {
   Order,
   OrderItem,
   OrderStatus,
+  PaymentStatus,
   Product
 } from "@/lib/types";
 
@@ -330,16 +332,11 @@ export async function getOrderWithItems(
 
 type ListAdminOrdersParams = {
   status?: OrderStatus | "ALL";
+  paymentStatus?: PaymentStatus | "ALL";
   search?: string;
   from?: string;
   to?: string;
 };
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  );
-}
 
 export async function listAdminOrders(
   params: ListAdminOrdersParams = {}
@@ -358,6 +355,10 @@ export async function listAdminOrders(
     query = query.eq("order_status", params.status);
   }
 
+  if (params.paymentStatus && params.paymentStatus !== "ALL") {
+    query = query.eq("payment_status", params.paymentStatus);
+  }
+
   if (params.from) {
     query = query.gte("created_at", `${params.from}T00:00:00.000Z`);
   }
@@ -367,11 +368,7 @@ export async function listAdminOrders(
   }
 
   if (search) {
-    if (isUuid(search)) {
-      query = query.eq("id", search);
-    } else {
-      query = query.ilike("customer_phone", `%${search}%`);
-    }
+    query = query.or(buildAdminOrderSearchFilter(search));
   }
 
   const { data, error } = await query;

@@ -1,5 +1,6 @@
 import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard";
-import { getAdminAnalytics } from "@/lib/data";
+import { buildAdminDashboardOverview } from "@/lib/admin-dashboard";
+import { listAdminDashboardData } from "@/lib/data";
 
 export const metadata = {
   title: "Admin Dashboard | Auro Ardon",
@@ -7,7 +8,8 @@ export const metadata = {
 };
 
 export default async function AdminDashboardPage() {
-  const analytics = await getAdminAnalytics();
+  const { products, orders } = await listAdminDashboardData();
+  const dashboard = buildAdminDashboardOverview(products, orders);
 
-  return <AnalyticsDashboard analytics={analytics} />;
+  return <AnalyticsDashboard dashboard={dashboard} />;
 }
