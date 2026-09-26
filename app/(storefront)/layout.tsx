@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/storefront/navbar";
 import { Footer } from "@/components/storefront/footer";
+import { MobileBottomNav } from "@/components/storefront/mobile-bottom-nav";
 import { WhatsAppFab } from "@/components/storefront/whatsapp-fab";
 import { CartProvider } from "@/lib/cart";
 import { listCategories } from "@/lib/data";
@@ -21,13 +22,12 @@ export default async function StorefrontLayout({
   return (
     <CartProvider categories={categories}>
       <Navbar categories={categories} />
-      {/* Push content below the fixed 72px navbar */}
-      <main className="min-h-screen pt-[72px]">{children}</main>
-      <Footer categories={categories} />
+      <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <main className="min-h-screen pt-[72px]">{children}</main>
+        <Footer categories={categories} />
+      </div>
       <WhatsAppFab />
-
-      {/* Add bottom padding on mobile so content isn't hidden behind sticky bar */}
-      <div className="h-24 lg:h-0" />
+      <MobileBottomNav />
     </CartProvider>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Check, ShoppingBag } from "lucide-react";
+import { ArrowUpRight, Check, LoaderCircle, ShoppingBag } from "lucide-react";
 
 import {
   createCategoryMap,
@@ -28,6 +28,7 @@ export function ProductGallery({
   mode = "default"
 }: ProductGalleryProps) {
   const { addItem, categories, items } = useCart();
+  const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const categoryMap = createCategoryMap(categories);
@@ -37,10 +38,15 @@ export function ProductGallery({
     const remaining = Math.max(0, product.stock_quantity - cartQuantity);
     if (remaining < 1) return;
 
-    addItem(product, 1);
-    setAddedProductId(product.id);
-    setStatus(`${product.title} added to cart.`);
-    window.setTimeout(() => setAddedProductId(null), 1400);
+    setAddingProductId(product.id);
+    setStatus(`Adding ${product.title} to cart.`);
+    window.requestAnimationFrame(() => {
+      addItem(product, 1);
+      setAddingProductId(null);
+      setAddedProductId(product.id);
+      setStatus(`${product.title} added to cart.`);
+      window.setTimeout(() => setAddedProductId(null), 1400);
+    });
   }
 
   return (
@@ -56,6 +62,7 @@ export function ProductGallery({
           const alternateImage = safeImages[1];
           const cartQuantity = items.find(item => item.product.id === product.id)?.quantity ?? 0;
           const availability = getProductCardAvailability(product, cartQuantity);
+          const isAdding = addingProductId === product.id;
           const isAdded = addedProductId === product.id;
           const media = (
             <div className="relative aspect-[4/5] overflow-hidden rounded-t-[1.5rem] bg-sand">
@@ -135,16 +142,23 @@ export function ProductGallery({
                   <button
                     type="button"
                     onClick={() => handleAddToCart(product)}
-                    disabled={availability.disabled || isAdded}
-                    aria-label={`${isAdded ? "Added" : availability.buttonLabel}: ${product.title}`}
+                    disabled={availability.disabled || isAdding || isAdded}
+                    aria-busy={isAdding}
+                    aria-label={`${isAdding ? "Adding" : isAdded ? "Added" : availability.buttonLabel}: ${product.title}`}
                     className={`inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full px-2 text-[11px] font-semibold uppercase tracking-[0.08em] transition md:gap-2 md:px-4 md:text-xs md:tracking-[0.12em] ${
                       isAdded
                         ? "bg-emerald-700 text-white"
                         : "bg-bronze text-white shadow-sm hover:bg-rose disabled:cursor-not-allowed disabled:bg-sand disabled:text-muted"
                     }`}
                   >
-                    {isAdded ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />}
-                    {isAdded ? "Added" : availability.buttonLabel}
+                    {isAdding ? (
+                      <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                    ) : isAdded ? (
+                      <Check className="h-4 w-4 shrink-0" aria-hidden />
+                    ) : (
+                      <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />
+                    )}
+                    {isAdding ? "Adding..." : isAdded ? "Added" : availability.buttonLabel}
                   </button>
                 </div>
               </div>

@@ -60,14 +60,14 @@ export default async function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-champagne">
               Nairobi jewelry house
             </p>
-            <h1 className="mt-4 max-w-2xl font-serif text-5xl leading-[0.98] text-white sm:text-6xl lg:text-7xl">
+            <h1 className="mt-4 max-w-2xl font-serif text-[clamp(2.75rem,12vw,4rem)] leading-[0.98] text-white lg:text-7xl">
               Bold pieces. Your signature finish.
             </h1>
             <p className="mt-5 max-w-lg text-base leading-7 text-white/72 sm:text-lg">
               Jewelry and accessories selected for women who dress with intent, gift beautifully, and never disappear into the room.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/shop" className="btn-primary min-h-12 bg-bronze px-7 text-white hover:bg-rose">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link href="/shop" className="btn-primary min-h-12 w-full bg-bronze px-7 text-white hover:bg-rose sm:w-auto">
                 Shop Now
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
@@ -76,7 +76,7 @@ export default async function HomePage() {
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-outline min-h-12 border-white/20 bg-white/5 px-7 text-white hover:bg-white/10 hover:text-white"
+                  className="btn-outline min-h-12 w-full border-white/20 bg-white/5 px-7 text-white hover:bg-white/10 hover:text-white sm:w-auto"
                 >
                   <MessageCircle className="h-4 w-4" aria-hidden />
                   WhatsApp
@@ -85,15 +85,15 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="relative min-h-[430px] sm:min-h-[560px]">
-            <div className="absolute inset-4 rounded-[2rem] border border-champagne/50 sm:inset-8" />
-            <div className="absolute inset-y-0 left-0 w-[76%] overflow-hidden rounded-[2rem] bg-ink shadow-[0_40px_90px_rgba(43,20,37,0.38)]">
+          <div className="relative lg:min-h-[560px]">
+            <div className="absolute inset-4 rounded-[2rem] border border-champagne/50 lg:inset-8" />
+            <div className="relative h-[360px] w-[88%] overflow-hidden rounded-[2rem] bg-ink shadow-[0_40px_90px_rgba(43,20,37,0.38)] sm:h-[460px] lg:absolute lg:inset-y-0 lg:left-0 lg:h-auto lg:w-[76%]">
               <Image
                 src={heroProductImage || "/hero-jewelry.png"}
                 alt={heroProduct ? `${heroProduct.title} by Auro Ardon` : "Auro Ardon jewelry styling"}
                 fill
                 priority
-                sizes="(max-width: 1024px) 76vw, 40vw"
+                sizes="(max-width: 639px) 88vw, (max-width: 1024px) 76vw, 40vw"
                 className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
@@ -102,7 +102,7 @@ export default async function HomePage() {
             {heroProduct && heroProductPath ? (
               <Link
                 href={heroProductPath}
-                className="absolute bottom-5 right-0 w-[70%] rounded-[1.5rem] border border-white/10 bg-ink/92 p-5 text-white shadow-2xl backdrop-blur transition hover:-translate-y-1 sm:bottom-10 sm:w-[58%]"
+                className="relative mt-4 block w-full rounded-[1.5rem] border border-white/10 bg-ink/92 p-5 text-white shadow-2xl backdrop-blur transition hover:-translate-y-1 lg:absolute lg:bottom-10 lg:right-0 lg:mt-0 lg:w-[58%]"
               >
                 <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-champagne">Featured piece</p>
                 <h2 className="mt-2 font-serif text-2xl leading-tight sm:text-3xl">{heroProduct.title}</h2>
@@ -114,7 +114,7 @@ export default async function HomePage() {
                 </div>
               </Link>
             ) : (
-              <div className="absolute bottom-5 right-0 w-[72%] rounded-[1.5rem] border border-white/10 bg-ink/92 p-5 backdrop-blur sm:bottom-10 sm:w-[58%]">
+              <div className="relative mt-4 w-full rounded-[1.5rem] border border-white/10 bg-ink/92 p-5 backdrop-blur lg:absolute lg:bottom-10 lg:right-0 lg:mt-0 lg:w-[58%]">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-champagne">The next collection</p>
                 <p className="mt-2 text-sm leading-6 text-white/72">Join us on WhatsApp for availability and the latest drops.</p>
               </div>
