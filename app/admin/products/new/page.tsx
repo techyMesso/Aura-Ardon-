@@ -2,13 +2,32 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { ProductForm } from "@/components/admin/product-form";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
+import type { Category } from "@/lib/types";
 
 export const metadata = {
   title: "Add New Product | Auro Ardon Admin",
   robots: { index: false, follow: false },
 };
 
-export default function NewProductPage() {
+export default async function NewProductPage() {
+  let categories: Category[] = [];
+  try {
+    const supabase = createAdminSupabaseClient();
+    const { data, error } = await supabase
+      .from("categories")
+      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+      .order("display_order", { ascending: true })
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    categories = data ?? [];
+  } catch (error) {
+    logger.error("Failed to fetch product form categories", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
   return (
     <section className="rounded-[2rem] border border-white/60 bg-white/70 p-4 sm:p-6 shadow-luxe backdrop-blur">
       {/* Back + header */}
@@ -29,7 +48,7 @@ export default function NewProductPage() {
           Fill in the details, upload images, and publish your listing.
         </p>
       </div>
-      <ProductForm />
+      <ProductForm categories={categories} />
     </section>
   );
 }

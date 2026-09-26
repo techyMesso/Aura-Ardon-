@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
-import type { Product } from "@/lib/types";
+import type { Category, Product } from "@/lib/types";
 import { ProductForm } from "@/components/admin/product-form";
 
 export const metadata = {
@@ -16,17 +16,24 @@ export default async function EditProductPage({
 }) {
   const { id } = await params;
   let product: Product | null = null;
+  let categories: Category[] = [];
 
   try {
     const supabase = createAdminSupabaseClient();
-    const { data, error } = await supabase
+    const { data: productData, error: productError } = await supabase
       .from("products")
       .select("*")
       .eq("id", id)
       .single();
-    if (!error && data) {
-      product = data as Product;
-    }
+    if (!productError && productData) product = productData as Product;
+
+    const { data: categoryData, error: categoryError } = await supabase
+      .from("categories")
+      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+      .order("display_order", { ascending: true })
+      .order("name", { ascending: true });
+    if (categoryError) throw new Error(categoryError.message);
+    categories = categoryData ?? [];
   } catch (error) {
     logger.error("Failed to fetch admin product", {
       id,
@@ -47,7 +54,7 @@ export default async function EditProductPage({
           Update details, images, and availability.
         </p>
       </div>
-      <ProductForm initialProduct={product} />
+      <ProductForm initialProduct={product} categories={categories} />
     </section>
   );
 }

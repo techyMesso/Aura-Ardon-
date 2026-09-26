@@ -16,6 +16,9 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const maxImages = 10;
+  const imageCount = value.length;
+  const availableSlots = maxImages - imageCount;
 
   async function uploadFiles(files: FileList | File[]) {
     setUploading(true);
@@ -23,6 +26,10 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
 
     try {
       const fileList = Array.from(files);
+
+      if (fileList.length > availableSlots) {
+        throw new Error(`You can add ${availableSlots} more image${availableSlots === 1 ? "" : "s"}.`);
+      }
 
       // Validation
       for (const file of fileList) {
@@ -57,9 +64,6 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
     }
   }
 
-  const imageCount = value.length;
-  const maxImages = 10;
-
   return (
     <div className="space-y-4">
       {/* Drop zone */}
@@ -72,17 +76,17 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
         onDrop={(e) => {
           e.preventDefault();
           setIsDragging(false);
-          if (e.dataTransfer.files?.length) {
+          if (!uploading && e.dataTransfer.files?.length && availableSlots > 0) {
             void uploadFiles(e.dataTransfer.files);
           }
         }}
-        onClick={() => !uploading && inputRef.current?.click()}
+        onClick={() => !uploading && availableSlots > 0 && inputRef.current?.click()}
         className={cn(
           "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all min-h-[160px]",
           isDragging
             ? "border-bronze bg-bronze/5 scale-[1.01]"
             : "border-bronze/40 bg-white/40 hover:border-bronze hover:bg-white/60",
-          uploading && "opacity-60 cursor-not-allowed"
+          (uploading || availableSlots === 0) && "cursor-not-allowed opacity-60"
         )}
       >
         <input
@@ -90,9 +94,9 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
           type="file"
           className="hidden"
           multiple
-          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/avif"
           onChange={(e) => {
-            if (e.target.files?.length) {
+            if (e.target.files?.length && availableSlots > 0) {
               void uploadFiles(e.target.files);
               e.target.value = ""; // allow re-selecting same files
             }
@@ -112,11 +116,13 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
             <div>
               <p className="text-sm font-medium text-ink">
                 {imageCount > 0
-                  ? `Add ${maxImages - imageCount} more image${maxImages - imageCount !== 1 ? "s" : ""}`
-                  : "Tap to upload product images"}
+                    ? availableSlots > 0
+                      ? `Add ${availableSlots} more image${availableSlots !== 1 ? "s" : ""}`
+                      : "Image limit reached"
+                    : "Tap to upload product images"}
               </p>
               <p className="mt-1 text-xs text-muted">
-                JPG, PNG, WEBP, GIF • max 5 MB each • up to {maxImages} images
+                JPG, PNG, WEBP, GIF, AVIF • max 5 MB each • up to {maxImages} images
               </p>
             </div>
           </>
@@ -149,18 +155,15 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
                   sizes="(max-width: 640px) 50vw, 200px"
                   className="object-cover"
                 />
-                {/* Overlay with remove button */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={() => onChange(value.filter((_, i) => i !== index))}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-ink text-xs font-medium shadow hover:bg-red-50 hover:text-red-600 transition"
-                    aria-label="Remove image"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Remove
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onChange(value.filter((_, i) => i !== index))}
+                  className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink shadow transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-champagne"
+                  aria-label={`Remove image ${index + 1}`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Remove
+                </button>
                 {/* Primary badge */}
                 {index === 0 && (
                   <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-bronze text-white text-[10px] font-bold uppercase tracking-wide">
