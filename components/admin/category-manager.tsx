@@ -14,7 +14,7 @@ interface CategoryManagerProps {
 
 export function CategoryManager({ initialCategories }: CategoryManagerProps) {
   const [categories, setCategories] = useState<Category[]>(
-    initialCategories.sort((a, b) => a.display_order - b.display_order)
+    [...initialCategories].sort((a, b) => a.display_order - b.display_order)
   );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -133,12 +133,12 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-[2rem] border border-white/60 bg-white/70 p-6 shadow-luxe backdrop-blur">
+      <div className="min-w-0 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-luxe backdrop-blur sm:rounded-[2rem] sm:p-6">
         <h3 className="font-serif text-2xl text-ink mb-4">
           {editingId ? "Edit category" : "Create new category"}
         </h3>
-        <form onSubmit={saveCategory} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={saveCategory} className="space-y-4 pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-0">
+          <div className="grid gap-4 md:grid-cols-2">
             <Input
               placeholder="Name"
               value={form.name}
@@ -161,7 +161,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
             value={form.image_url}
             onChange={(e) => setForm({ ...form, image_url: e.target.value })}
           />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <Input
               placeholder="Parent Category ID (optional)"
               value={form.parent_id}
@@ -176,12 +176,12 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
             />
           </div>
           {error && <p className="text-sm text-red-700">{error}</p>}
-          <div className="flex gap-3">
-            <Button type="submit" disabled={saving}>
+          <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex gap-3 border-t border-champagne/30 bg-cream/95 px-4 py-3 shadow-[0_-10px_30px_rgba(43,20,37,0.12)] backdrop-blur md:static md:shadow-none">
+            <Button type="submit" disabled={saving} className="min-h-12 min-w-0 flex-1 text-sm md:flex-none">
               {saving ? "Saving..." : editingId ? "Update" : "Create"}
             </Button>
             {editingId && (
-              <Button type="button" variant="ghost" onClick={resetForm}>
+              <Button type="button" variant="ghost" onClick={resetForm} className="min-h-12 min-w-0 flex-1 text-sm md:flex-none">
                 Cancel
               </Button>
             )}
@@ -189,7 +189,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
         </form>
       </div>
 
-      <div className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/70 shadow-luxe backdrop-blur">
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-white/60 bg-white/70 shadow-luxe backdrop-blur sm:rounded-[2rem]">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-sand/50 text-left uppercase tracking-[0.18em] text-muted">

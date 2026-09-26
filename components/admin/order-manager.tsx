@@ -224,10 +224,10 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
   );
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(360px,1fr)]">
-      <section className="rounded-2xl border border-white/50 bg-white/70 p-6 shadow-luxe backdrop-blur">
+    <div className="grid min-w-0 gap-4 md:gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(360px,1fr)]">
+      <section className="min-w-0 rounded-2xl border border-white/50 bg-white/70 p-4 shadow-luxe backdrop-blur sm:p-6">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">
               Orders
             </p>
@@ -450,39 +450,39 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
         </div>
       </section>
 
-      <aside className="rounded-2xl border border-white/50 bg-white/70 p-6 shadow-luxe backdrop-blur">
+      <aside className="min-w-0 rounded-2xl border border-white/50 bg-white/70 p-4 shadow-luxe backdrop-blur sm:p-6">
         {!selectedOrder || loadingDetail ? (
           <div className="flex min-h-[320px] items-center justify-center text-sm text-muted">
             {loadingDetail ? "Loading order details..." : "Select an order to view details."}
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="flex min-w-0 items-start justify-between gap-4">
+                <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">
                   Order details
                 </p>
                 <h3 className="mt-2 font-serif text-2xl text-ink">
                   #{selectedOrder.id.slice(0, 8).toUpperCase()}
                 </h3>
-                <p className="mt-1 text-sm text-muted">
+                <p className="mt-1 break-words text-sm text-muted">
                   {formatDateTime(selectedOrder.created_at)}
                 </p>
               </div>
               <OrderStatusBadge status={selectedOrder.order_status} />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-border bg-white/80 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">
                   Customer
                 </p>
-                <p className="mt-3 font-medium text-ink">{selectedOrder.customer_name}</p>
-                <p className="mt-1 text-sm text-muted">{selectedOrder.customer_phone}</p>
+                <p className="mt-3 break-words font-medium text-ink">{selectedOrder.customer_name}</p>
+                <p className="mt-1 break-words text-sm text-muted">{selectedOrder.customer_phone}</p>
                 {selectedOrder.customer_email ? (
-                  <p className="mt-1 text-sm text-muted">{selectedOrder.customer_email}</p>
+                  <p className="mt-1 break-words text-sm text-muted">{selectedOrder.customer_email}</p>
                 ) : null}
-                <p className="mt-1 text-sm text-muted">{selectedOrder.customer_location}</p>
+                <p className="mt-1 break-words text-sm text-muted">{selectedOrder.customer_location}</p>
               </div>
               <div className="rounded-xl border border-border bg-white/80 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">
@@ -516,13 +516,13 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                     key={item.id}
                     className="flex items-start justify-between gap-4 rounded-xl border border-border/80 px-3 py-3"
                   >
-                    <div>
-                      <p className="font-medium text-ink">{item.product_title}</p>
+                    <div className="min-w-0">
+                      <p className="break-words font-medium text-ink">{item.product_title}</p>
                       <p className="text-xs text-muted">
                         {item.quantity} x {formatCurrency(item.unit_price)}
                       </p>
                     </div>
-                    <p className="font-medium text-ink">
+                    <p className="shrink-0 font-medium text-ink">
                       {formatCurrency(Number(item.unit_price) * item.quantity)}
                     </p>
                   </div>
@@ -586,7 +586,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                 </p>
               ) : null}
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2">
                 <Button
                   variant="secondary"
                   className="w-full"

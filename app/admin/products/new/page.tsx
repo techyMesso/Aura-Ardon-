@@ -29,7 +29,7 @@ export default async function NewProductPage() {
   }
 
   return (
-    <section className="rounded-[2rem] border border-white/60 bg-white/70 p-4 sm:p-6 shadow-luxe backdrop-blur">
+    <section className="min-w-0 rounded-[2rem] border border-white/60 bg-white/70 p-4 shadow-luxe backdrop-blur sm:p-6">
       {/* Back + header */}
       <Link
         href="/admin/products"

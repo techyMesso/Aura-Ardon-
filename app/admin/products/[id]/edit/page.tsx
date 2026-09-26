@@ -44,7 +44,7 @@ export default async function EditProductPage({
   if (!product) notFound();
 
   return (
-    <section className="rounded-[2rem] border border-white/60 bg-white/70 p-6 shadow-luxe backdrop-blur">
+    <section className="min-w-0 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-luxe backdrop-blur sm:rounded-[2rem] sm:p-6">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">
           Inventory

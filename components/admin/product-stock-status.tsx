@@ -23,7 +23,7 @@ export function ProductStockStatus({ quantity }: ProductStockStatusProps) {
 
   return (
     <span
-      className={`inline-flex min-w-28 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusStyles[status]}`}
+      className={`inline-flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusStyles[status]}`}
       aria-label={`${details.label}: ${quantity} available`}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />

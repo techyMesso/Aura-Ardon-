@@ -32,8 +32,8 @@ export default async function InvoicePage({
   const { order, items } = result;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="min-w-0 space-y-4 sm:space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/admin/orders"
           className="inline-flex items-center text-sm text-muted hover:text-bronze"
@@ -44,9 +44,9 @@ export default async function InvoicePage({
         <PrintButton />
       </div>
 
-      <div className="rounded-[2rem] border border-white/60 bg-white/70 p-8 shadow-luxe backdrop-blur">
-        <div className="mb-8 flex items-start justify-between">
-          <div>
+      <div className="min-w-0 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-luxe backdrop-blur sm:rounded-[2rem] sm:p-8">
+        <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <h1 className="font-serif text-3xl text-ink">Invoice</h1>
             <p className="text-muted mt-1">Order #{order.id.slice(0, 8).toUpperCase()}</p>
             <p className="text-sm text-muted">
@@ -57,10 +57,10 @@ export default async function InvoicePage({
               })}
             </p>
           </div>
-          <div className="text-right">
+          <div className="min-w-0 text-left sm:text-right">
             <p className="text-ink font-semibold">Auro Ardon</p>
             <p className="text-sm text-muted">Nairobi, Kenya</p>
-            <p className="text-sm text-muted">contact@auroardon.com</p>
+            <p className="break-words text-sm text-muted">contact@auroardon.com</p>
           </div>
         </div>
 
@@ -93,8 +93,8 @@ export default async function InvoicePage({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[1.5rem] border border-border mb-8">
-          <table className="min-w-full divide-y divide-border text-sm">
+        <div className="mb-8 overflow-x-auto rounded-[1.5rem] border border-border">
+          <table className="min-w-[560px] divide-y divide-border text-sm">
             <thead className="bg-sand/50 text-left uppercase tracking-[0.18em] text-muted">
               <tr>
                 <th className="px-4 py-3">Item</th>
@@ -118,16 +118,16 @@ export default async function InvoicePage({
           </table>
         </div>
 
-        <div className="flex flex-col items-end gap-2 text-sm">
-          <div className="flex w-48 justify-between text-muted">
+        <div className="flex flex-col items-stretch gap-2 text-sm sm:items-end">
+          <div className="flex w-full justify-between text-muted sm:w-48">
             <span>Subtotal</span>
             <span>{formatCurrency(order.subtotal)}</span>
           </div>
-          <div className="flex w-48 justify-between text-muted">
+          <div className="flex w-full justify-between text-muted sm:w-48">
             <span>Shipping</span>
             <span>{formatCurrency(order.shipping_fee)}</span>
           </div>
-          <div className="flex w-48 justify-between border-t border-border pt-2 text-lg font-semibold text-ink">
+          <div className="flex w-full justify-between border-t border-border pt-2 text-lg font-semibold text-ink sm:w-48">
             <span>Total</span>
             <span>{formatCurrency(order.total)}</span>
           </div>

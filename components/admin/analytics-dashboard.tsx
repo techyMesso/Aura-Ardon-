@@ -36,20 +36,20 @@ function AdminStatCard({
 }) {
   return (
     <article
-      className={`rounded-[1.75rem] border p-5 shadow-card backdrop-blur-sm ${
+      className={`min-w-0 rounded-2xl border p-4 shadow-card backdrop-blur-sm sm:rounded-[1.75rem] sm:p-5 ${
         tone === "attention"
           ? "border-rose/25 bg-sand/50"
           : "border-white/65 bg-card/80"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bronze">{label}</p>
-        <span className="rounded-full bg-bronze/10 p-2 text-bronze">
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <p className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-bronze sm:text-xs sm:tracking-[0.2em]">{label}</p>
+        <span className="shrink-0 rounded-full bg-bronze/10 p-2 text-bronze">
           <Icon className="h-4 w-4" aria-hidden="true" />
         </span>
       </div>
-      <p className="mt-5 font-serif text-3xl text-ink sm:text-4xl">{value}</p>
-      <p className="mt-2 text-sm text-muted">{detail}</p>
+      <p className="mt-4 break-words font-serif text-[clamp(1.5rem,8vw,2.25rem)] leading-none text-ink">{value}</p>
+      <p className="mt-2 text-xs leading-5 text-muted sm:text-sm">{detail}</p>
     </article>
   );
 }
@@ -180,19 +180,19 @@ export function AnalyticsDashboard({ dashboard }: AnalyticsDashboardProps) {
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[2rem] border border-white/65 bg-gradient-card p-6 shadow-luxe backdrop-blur sm:p-8">
+    <div className="min-w-0 space-y-4 md:space-y-6">
+      <section className="min-w-0 rounded-2xl border border-white/65 bg-gradient-card p-4 shadow-luxe backdrop-blur sm:rounded-[2rem] sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bronze">Dashboard overview</p>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="font-serif text-4xl text-ink sm:text-5xl">Today&apos;s atelier pulse</h2>
+            <h2 className="font-serif text-[clamp(2rem,10vw,3rem)] leading-tight text-ink">Today&apos;s atelier pulse</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
               A focused view of sales, fulfillment, and inventory that need your attention.
             </p>
           </div>
           <Link
             href="/admin/orders"
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-bronze px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white shadow-card transition hover:bg-rose"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-bronze px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-white shadow-card transition hover:bg-rose sm:px-5 sm:text-sm sm:tracking-[0.16em]"
           >
             Review orders
             <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -200,14 +200,14 @@ export function AnalyticsDashboard({ dashboard }: AnalyticsDashboardProps) {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
         {stats.map(stat => (
           <AdminStatCard key={stat.label} {...stat} />
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.9fr)]">
-        <div className="rounded-[2rem] border border-white/65 bg-white/75 p-5 shadow-card backdrop-blur sm:p-6">
+      <section className="grid min-w-0 gap-4 md:gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.9fr)]">
+        <div className="min-w-0 rounded-2xl border border-white/65 bg-white/75 p-4 shadow-card backdrop-blur sm:rounded-[2rem] sm:p-6">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">Fulfillment</p>
@@ -259,7 +259,7 @@ export function AnalyticsDashboard({ dashboard }: AnalyticsDashboardProps) {
           )}
         </div>
 
-        <aside className="rounded-[2rem] border border-rose/20 bg-gradient-warm p-5 shadow-card sm:p-6">
+        <aside className="min-w-0 rounded-2xl border border-rose/20 bg-gradient-warm p-4 shadow-card sm:rounded-[2rem] sm:p-6">
           <div className="mb-5 flex items-start gap-3">
             <span className="rounded-full bg-rose/10 p-2 text-rose">
               <PackageOpen className="h-5 w-5" aria-hidden="true" />

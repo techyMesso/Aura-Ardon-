@@ -170,7 +170,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-6 pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-0" noValidate>
       <section className="rounded-2xl border border-border/70 bg-white/60 p-4 sm:p-6" aria-labelledby="product-details-heading">
         <div className="mb-5">
           <p className="section-label">Product details</p>
@@ -186,7 +186,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             <Textarea id="product-description" placeholder="Describe craftsmanship, gemstone profile, fit, and care instructions..." value={description} onChange={event => setDescription(event.target.value)} required rows={5} className="min-h-32 resize-none text-base" />
             <p className="mt-1.5 text-xs leading-5 text-muted">Help customers picture the piece: include finish, size or fit, and care details.</p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
               <FormLabel htmlFor="product-category" required>Category</FormLabel>
               {categoryMessage ? (
@@ -216,7 +216,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
           <p className="section-label">Pricing and inventory</p>
           <h3 id="pricing-inventory-heading" className="mt-2 font-serif text-2xl text-ink">Set availability</h3>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
             <FormLabel htmlFor="product-price" required>Price (KSh)</FormLabel>
             <Input id="product-price" type="number" min="0.01" step="0.01" inputMode="decimal" placeholder="2500" value={price} onChange={event => setPrice(event.target.value)} required className="min-h-12 text-base" aria-describedby="product-price-help" />
@@ -244,7 +244,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
           <p className="section-label">Publishing</p>
           <h3 id="publishing-heading" className="mt-2 font-serif text-2xl text-ink">Choose visibility</h3>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <Toggle id="product-active" checked={active} onChange={setActive} label="Active" description="Visible in the storefront." />
           <Toggle id="product-featured" checked={isFeatured} onChange={setIsFeatured} label="Featured" description="Appears in featured collections." />
         </div>
@@ -272,11 +272,11 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       {error ? <div role="alert" className="rounded-xl border border-rose/35 bg-rose/10 p-4 text-sm font-medium text-ink">{error}</div> : null}
       {success ? <div role="status" className="rounded-xl border border-bronze/35 bg-champagne/20 p-4 text-sm font-medium text-ink">{success}</div> : null}
 
-      <div className="flex flex-col gap-3 pb-8 pt-2 sm:flex-row sm:pb-0">
-        <Button type="submit" disabled={saving || Boolean(categoryMessage)} aria-busy={saving} className="min-h-12 text-base">
+      <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex gap-3 border-t border-champagne/30 bg-cream/95 px-4 py-3 shadow-[0_-10px_30px_rgba(43,20,37,0.12)] backdrop-blur md:static md:pt-2 md:shadow-none">
+        <Button type="submit" disabled={saving || Boolean(categoryMessage)} aria-busy={saving} className="min-h-12 min-w-0 flex-1 text-sm md:flex-none md:text-base">
           {saving ? "Saving product..." : "Save Product"}
         </Button>
-        <Button type="button" variant="ghost" onClick={() => router.back()} disabled={saving} className="min-h-12 text-base">
+        <Button type="button" variant="ghost" onClick={() => router.back()} disabled={saving} className="min-h-12 min-w-0 flex-1 text-sm md:flex-none md:text-base">
           Cancel
         </Button>
       </div>
