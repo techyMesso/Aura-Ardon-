@@ -1,7 +1,7 @@
-import { MapPin, MessageCircle, Phone } from "lucide-react";
+import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 
 import { ContactForm } from "@/components/storefront/contact-form";
-import { formatWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils";
+import { createWhatsAppLink, formatWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils";
 
 export const metadata = {
   title: "Contact Us | Auro Ardon",
@@ -12,6 +12,7 @@ export default function ContactPage() {
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? null;
   const normalizedNumber = normalizeWhatsAppNumber(whatsappNumber);
   const displayNumber = formatWhatsAppNumber(whatsappNumber);
+  const whatsappUrl = createWhatsAppLink(whatsappNumber ?? "", "Hello Auro Ardon, I would like help choosing a piece.");
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-12 md:px-6 lg:px-10 lg:py-16">
@@ -23,11 +24,11 @@ export default function ContactPage() {
         </p>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
         <ContactForm whatsappNumber={whatsappNumber} />
 
         <aside className="space-y-5">
-          <div className="rounded-[2rem] border border-white/60 bg-white/75 p-7 shadow-luxe backdrop-blur">
+          <div className="rounded-[2rem] border border-white/60 bg-white/75 p-5 shadow-luxe backdrop-blur sm:p-7">
             <h2 className="font-serif text-2xl text-ink">Store contact</h2>
             <div className="mt-6 space-y-5">
               <div className="flex min-h-11 items-center gap-4">
@@ -50,6 +51,11 @@ export default function ContactPage() {
                   Store messaging is temporarily unavailable because the WhatsApp contact is not configured.
                 </div>
               )}
+            </div>
+            <div className="mt-6 grid gap-2">
+              {whatsappUrl ? <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-primary min-h-12 text-xs"><MessageCircle className="h-4 w-4" aria-hidden />WhatsApp us</a> : null}
+              {normalizedNumber ? <a href={`tel:+${normalizedNumber}`} className="btn-outline min-h-12 text-xs"><Phone className="h-4 w-4" aria-hidden />Call store</a> : null}
+              <a href="mailto:contact@auroardon.com" className="btn-outline min-h-12 text-xs"><Mail className="h-4 w-4" aria-hidden />Email us</a>
             </div>
           </div>
 

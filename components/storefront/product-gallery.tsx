@@ -51,7 +51,7 @@ export function ProductGallery({
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 min-[440px]:grid-cols-2 md:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+       <div className="grid grid-cols-2 gap-3 min-[440px]:gap-4 md:gap-5 lg:grid-cols-3 xl:grid-cols-4">
         {products.map(product => {
           const productPath = getCanonicalProductPath(product, categoryMap);
           const categoryLabel = getProductCategoryLabel(product, categoryMap);

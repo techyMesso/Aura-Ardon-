@@ -14,9 +14,9 @@ export default function StorefrontError({
   }, [error]);
 
   return (
-    <div className="flex min-h-[calc(100vh-72px)] items-center justify-center px-6 py-12">
-      <div className="w-full max-w-xl text-center space-y-6">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+    <div className="flex min-h-[60dvh] items-center justify-center px-4 py-12">
+      <div className="w-full max-w-xl space-y-6 rounded-[2rem] border border-border bg-white/75 p-7 text-center shadow-card">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
           <svg className="h-6 w-6 text-red-600" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2v2m0 16v2m6-10l-4 4-4-4" />
           </svg>

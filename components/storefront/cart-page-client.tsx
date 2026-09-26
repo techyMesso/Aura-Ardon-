@@ -27,13 +27,13 @@ export function CartPageClient() {
         <p className="mb-8 mt-3 max-w-md text-muted">
           Your next statement piece is waiting in the collection.
         </p>
-        <Link href="/shop" className="btn-primary min-h-11">Start shopping</Link>
+        <Link href="/shop" className="btn-primary min-h-12">Continue shopping</Link>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-10 lg:py-12">
+    <div className="mx-auto max-w-7xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:py-10 lg:px-10 lg:py-12">
       <div className="mb-8 sm:mb-10">
         <p className="section-label">Your selection</p>
         <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Shopping cart</h1>
@@ -130,7 +130,7 @@ export function CartPageClient() {
           </button>
         </div>
 
-        <aside className="lg:col-span-1">
+         <aside className="hidden md:block lg:col-span-1">
           <div className="rounded-[2rem] border border-white/60 bg-white/75 p-6 shadow-luxe backdrop-blur sm:p-8 lg:sticky lg:top-24">
             <h2 className="font-serif text-2xl text-ink">Order summary</h2>
             <div className="mt-6 space-y-4 text-sm">
@@ -154,6 +154,9 @@ export function CartPageClient() {
             <Link href="/shop" className="mt-3 flex min-h-11 items-center justify-center text-sm text-muted transition hover:text-bronze">Continue shopping</Link>
           </div>
         </aside>
+      </div>
+      <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-white/96 px-4 py-3 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur md:hidden">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Subtotal</p><p className="text-lg font-semibold text-ink">{formatCurrency(total)}</p></div><Link href="/checkout" className="btn-primary min-h-12 shrink-0 px-4 text-xs">Checkout <ArrowRight className="h-4 w-4" aria-hidden /></Link></div>
       </div>
     </div>
   );

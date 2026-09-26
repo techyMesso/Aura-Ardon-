@@ -45,6 +45,8 @@ export function ProductDetailClient({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const mainImageButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
+  const didSwipeRef = useRef(false);
   const quantityInCart = items.find(item => item.product.id === product.id)?.quantity ?? 0;
   const remaining = Math.max(0, product.stock_quantity - quantityInCart);
   const soldOut = product.stock_quantity < 1;
@@ -139,8 +141,21 @@ export function ProductDetailClient({
     setSelectedIndex(current => (current + 1) % images.length);
   }
 
+  function handleGalleryTouchEnd(event: React.TouchEvent<HTMLButtonElement>) {
+    if (touchStartX.current === null || images.length < 2) return;
+    const distance = event.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(distance) < 40) return;
+    didSwipeRef.current = true;
+    if (distance > 0) showPrevious();
+    else showNext();
+    window.setTimeout(() => {
+      didSwipeRef.current = false;
+    }, 0);
+  }
+
   return (
-    <div className="mx-auto max-w-7xl px-5 pb-28 pt-8 md:px-6 lg:px-10 lg:pb-12 lg:pt-12">
+    <div className="mx-auto max-w-7xl px-5 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:pb-12 md:pt-8 lg:px-10 lg:pt-12">
       <nav className="mb-6 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-muted" aria-label="Breadcrumb">
         <Link href="/shop" className="shrink-0 hover:text-bronze">Shop</Link>
         <span aria-hidden>/</span>
@@ -154,7 +169,13 @@ export function ProductDetailClient({
           <button
             ref={mainImageButtonRef}
             type="button"
-            onClick={() => setLightboxOpen(true)}
+            onClick={() => {
+              if (!didSwipeRef.current) setLightboxOpen(true);
+            }}
+            onTouchStart={event => {
+              touchStartX.current = event.touches[0]?.clientX ?? null;
+            }}
+            onTouchEnd={handleGalleryTouchEnd}
             className="group relative block aspect-[4/5] w-full overflow-hidden rounded-[1.75rem] bg-sand shadow-card [touch-action:pinch-zoom]"
             aria-label={`Open enlarged image of ${product.title}`}
           >
@@ -169,6 +190,7 @@ export function ProductDetailClient({
             <span className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full bg-ink/82 text-white backdrop-blur">
               <Expand className="h-4 w-4" aria-hidden />
             </span>
+            <span className="absolute left-4 top-4 rounded-full bg-ink/82 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">{selectedIndex + 1} / {images.length}</span>
           </button>
 
           {images.length > 1 ? (
@@ -191,7 +213,7 @@ export function ProductDetailClient({
           ) : null}
         </section>
 
-        <section className="lg:sticky lg:top-24 lg:h-fit">
+        <section className="rounded-[1.75rem] border border-border/60 bg-white/80 p-5 shadow-card md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none lg:sticky lg:top-24 lg:h-fit">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bronze">{category.name}</p>
           <h1 className="mt-3 font-serif text-4xl leading-[1.03] text-ink sm:text-5xl">{product.title}</h1>
           <p className="mt-4 text-2xl font-semibold text-ink">{formatCurrency(product.price)}</p>
@@ -269,7 +291,7 @@ export function ProductDetailClient({
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-white/96 px-3 py-2.5 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur lg:hidden">
+       <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border/60 bg-white/96 px-3 py-2.5 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-7xl items-center gap-2">
           <div className="min-w-0 flex-1 pl-1">
             <p className="truncate text-xs font-semibold text-ink">{product.title}</p>

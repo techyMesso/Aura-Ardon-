@@ -158,7 +158,7 @@ export function CheckoutPageClient() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-5 py-8 md:px-6 lg:px-10 lg:py-12">
+    <div className="mx-auto max-w-7xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:py-8 lg:px-10 lg:py-12">
       <Link href="/cart" className="inline-flex items-center text-sm text-muted hover:text-bronze">
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to cart
@@ -168,13 +168,13 @@ export function CheckoutPageClient() {
         <div className="space-y-6">
           <div>
             <p className="section-label">Checkout</p>
-            <h1 className="mt-3 font-serif text-4xl text-ink sm:text-5xl">Simple, fast order confirmation</h1>
+            <h1 className="mt-3 font-serif text-[clamp(2rem,10vw,3rem)] leading-tight text-ink">Simple, fast order confirmation</h1>
             <p className="mt-3 max-w-xl text-base leading-7 text-muted">
               Just enter your name, phone, and location. We’ll handle the rest through WhatsApp or cash on delivery.
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-border/60 bg-white/85 p-4 shadow-card">
               <p className="text-sm font-semibold text-ink">Pay on Delivery Available</p>
             </div>
@@ -187,16 +187,18 @@ export function CheckoutPageClient() {
           </div>
 
           <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-            <section className="rounded-[1.75rem] border border-border/60 bg-white/88 p-6 shadow-card">
-              <h2 className="font-serif text-2xl text-ink">Delivery details</h2>
+            <section className="rounded-[1.75rem] border border-border/60 bg-white/88 p-4 shadow-card sm:p-6">
+              <p className="section-label">Customer details</p>
+              <h2 className="mt-2 font-serif text-2xl text-ink">Delivery details</h2>
               <div className="mt-5 space-y-4">
                 <label className="block">
                   <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
                     <User className="h-4 w-4 text-bronze" />
                     Name
                   </span>
-                  <Input
-                    required
+                    <Input
+                      required
+                      autoComplete="name"
                     placeholder="Your full name"
                     value={formData.customerName}
                     onChange={event =>
@@ -210,8 +212,11 @@ export function CheckoutPageClient() {
                     <Phone className="h-4 w-4 text-bronze" />
                     Phone
                   </span>
-                  <Input
-                    required
+                    <Input
+                      required
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
                     placeholder="Your mobile number"
                     value={formData.customerPhone}
                     onChange={event =>
@@ -240,8 +245,9 @@ export function CheckoutPageClient() {
                     <MapPin className="h-4 w-4 text-bronze" />
                     Location
                   </span>
-                  <Input
-                    required
+                    <Input
+                      required
+                      autoComplete="street-address"
                     placeholder="Hostel, estate, campus gate, or pickup point"
                     value={formData.customerLocation}
                     onChange={event =>
@@ -252,8 +258,9 @@ export function CheckoutPageClient() {
               </div>
             </section>
 
-            <section className="rounded-[1.75rem] border border-border/60 bg-white/88 p-6 shadow-card">
-              <h2 className="font-serif text-2xl text-ink">How would you like to order?</h2>
+            <section className="rounded-[1.75rem] border border-border/60 bg-white/88 p-4 shadow-card sm:p-6">
+              <p className="section-label">Payment</p>
+              <h2 className="mt-2 font-serif text-2xl text-ink">How would you like to order?</h2>
               <div className="mt-5 space-y-3">
                 <label
                   className={`block rounded-[1.25rem] border p-4 transition ${
@@ -307,12 +314,12 @@ export function CheckoutPageClient() {
             </section>
 
             {error ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             ) : null}
 
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <Button
                 type="submit"
                 disabled={loading}
@@ -331,7 +338,7 @@ export function CheckoutPageClient() {
           </form>
         </div>
 
-        <aside className="lg:sticky lg:top-24 lg:h-fit">
+        <aside className="md:sticky md:top-24 md:h-fit">
           <div className="rounded-[1.75rem] border border-border/60 bg-white/88 p-6 shadow-card">
             <h2 className="font-serif text-2xl text-ink">Order summary</h2>
             <div className="mt-5 space-y-3">
@@ -366,7 +373,7 @@ export function CheckoutPageClient() {
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+       <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border/60 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-muted">Subtotal</p>
@@ -384,7 +391,7 @@ export function CheckoutPageClient() {
                 Placing...
               </>
             ) : (
-              "Place Order"
+              paymentMethod === "CASH_ON_DELIVERY" ? "Place COD order" : "Continue on WhatsApp"
             )}
           </Button>
         </div>

@@ -68,7 +68,7 @@ export default async function HomePage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link href="/shop" className="btn-primary min-h-12 w-full bg-bronze px-7 text-white hover:bg-rose sm:w-auto">
-                Shop Now
+                Shop collection
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
               {whatsappUrl ? (
@@ -76,7 +76,7 @@ export default async function HomePage() {
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-outline min-h-12 w-full border-white/20 bg-white/5 px-7 text-white hover:bg-white/10 hover:text-white sm:w-auto"
+                  className="btn-outline hidden min-h-12 w-full border-white/20 bg-white/5 px-7 text-white hover:bg-white/10 hover:text-white md:inline-flex md:w-auto"
                 >
                   <MessageCircle className="h-4 w-4" aria-hidden />
                   WhatsApp

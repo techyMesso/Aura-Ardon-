@@ -22,10 +22,13 @@
   --color-sand:      #F7D8DE;
   --color-card:      #FFFCFD;
   --color-border:    #E8B6C4;
+  --mobile-bottom-nav-height: 72px;
 }
 
 /* ─── Base Reset & Smoothing ────────────────────────────── */
 html {
+  min-height: 100%;
+  overflow-x: hidden;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -35,11 +38,19 @@ html {
 /* ─── Body Background ───────────────────────────────────── */
 body {
   min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
   background:
     radial-gradient(ellipse 80% 55% at 5% 0%, rgba(244, 194, 194, 0.48) 0%, transparent 58%),
     radial-gradient(ellipse 60% 45% at 95% 5%, rgba(123, 45, 94, 0.10) 0%, transparent 52%),
     linear-gradient(180deg, #FFF9FA 0%, #FFF7F8 50%, #F7D8DE 100%);
   color: var(--color-ink);
+}
+
+@media (max-width: 767px) {
+  body {
+    background: #FFF7F8;
+  }
 }
 
 /* ─── Text Selection ────────────────────────────────────── */

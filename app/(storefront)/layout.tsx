@@ -22,8 +22,8 @@ export default async function StorefrontLayout({
   return (
     <CartProvider categories={categories}>
       <Navbar categories={categories} />
-      <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0">
-        <main className="min-h-screen pt-[72px]">{children}</main>
+      <div className="min-h-dvh min-w-0 overflow-x-hidden pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
+        <main className="min-h-dvh min-w-0 pt-[72px]">{children}</main>
         <Footer categories={categories} />
       </div>
       <WhatsAppFab />

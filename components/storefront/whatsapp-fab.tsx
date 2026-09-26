@@ -20,7 +20,7 @@ export function WhatsAppFab() {
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-ink p-1.5 pr-4 text-sm font-semibold text-white shadow-[0_20px_50px_rgba(43,20,37,0.35)] transition hover:bg-bronze focus:outline-none focus:ring-2 focus:ring-champagne sm:right-5 lg:bottom-8 lg:right-8"
+      className="fixed bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom)+0.75rem)] right-4 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-ink p-1.5 pr-4 text-sm font-semibold text-white shadow-[0_20px_50px_rgba(43,20,37,0.35)] transition hover:bg-bronze focus:outline-none focus:ring-2 focus:ring-champagne md:bottom-8 md:right-8"
       aria-label="Contact Auro Ardon on WhatsApp"
     >
       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-bronze text-white">
