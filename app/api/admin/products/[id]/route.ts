@@ -4,6 +4,7 @@ import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import type { ProductUpdate } from "@/lib/types";
 import { toMoneyString } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -61,7 +62,7 @@ export async function PATCH(
     const payload = updateSchema.parse(await request.json());
     const supabase = createAdminSupabaseClient();
 
-    const updates: Record<string, any> = {};
+    const updates: ProductUpdate = {};
     if (payload.title !== undefined) {
       updates.title = payload.title;
       updates.slug = createProductSlug(payload.title);

@@ -1,4 +1,6 @@
-'use client';
+"use client";
+
+import { useEffect } from "react";
 
 export default function StorefrontError({
   error,
@@ -7,6 +9,10 @@ export default function StorefrontError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error("Storefront error boundary", error);
+  }, [error]);
+
   return (
     <div className="flex min-h-[calc(100vh-72px)] items-center justify-center px-6 py-12">
       <div className="w-full max-w-xl text-center space-y-6">
@@ -17,7 +23,7 @@ export default function StorefrontError({
         </div>
         <h2 className="text-2xl font-bold text-ink">Something went wrong</h2>
         <p className="text-muted">
-          We're sorry, but something went wrong on our end. Please try again later.
+          We&apos;re sorry, but something went wrong on our end. Please try again later.
         </p>
         <button
           onClick={() => reset()}

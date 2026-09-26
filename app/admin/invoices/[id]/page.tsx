@@ -73,7 +73,7 @@ export default async function InvoicePage({
             <p className="text-sm text-muted">{order.customer_phone}</p>
             {order.customer_email && <p className="text-sm text-muted">{order.customer_email}</p>}
             <p className="text-sm text-muted">{order.customer_location}</p>
-            {order.notes && <p className="mt-2 text-sm italic text-muted">"{order.notes}"</p>}
+            {order.notes && <p className="mt-2 text-sm italic text-muted">&quot;{order.notes}&quot;</p>}
           </div>
           <div className="sm:text-right">
             <div className="space-y-1">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogOut, Shield, LayoutDashboard, Package, FolderTree, ClipboardList, FileText } from "lucide-react";
+import { LogOut, Shield, LayoutDashboard, Package, FolderTree, ClipboardList } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { requireAdminPage } from "@/lib/auth";

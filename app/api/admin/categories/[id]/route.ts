@@ -4,6 +4,7 @@ import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateCategoryCatalog } from "@/lib/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import type { CategoryUpdate } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -50,13 +51,13 @@ export async function PATCH(
     const payload = categoryUpdateSchema.parse(await request.json());
     const supabase = createAdminSupabaseClient();
 
-     const updates: Record<string, any> = {};
-     if (payload.name !== undefined) updates.name = payload.name;
-     if (payload.slug !== undefined) updates.slug = payload.slug;
-     if (payload.description !== undefined) updates.description = payload.description;
-     if (payload.image_url !== undefined) updates.image_url = payload.image_url;
-     if (payload.parent_id !== undefined) updates.parent_id = payload.parent_id || null;
-     if (payload.display_order !== undefined) updates.display_order = payload.display_order;
+    const updates: CategoryUpdate = {};
+    if (payload.name !== undefined) updates.name = payload.name;
+    if (payload.slug !== undefined) updates.slug = payload.slug;
+    if (payload.description !== undefined) updates.description = payload.description;
+    if (payload.image_url !== undefined) updates.image_url = payload.image_url;
+    if (payload.parent_id !== undefined) updates.parent_id = payload.parent_id || null;
+    if (payload.display_order !== undefined) updates.display_order = payload.display_order;
 
     const { data, error } = await supabase
       .from("categories")

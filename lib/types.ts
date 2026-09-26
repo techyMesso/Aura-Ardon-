@@ -88,6 +88,34 @@ export interface OrderItem {
   created_at: string;
 }
 
+export type CategoryInsert = Omit<Category, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type CategoryUpdate = Partial<Omit<Category, "id" | "created_at">>;
+
+export type ProductInsert = Omit<Product, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type ProductUpdate = Partial<Omit<Product, "id" | "created_at">>;
+
+export type OrderInsert = Omit<Order, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type OrderUpdate = Partial<Omit<Order, "id" | "created_at">>;
+
+export type OrderItemInsert = Omit<OrderItem, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type OrderItemUpdate = Partial<Omit<OrderItem, "id" | "created_at">>;
+
 export interface AdminAnalyticsSeriesPoint {
   label: string;
   value: number;
@@ -115,10 +143,10 @@ export interface AdminAnalytics {
 export interface Database {
   public: {
     Tables: {
-      categories: { Row: Category; Insert: any; Update: any };
-      products: { Row: Product; Insert: any; Update: any };
-      orders: { Row: Order; Insert: any; Update: any };
-      order_items: { Row: OrderItem; Insert: any; Update: any };
+      categories: { Row: Category; Insert: CategoryInsert; Update: CategoryUpdate };
+      products: { Row: Product; Insert: ProductInsert; Update: ProductUpdate };
+      orders: { Row: Order; Insert: OrderInsert; Update: OrderUpdate };
+      order_items: { Row: OrderItem; Insert: OrderItemInsert; Update: OrderItemUpdate };
     };
     Enums: {
       order_status: OrderStatus;

@@ -79,6 +79,7 @@ export function ProductDetailClient({
   useEffect(() => {
     if (!lightboxOpen) return;
     const previousOverflow = document.body.style.overflow;
+    const mainImageButton = mainImageButtonRef.current;
     document.body.style.overflow = "hidden";
     closeButtonRef.current?.focus();
 
@@ -111,7 +112,7 @@ export function ProductDetailClient({
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
-      mainImageButtonRef.current?.focus();
+      mainImageButton?.focus();
     };
   }, [images.length, lightboxOpen]);
 
