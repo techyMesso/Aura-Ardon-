@@ -3,16 +3,19 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, ShoppingBag } from "lucide-react";
+import { ArrowUpRight, Check, ShoppingBag } from "lucide-react";
 
 import {
   createCategoryMap,
   getSafeCatalogImageUrl,
-  getCanonicalProductPath,
-  resolveProductCategory
+  getCanonicalProductPath
 } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
-import { formatCurrency } from "@/lib/utils";
+import {
+  formatProductCardPrice,
+  getProductCardAvailability,
+  getProductCategoryLabel
+} from "@/lib/product-card";
 import type { Product } from "@/lib/types";
 
 interface ProductGalleryProps {
@@ -42,45 +45,43 @@ export function ProductGallery({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 min-[440px]:grid-cols-2 md:gap-5 lg:grid-cols-3 xl:grid-cols-4">
         {products.map(product => {
-          const category = resolveProductCategory(product, categoryMap);
           const productPath = getCanonicalProductPath(product, categoryMap);
+          const categoryLabel = getProductCategoryLabel(product, categoryMap);
           const safeImages = product.images
             .map(getSafeCatalogImageUrl)
             .filter((image): image is string => Boolean(image));
           const coverImage = safeImages[0] || "/hero-jewelry.png";
           const alternateImage = safeImages[1];
           const cartQuantity = items.find(item => item.product.id === product.id)?.quantity ?? 0;
-          const remaining = Math.max(0, product.stock_quantity - cartQuantity);
-          const soldOut = product.stock_quantity < 1;
-          const limitReached = !soldOut && remaining < 1;
+          const availability = getProductCardAvailability(product, cartQuantity);
           const isAdded = addedProductId === product.id;
           const media = (
-            <div className="relative aspect-[4/5] overflow-hidden bg-sand">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-t-[1.5rem] bg-sand">
               <Image
                 src={coverImage}
-                alt={`${product.title}${category ? ` from the ${category.name} collection` : ""}`}
+                alt={`${product.title} jewelry`}
                 fill
-                sizes="(max-width: 767px) 50vw, (max-width: 1279px) 33vw, 25vw"
-                className="object-cover transition duration-500 group-hover:scale-[1.035]"
+                sizes="(max-width: 439px) 100vw, (max-width: 1023px) 50vw, (max-width: 1279px) 33vw, 25vw"
+                className="object-cover object-center transition-transform duration-500 motion-reduce:transition-none md:group-hover:scale-[1.025]"
               />
               {alternateImage ? (
                 <Image
                   src={alternateImage}
                   alt=""
                   fill
-                  sizes="(max-width: 767px) 50vw, (max-width: 1279px) 33vw, 25vw"
-                  className="product-card-secondary object-cover opacity-0 transition duration-500"
+                  sizes="(max-width: 439px) 100vw, (max-width: 1023px) 50vw, (max-width: 1279px) 33vw, 25vw"
+                  className="product-card-secondary object-cover object-center opacity-0 transition duration-500"
                   aria-hidden
                 />
               ) : null}
               <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-1.5 md:left-3 md:top-3">
-                {soldOut ? (
+                {availability.soldOut ? (
                   <span className="rounded-full bg-ink/88 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
-                    Sold out
+                    Out of stock
                   </span>
-                ) : product.stock_quantity <= 3 ? (
+                ) : availability.lowStock ? (
                   <span className="rounded-full bg-cream/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-bronze shadow-sm">
                     Low stock
                   </span>
@@ -97,9 +98,7 @@ export function ProductGallery({
           return (
             <article
               key={product.id}
-              className={`group min-w-0 overflow-hidden rounded-[1.25rem] border border-border/60 bg-white/88 shadow-card transition hover:-translate-y-1 hover:shadow-luxe md:rounded-[1.5rem] ${
-                soldOut ? "opacity-70" : ""
-              }`}
+              className="group flex min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-border/70 bg-card/90 shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-luxe"
             >
               {productPath ? (
                 <Link href={productPath} className="block" aria-label={`View ${product.title}`}>
@@ -107,40 +106,47 @@ export function ProductGallery({
                 </Link>
               ) : media}
 
-              <div className={`flex flex-col ${mode === "compact" ? "p-3" : "p-3 md:p-4"}`}>
+              <div className={`flex flex-1 flex-col ${mode === "compact" ? "p-3" : "p-4"}`}>
                 {productPath ? (
-                  <Link href={productPath} className="block min-w-0">
+                  <Link href={productPath} className="block min-w-0 rounded focus:outline-none focus:ring-2 focus:ring-champagne">
                     <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-bronze md:text-xs">
-                      {category?.name}
+                      {categoryLabel}
                     </p>
                     <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] font-serif text-lg leading-5 text-ink md:min-h-[3rem] md:text-xl md:leading-6">
                       {product.title}
                     </h3>
+                    <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-bronze transition group-hover:text-rose">
+                      View details
+                      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                    </span>
                   </Link>
                 ) : (
                   <div className="min-w-0">
-                    <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">Category unavailable</p>
+                    <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-bronze md:text-xs">{categoryLabel}</p>
                     <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] font-serif text-lg leading-5 text-ink md:min-h-[3rem] md:text-xl md:leading-6">
                       {product.title}
                     </h3>
                   </div>
                 )}
-                <p className="mt-2 truncate text-sm font-semibold text-ink md:text-base">
-                  {formatCurrency(product.price)}
+                <p className="mt-3 text-base font-semibold text-ink">
+                  {formatProductCardPrice(product.price)}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => handleAddToCart(product)}
-                  disabled={soldOut || limitReached || isAdded}
-                  className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full px-2 text-[11px] font-semibold uppercase tracking-[0.08em] transition md:gap-2 md:px-4 md:text-xs md:tracking-[0.12em] ${
-                    isAdded
-                      ? "bg-emerald-700 text-white"
-                      : "border border-border bg-white text-ink hover:border-bronze hover:bg-bronze hover:text-white disabled:border-transparent disabled:bg-sand/60 disabled:text-muted"
-                  }`}
-                >
-                  {isAdded ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />}
-                  {soldOut ? "Sold out" : limitReached ? "Limit reached" : isAdded ? "Added" : "Add to cart"}
-                </button>
+                <div className="mt-auto pt-3">
+                  <button
+                    type="button"
+                    onClick={() => handleAddToCart(product)}
+                    disabled={availability.disabled || isAdded}
+                    aria-label={`${isAdded ? "Added" : availability.buttonLabel}: ${product.title}`}
+                    className={`inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full px-2 text-[11px] font-semibold uppercase tracking-[0.08em] transition md:gap-2 md:px-4 md:text-xs md:tracking-[0.12em] ${
+                      isAdded
+                        ? "bg-emerald-700 text-white"
+                        : "bg-bronze text-white shadow-sm hover:bg-rose disabled:cursor-not-allowed disabled:bg-sand disabled:text-muted"
+                    }`}
+                  >
+                    {isAdded ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />}
+                    {isAdded ? "Added" : availability.buttonLabel}
+                  </button>
+                </div>
               </div>
             </article>
           );

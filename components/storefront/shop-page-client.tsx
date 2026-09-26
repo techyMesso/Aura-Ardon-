@@ -6,8 +6,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Gem, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
 
 import { ProductGallery } from "@/components/storefront/product-gallery";
-import { createCategoryMap, resolveProductCategory } from "@/lib/catalog";
+import { createCategoryMap } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
+import { getProductCategoryLabel } from "@/lib/product-card";
 import { createWhatsAppLink } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
@@ -68,8 +69,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
     .filter(product => {
       if (inStock && product.stock_quantity < 1) return false;
       if (!deferredSearch) return true;
-      const category = resolveProductCategory(product, categoryMap);
-      return [product.title, product.description, product.material, category?.name]
+      return [product.title, product.description, product.material, getProductCategoryLabel(product, categoryMap)]
         .filter(Boolean)
         .some(value => value!.toLowerCase().includes(deferredSearch));
     })
