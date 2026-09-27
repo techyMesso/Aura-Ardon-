@@ -17,8 +17,8 @@ export default function ContactPage() {
   return (
     <div className="jewel-page">
       <header className="jewel-header">
-        <p className="section-label">Get in touch</p>
-        <h1 className="heading-display mt-3">Let&apos;s find your piece</h1>
+        <p className="text-sm font-medium text-bronze">Get in touch</p>
+        <h1 className="heading-display mt-2">Let&apos;s find your piece</h1>
         <p className="mx-auto mt-4 max-w-xl text-muted">
           Ask about an item, an existing order, or delivery. Your message opens as a complete WhatsApp conversation for you to review and send.
         </p>
@@ -28,7 +28,7 @@ export default function ContactPage() {
         <ContactForm whatsappNumber={whatsappNumber} />
 
         <aside className="space-y-5">
-          <div className="jewel-panel p-5 sm:p-7">
+          <div className="border border-border/70 bg-card p-5 shadow-card sm:p-7">
             <h2 className="font-serif text-2xl text-ink">Store contact</h2>
             <div className="mt-6 space-y-5">
               <div className="flex min-h-11 items-center gap-4">
@@ -59,7 +59,7 @@ export default function ContactPage() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-ink p-7 text-white shadow-luxe">
+          <div className="border border-champagne/35 bg-ink p-7 text-white shadow-luxe">
             <MessageCircle className="h-5 w-5 text-champagne" aria-hidden />
             <h2 className="mt-4 font-serif text-2xl">What happens next?</h2>
             <p className="mt-2 text-sm leading-6 text-white/68">

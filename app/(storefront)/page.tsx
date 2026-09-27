@@ -53,18 +53,20 @@ export default async function HomePage() {
   );
 
   return (
-    <div className="overflow-x-hidden">
-      <section className="border-b border-white/10 bg-ink text-white">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-10 md:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:px-10 lg:py-16">
+    <div className="overflow-x-hidden bg-cream">
+      <section className="relative isolate overflow-hidden bg-ink text-white">
+        <div className="pointer-events-none absolute -right-20 top-8 h-72 w-72 rounded-full border border-champagne/20" />
+        <div className="pointer-events-none absolute -right-6 top-24 h-44 w-44 rounded-full border border-champagne/15" />
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-5 py-12 md:px-6 lg:grid-cols-[0.88fr_1.12fr] lg:px-10 lg:py-20">
           <div className="flex flex-col justify-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-champagne">
-              Nairobi jewelry house
+            <p className="text-sm font-medium text-champagne">
+              Nairobi, Kenya
             </p>
-            <h1 className="mt-4 max-w-2xl font-serif text-[clamp(2.75rem,12vw,4rem)] leading-[0.98] text-white lg:text-7xl">
-              Bold pieces. Your signature finish.
+            <h1 className="mt-5 max-w-2xl font-serif text-[clamp(3.1rem,12vw,4.5rem)] leading-[0.91] text-white lg:text-7xl">
+              Jewelry that holds the room.
             </h1>
-            <p className="mt-5 max-w-lg text-base leading-7 text-white/72 sm:text-lg">
-              Jewelry and accessories selected for women who dress with intent, gift beautifully, and never disappear into the room.
+            <p className="mt-6 max-w-lg text-base leading-7 text-white/68 sm:text-lg">
+              Singular pieces for the plan, the gift, and the entrance. Chosen in Nairobi for women who make their own occasion.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link href="/shop" className="btn-primary min-h-12 w-full bg-bronze px-7 text-white hover:bg-rose sm:w-auto">
@@ -85,9 +87,10 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="relative lg:min-h-[560px]">
-            <div className="absolute inset-4 rounded-[2rem] border border-champagne/50 lg:inset-8" />
-            <div className="relative h-[360px] w-[88%] overflow-hidden rounded-[2rem] bg-ink shadow-[0_40px_90px_rgba(43,20,37,0.38)] sm:h-[460px] lg:absolute lg:inset-y-0 lg:left-0 lg:h-auto lg:w-[76%]">
+          <div className="relative lg:min-h-[590px]">
+            <div className="absolute inset-3 border border-champagne/50 sm:inset-6 lg:inset-8" />
+            <div className="absolute bottom-3 right-0 h-24 w-24 border-b border-r border-champagne/35 sm:bottom-6 sm:h-32 sm:w-32" />
+            <div className="relative h-[390px] w-[88%] overflow-hidden bg-ink shadow-[0_40px_90px_rgba(43,20,37,0.38)] sm:h-[490px] lg:absolute lg:inset-y-0 lg:left-0 lg:h-auto lg:w-[78%]">
               <Image
                 src={heroProductImage || "/hero-jewelry.png"}
                 alt={heroProduct ? `${heroProduct.title} by Auro Ardon` : "Auro Ardon jewelry styling"}
@@ -102,20 +105,20 @@ export default async function HomePage() {
             {heroProduct && heroProductPath ? (
               <Link
                 href={heroProductPath}
-                className="relative mt-4 block w-full rounded-[1.5rem] border border-white/10 bg-ink/92 p-5 text-white shadow-2xl backdrop-blur transition hover:-translate-y-1 lg:absolute lg:bottom-10 lg:right-0 lg:mt-0 lg:w-[58%]"
+                className="relative mt-4 block w-full border-l-2 border-champagne bg-[#38182f] p-5 text-white shadow-2xl transition hover:-translate-y-1 lg:absolute lg:bottom-12 lg:right-0 lg:mt-0 lg:w-[58%]"
               >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-champagne">Featured piece</p>
+                <p className="text-sm font-medium text-champagne">Featured piece</p>
                 <h2 className="mt-2 font-serif text-2xl leading-tight sm:text-3xl">{heroProduct.title}</h2>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-white/88">{formatCurrency(heroProduct.price)}</p>
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-bronze text-white">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-champagne/40 bg-bronze text-white">
                     <ArrowRight className="h-4 w-4" aria-hidden />
                   </span>
                 </div>
               </Link>
             ) : (
-              <div className="relative mt-4 w-full rounded-[1.5rem] border border-white/10 bg-ink/92 p-5 backdrop-blur lg:absolute lg:bottom-10 lg:right-0 lg:mt-0 lg:w-[58%]">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-champagne">The next collection</p>
+              <div className="relative mt-4 w-full border-l-2 border-champagne bg-[#38182f] p-5 lg:absolute lg:bottom-12 lg:right-0 lg:mt-0 lg:w-[58%]">
+                <p className="text-sm font-medium text-champagne">The next collection</p>
                 <p className="mt-2 text-sm leading-6 text-white/72">Join us on WhatsApp for availability and the latest drops.</p>
               </div>
             )}
@@ -123,8 +126,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-border/40 bg-white/70" aria-label="Store services">
-        <div className="mx-auto grid max-w-7xl divide-y divide-border/50 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:px-6 lg:px-10">
+      <section className="border-b border-border/60 bg-[#f9ecee]" aria-label="Store services">
+        <div className="mx-auto grid max-w-7xl divide-y divide-border/60 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:px-6 lg:px-10">
           <div className="flex min-h-20 items-center gap-3 py-4 sm:pr-5">
             <CreditCard className="h-5 w-5 shrink-0 text-bronze" aria-hidden />
             <p className="text-sm font-semibold text-ink">Pay on delivery</p>
@@ -143,8 +146,8 @@ export default async function HomePage() {
       <section className="mx-auto max-w-7xl px-5 py-16 md:px-6 lg:px-10 lg:py-20">
         <div className="mb-8 flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="section-label">Featured products</p>
-            <h2 className="mt-3 font-serif text-3xl text-ink sm:text-4xl">The Auro edit</h2>
+            <p className="text-sm font-medium text-bronze">Featured products</p>
+            <h2 className="mt-2 font-serif text-3xl text-ink sm:text-4xl">The Auro edit</h2>
           </div>
           <Link href="/shop" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-ink transition hover:text-bronze sm:gap-2 sm:text-sm sm:tracking-[0.16em]">
             Browse all
@@ -171,8 +174,8 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-7xl px-5 pb-16 md:px-6 lg:px-10 lg:pb-20">
         <div className="mb-8">
-          <p className="section-label">Shop by category</p>
-          <h2 className="mt-3 font-serif text-3xl text-ink sm:text-4xl">Find your next signature</h2>
+          <p className="text-sm font-medium text-bronze">Shop by category</p>
+          <h2 className="mt-2 font-serif text-3xl text-ink sm:text-4xl">Find your next signature</h2>
         </div>
         {categories.length ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
@@ -224,12 +227,12 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="border-y border-border/50 bg-white/55 py-16 lg:py-20">
+      <section className="border-y border-border/60 bg-[#f9ecee] py-16 lg:py-20">
         <div className="mx-auto max-w-7xl px-5 md:px-6 lg:px-10">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="section-label">How it works</p>
-              <h2 className="mt-3 font-serif text-3xl text-ink sm:text-4xl">From edit to doorstep</h2>
+              <p className="text-sm font-medium text-bronze">How it works</p>
+              <h2 className="mt-2 font-serif text-3xl text-ink sm:text-4xl">From edit to doorstep</h2>
             </div>
             <Link href="/how-to-order" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink hover:text-bronze">
               Full ordering guide <ArrowRight className="h-4 w-4" aria-hidden />
@@ -256,8 +259,8 @@ export default async function HomePage() {
 
       <section className="bg-ink py-16 text-white">
         <div className="mx-auto max-w-7xl px-5 md:px-6 lg:px-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-champagne">Loved in Nairobi</p>
-          <h2 className="mt-3 max-w-2xl font-serif text-3xl sm:text-4xl">A boutique path built around real-life plans.</h2>
+          <p className="text-sm font-medium text-champagne">Loved in Nairobi</p>
+          <h2 className="mt-2 max-w-2xl font-serif text-3xl sm:text-4xl">A boutique path built around real-life plans.</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-6">
               <MapPin className="h-5 w-5 text-champagne" aria-hidden />
@@ -279,11 +282,11 @@ export default async function HomePage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-16 md:px-6 lg:px-10 lg:py-20">
-        <div className="overflow-hidden rounded-[2rem] bg-sand px-6 py-10 text-ink shadow-luxe sm:px-10 sm:py-12">
+        <div className="overflow-hidden border border-border bg-sand px-6 py-10 text-ink shadow-luxe sm:px-10 sm:py-12">
           <div className="flex flex-col items-start justify-between gap-7 md:flex-row md:items-center">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em]">Auro Ardon</p>
-              <h2 className="mt-3 max-w-2xl font-serif text-4xl leading-tight sm:text-5xl">Make the next piece unmistakably yours.</h2>
+              <p className="text-sm font-medium text-bronze">Auro Ardon</p>
+              <h2 className="mt-2 max-w-2xl font-serif text-4xl leading-tight sm:text-5xl">Make the next piece unmistakably yours.</h2>
             </div>
             <div className="flex w-full flex-wrap gap-3 md:w-auto md:justify-end">
               <Link href="/shop" className="btn-primary min-h-12 flex-1 bg-bronze text-white hover:bg-rose md:flex-none">Shop the collection</Link>

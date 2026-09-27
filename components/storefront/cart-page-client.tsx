@@ -19,8 +19,8 @@ export function CartPageClient() {
 
   if (items.length === 0) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-        <span className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-champagne/30 to-bronze/20">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 pb-[calc(8rem+env(safe-area-inset-bottom))] text-center">
+        <span className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-champagne/70 bg-sand/70">
           <ShoppingBag className="h-9 w-9 text-bronze" aria-hidden />
         </span>
         <h1 className="font-serif text-4xl text-ink">Your cart is empty</h1>
@@ -35,7 +35,7 @@ export function CartPageClient() {
   return (
     <div className="mx-auto max-w-7xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:py-10 lg:px-10 lg:py-12">
       <div className="mb-8 sm:mb-10">
-        <p className="section-label">Your selection</p>
+        <p className="text-sm font-medium text-bronze">Your selection</p>
         <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Shopping cart</h1>
         <p className="mt-2 text-sm text-muted">{itemCount} {itemCount === 1 ? "piece" : "pieces"} in your cart</p>
       </div>
@@ -60,7 +60,7 @@ export function CartPageClient() {
             return (
               <article
                 key={item.product.id}
-                className="grid min-w-0 grid-cols-[96px_minmax(0,1fr)] gap-3 rounded-[1.5rem] border border-white/60 bg-white/75 p-3 shadow-card sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-6 sm:p-5"
+                className="grid min-w-0 grid-cols-[96px_minmax(0,1fr)] gap-3 border border-border/70 bg-card p-3 shadow-card sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-6 sm:p-5"
               >
                 {productPath ? <Link href={productPath}>{media}</Link> : media}
 
@@ -131,7 +131,7 @@ export function CartPageClient() {
         </div>
 
          <aside className="hidden md:block lg:col-span-1">
-          <div className="rounded-[2rem] border border-white/60 bg-white/75 p-6 shadow-luxe backdrop-blur sm:p-8 lg:sticky lg:top-24">
+            <div className="border border-border/70 bg-card p-6 shadow-luxe sm:p-8 lg:sticky lg:top-24">
             <h2 className="font-serif text-2xl text-ink">Order summary</h2>
             <div className="mt-6 space-y-4 text-sm">
               <div className="flex justify-between gap-4 text-muted">
@@ -156,7 +156,7 @@ export function CartPageClient() {
         </aside>
       </div>
       <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-white/96 px-4 py-3 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur md:hidden">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Subtotal</p><p className="text-lg font-semibold text-ink">{formatCurrency(total)}</p></div><Link href="/checkout" className="btn-primary min-h-12 shrink-0 px-4 text-xs">Checkout <ArrowRight className="h-4 w-4" aria-hidden /></Link></div>
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs font-medium text-muted">Subtotal</p><p className="text-lg font-semibold text-ink">{formatCurrency(total)}</p></div><Link href="/checkout" className="btn-primary min-h-12 shrink-0 px-4 text-xs">Checkout <ArrowRight className="h-4 w-4" aria-hidden /></Link></div>
       </div>
     </div>
   );

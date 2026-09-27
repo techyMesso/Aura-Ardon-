@@ -40,10 +40,10 @@ export function CheckoutModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-4 backdrop-blur">
-      <div className="w-full max-w-xl rounded-[2rem] border border-white/20 bg-card p-8 shadow-luxe">
+      <div className="w-full max-w-xl border border-champagne/60 bg-card p-6 shadow-luxe sm:p-8">
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bronze">
+            <p className="text-sm font-medium text-bronze">
               Order this item
             </p>
             <h3 className="font-serif text-3xl text-ink">{selectedProduct.title}</h3>
@@ -54,17 +54,17 @@ export function CheckoutModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-ink transition hover:bg-sand/50"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-ink transition hover:bg-sand/50"
             aria-label="Close checkout"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
         <div className="space-y-4">
-          <div className="rounded-[1.5rem] border border-border bg-white/70 p-4 text-sm text-muted">
+          <div className="border-l-2 border-champagne bg-sand/35 p-4 text-sm leading-6 text-muted">
             Your order will be created during checkout, where you can choose Cash on Delivery or WhatsApp confirmation.
           </div>
-          <Button type="button" className="w-full" onClick={handleCheckout}>
+          <Button type="button" className="min-h-12 w-full normal-case tracking-normal" onClick={handleCheckout}>
             <ShoppingBag className="mr-2 h-4 w-4" />
             Add to Cart and Checkout
           </Button>

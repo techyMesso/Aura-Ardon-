@@ -213,9 +213,9 @@ export function ProductDetailClient({
           ) : null}
         </section>
 
-        <section className="rounded-[1.75rem] border border-border/60 bg-white/80 p-5 shadow-card md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none lg:sticky lg:top-24 lg:h-fit">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bronze">{category.name}</p>
-          <h1 className="mt-3 font-serif text-4xl leading-[1.03] text-ink sm:text-5xl">{product.title}</h1>
+        <section className="border border-border/70 bg-card p-5 shadow-card lg:sticky lg:top-24 lg:h-fit lg:p-7">
+          <p className="text-sm font-medium text-bronze">{category.name}</p>
+          <h1 className="mt-2 font-serif text-4xl leading-[1.03] text-ink sm:text-5xl">{product.title}</h1>
           <p className="mt-4 text-2xl font-semibold text-ink">{formatCurrency(product.price)}</p>
 
           <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-ink">
@@ -233,7 +233,7 @@ export function ProductDetailClient({
             </div>
           ) : null}
 
-          <div className="mt-6 rounded-[1.5rem] border border-border/60 bg-white/80 p-5 shadow-card">
+          <div className="mt-6 border-t border-border/70 pt-5">
             <label className="block text-sm font-semibold text-ink" htmlFor="product-quantity">Quantity</label>
             <div className="mt-3 inline-flex min-h-12 items-center rounded-full border border-border bg-white p-1">
               <button
@@ -266,7 +266,7 @@ export function ProductDetailClient({
                 type="button"
                 onClick={handleAddToCart}
                 disabled={remaining < 1}
-                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-bronze px-5 text-sm font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-rose disabled:bg-sand disabled:text-muted"
+                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-bronze px-5 text-sm font-semibold tracking-[0.04em] text-white transition-colors hover:bg-rose disabled:cursor-not-allowed disabled:bg-sand disabled:text-muted"
               >
                 <Check className="h-4 w-4" aria-hidden />
                 {soldOut ? "Sold out" : remaining < 1 ? "Cart limit reached" : "Add to cart"}
@@ -276,7 +276,7 @@ export function ProductDetailClient({
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-border bg-white px-5 text-sm font-semibold uppercase tracking-[0.12em] text-ink transition hover:bg-sand/40"
+                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-border bg-white px-5 text-sm font-semibold text-ink transition-colors hover:bg-sand/40"
                 >
                   <MessageCircle className="h-4 w-4" aria-hidden />
                   {soldOut ? "Ask about restock" : "WhatsApp"}
@@ -291,7 +291,7 @@ export function ProductDetailClient({
         </section>
       </div>
 
-       <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border/60 bg-white/96 px-3 py-2.5 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur md:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border/60 bg-white/96 px-3 py-2.5 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-7xl items-center gap-2">
           <div className="min-w-0 flex-1 pl-1">
             <p className="truncate text-xs font-semibold text-ink">{product.title}</p>
@@ -301,7 +301,7 @@ export function ProductDetailClient({
             type="button"
             onClick={handleAddToCart}
             disabled={remaining < 1}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-bronze px-4 text-xs font-semibold uppercase tracking-[0.1em] text-white disabled:bg-sand disabled:text-muted"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-bronze px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-sand disabled:text-muted"
           >
             {soldOut ? "Sold out" : remaining < 1 ? "Limit reached" : "Add to cart"}
           </button>

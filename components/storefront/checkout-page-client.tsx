@@ -42,13 +42,13 @@ export function CheckoutPageClient() {
 
   if (items.length === 0 && !success) {
     return (
-      <div className="flex min-h-[65vh] flex-col items-center justify-center px-6 text-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 pb-[calc(8rem+env(safe-area-inset-bottom))] text-center">
         <h1 className="font-serif text-4xl text-ink">Your cart is empty</h1>
         <p className="mt-3 max-w-md text-muted">
           Add a few pieces first, then come back here to confirm delivery and payment.
         </p>
         <Link href="/shop" className="btn-primary mt-8 bg-bronze text-white hover:bg-rose">
-          Shop Now
+          Shop now
         </Link>
       </div>
     );
@@ -56,8 +56,8 @@ export function CheckoutPageClient() {
 
   if (success) {
     return (
-      <div className="mx-auto flex min-h-[65vh] max-w-2xl flex-col items-center justify-center px-6 py-14 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+      <div className="mx-auto flex min-h-dvh max-w-2xl flex-col items-center justify-center px-6 py-14 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50">
           <Check className="h-10 w-10 text-green-600" />
         </div>
         <h1 className="mt-6 font-serif text-4xl text-ink">Order confirmed</h1>
@@ -70,7 +70,7 @@ export function CheckoutPageClient() {
             : "We’ll contact you using the phone number you provided and collect payment on delivery."}
         </p>
         {orderTotals ? (
-          <div className="mt-6 w-full max-w-sm rounded-2xl border border-border/60 bg-white/80 p-5 text-sm">
+          <div className="mt-6 w-full max-w-sm border border-border/70 bg-card p-5 text-sm shadow-card">
             <div className="flex justify-between gap-4 text-muted">
               <span>Subtotal</span>
               <span className="text-ink">{formatCurrency(orderTotals.subtotal)}</span>
@@ -158,7 +158,7 @@ export function CheckoutPageClient() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:py-8 lg:px-10 lg:py-12">
+    <div className="mx-auto min-h-dvh max-w-7xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:py-8 lg:px-10 lg:py-12">
       <Link href="/cart" className="inline-flex items-center text-sm text-muted hover:text-bronze">
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to cart
@@ -167,28 +167,28 @@ export function CheckoutPageClient() {
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <div>
-            <p className="section-label">Checkout</p>
-            <h1 className="mt-3 font-serif text-[clamp(2rem,10vw,3rem)] leading-tight text-ink">Simple, fast order confirmation</h1>
+            <p className="text-sm font-medium text-bronze">Checkout</p>
+            <h1 className="mt-2 font-serif text-[clamp(2rem,10vw,3rem)] leading-tight text-ink">Simple, fast order confirmation</h1>
             <p className="mt-3 max-w-xl text-base leading-7 text-muted">
               Just enter your name, phone, and location. We’ll handle the rest through WhatsApp or cash on delivery.
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-border/60 bg-white/85 p-4 shadow-card">
+          <div className="grid divide-y divide-border/60 border-y border-border/60 bg-sand/35 md:grid-cols-3 md:divide-x md:divide-y-0">
+            <div className="p-4">
               <p className="text-sm font-semibold text-ink">Pay on Delivery Available</p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-white/85 p-4 shadow-card">
+            <div className="p-4">
               <p className="text-sm font-semibold text-ink">Fast Delivery in Nairobi</p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-white/85 p-4 shadow-card">
+            <div className="p-4">
               <p className="text-sm font-semibold text-ink">Order via WhatsApp</p>
             </div>
           </div>
 
           <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-            <section className="rounded-[1.75rem] border border-border/60 bg-white/88 p-4 shadow-card sm:p-6">
-              <p className="section-label">Customer details</p>
+            <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6">
+              <p className="text-sm font-medium text-bronze">Customer details</p>
               <h2 className="mt-2 font-serif text-2xl text-ink">Delivery details</h2>
               <div className="mt-5 space-y-4">
                 <label className="block">
@@ -258,8 +258,8 @@ export function CheckoutPageClient() {
               </div>
             </section>
 
-            <section className="rounded-[1.75rem] border border-border/60 bg-white/88 p-4 shadow-card sm:p-6">
-              <p className="section-label">Payment</p>
+            <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6">
+              <p className="text-sm font-medium text-bronze">Payment</p>
               <h2 className="mt-2 font-serif text-2xl text-ink">How would you like to order?</h2>
               <div className="mt-5 space-y-3">
                 <label
@@ -323,7 +323,7 @@ export function CheckoutPageClient() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="min-h-[56px] w-full bg-bronze text-white hover:bg-rose"
+                className="min-h-[56px] w-full normal-case tracking-normal bg-bronze text-white hover:bg-rose"
               >
                 {loading ? (
                   <>
@@ -339,7 +339,7 @@ export function CheckoutPageClient() {
         </div>
 
         <aside className="md:sticky md:top-24 md:h-fit">
-          <div className="rounded-[1.75rem] border border-border/60 bg-white/88 p-6 shadow-card">
+          <div className="border border-border/70 bg-card p-6 shadow-card">
             <h2 className="font-serif text-2xl text-ink">Order summary</h2>
             <div className="mt-5 space-y-3">
               {items.map(item => (
@@ -373,17 +373,17 @@ export function CheckoutPageClient() {
         </aside>
       </div>
 
-       <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border/60 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border/60 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-muted">Subtotal</p>
+            <p className="text-xs font-medium text-muted">Subtotal</p>
             <p className="text-lg font-semibold text-ink">{formatCurrency(total)}</p>
           </div>
           <Button
             type="button"
             onClick={() => formRef.current?.requestSubmit()}
             disabled={loading}
-            className="min-h-[52px] min-w-[160px] bg-bronze text-white hover:bg-rose"
+            className="min-h-[52px] min-w-[160px] normal-case tracking-normal bg-bronze text-white hover:bg-rose"
           >
             {loading ? (
               <>

@@ -63,7 +63,7 @@ export function ContactForm({ whatsappNumber }: ContactFormProps) {
   }
 
   return (
-    <div className="jewel-panel p-6 sm:p-8">
+    <div className="border border-border/70 bg-card p-6 shadow-card sm:p-8">
       <h2 className="font-serif text-3xl text-ink">Send a message</h2>
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
         <label className="block">

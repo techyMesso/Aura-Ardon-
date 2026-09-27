@@ -104,7 +104,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
 
   return (
     <div>
-      <div className="sticky top-[72px] z-30 -mx-5 mb-6 border-y border-border/60 bg-cream/95 px-5 py-3 shadow-sm backdrop-blur md:-mx-6 md:mb-8 md:px-6 md:py-4 lg:-mx-10 lg:px-10">
+      <div className="sticky top-[72px] z-30 -mx-5 mb-6 border-y border-border/60 bg-cream/95 px-5 py-3 shadow-[0_8px_24px_rgba(43,20,37,0.06)] backdrop-blur md:-mx-6 md:mb-8 md:px-6 md:py-4 lg:-mx-10 lg:px-10">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:hidden">
           <label className="relative block min-w-0">
             <span className="sr-only">Search this collection</span>
@@ -117,7 +117,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
               className="min-h-12 w-full rounded-full border border-border bg-white/90 py-2.5 pl-11 pr-4 text-sm text-ink placeholder:text-muted/70"
             />
           </label>
-          <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full border border-border bg-white px-4 text-xs font-semibold uppercase tracking-[0.1em] text-ink transition hover:border-bronze focus:outline-none focus:ring-2 focus:ring-champagne" aria-label="Open filter and sort options">
+          <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full border border-border bg-white px-4 text-xs font-semibold tracking-[0.04em] text-ink transition-colors hover:border-bronze focus:outline-none focus:ring-2 focus:ring-champagne" aria-label="Open filter and sort options">
             <SlidersHorizontal className="h-4 w-4" aria-hidden />
             Filter & Sort
           </button>
@@ -190,8 +190,8 @@ export function ShopPageClient({ products }: { products: Product[] }) {
 
       <div role="dialog" aria-modal="true" aria-label="Filter and sort products" className={`fixed inset-0 z-[80] md:hidden ${filtersOpen ? "visible" : "invisible pointer-events-none"}`}>
         <button type="button" onClick={() => setFiltersOpen(false)} aria-label="Close filter and sort options" className={`absolute inset-0 bg-ink/45 transition-opacity ${filtersOpen ? "opacity-100" : "opacity-0"}`} />
-        <section className={`absolute inset-x-0 bottom-0 max-h-[80dvh] overflow-y-auto rounded-t-[2rem] bg-cream p-5 shadow-2xl transition-transform ${filtersOpen ? "translate-y-0" : "translate-y-full"}`}>
-          <div className="flex items-center justify-between gap-3"><div><p className="section-label">Collection</p><h2 className="mt-1 font-serif text-2xl text-ink">Filter & sort</h2></div><button type="button" onClick={() => setFiltersOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-white focus:outline-none focus:ring-2 focus:ring-bronze" aria-label="Close filter and sort options"><X className="h-5 w-5" aria-hidden /></button></div>
+        <section className={`absolute inset-x-0 bottom-0 max-h-[80dvh] overflow-y-auto rounded-t-[2rem] border-t border-champagne/60 bg-cream p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl transition-transform ${filtersOpen ? "translate-y-0" : "translate-y-full"}`}>
+          <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium text-bronze">Collection</p><h2 className="mt-1 font-serif text-2xl text-ink">Filter & sort</h2></div><button type="button" onClick={() => setFiltersOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-white focus:outline-none focus:ring-2 focus:ring-bronze" aria-label="Close filter and sort options"><X className="h-5 w-5" aria-hidden /></button></div>
           <label className="mt-6 block"><span className="mb-2 block text-sm font-semibold text-ink">Sort by</span><select value={sort} onChange={event => updateParam("sort", event.target.value)} className="min-h-12 w-full rounded-2xl border border-border bg-white px-4 text-sm text-ink"><option value="featured">Featured</option><option value="newest">Newest</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option></select></label>
           <label className="mt-4 flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-white px-4 text-sm font-semibold text-ink"><input type="checkbox" checked={inStock} onChange={event => updateParam("inStock", event.target.checked ? "1" : null)} className="h-5 w-5 accent-bronze" />In stock only</label>
           <div className="mt-6 flex gap-3"><button type="button" onClick={resetFilters} className="btn-outline min-h-12 flex-1 px-3 text-xs">Clear</button><button type="button" onClick={() => setFiltersOpen(false)} className="btn-primary min-h-12 flex-1 px-3 text-xs">Show {filtered.length}</button></div>

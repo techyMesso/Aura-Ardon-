@@ -18,9 +18,9 @@ export function CollectionShell({
   const categoryImage = getSafeCatalogImageUrl(activeCategory?.image_url);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh min-w-0 overflow-x-hidden">
       <div className="mx-auto max-w-7xl px-5 py-8 md:px-6 lg:px-10 lg:py-12">
-        <header className="relative mb-6 overflow-hidden rounded-[1.75rem] bg-ink px-6 py-10 text-center text-white shadow-luxe sm:py-12">
+        <header className="relative mb-6 overflow-hidden border border-champagne/45 bg-ink px-6 py-10 text-left text-white shadow-luxe sm:px-10 sm:py-12">
           {categoryImage ? (
             <>
               <Image
@@ -34,14 +34,14 @@ export function CollectionShell({
               <div className="absolute inset-0 bg-gradient-to-r from-ink/95 via-ink/78 to-ink/88" />
             </>
           ) : null}
-          <div className="relative mx-auto max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-champagne">
+          <div className="relative max-w-3xl">
+            <p className="text-sm font-medium text-champagne">
               {activeCategory ? "Collection" : "Auro Ardon collections"}
             </p>
-            <h1 className="mt-3 font-serif text-4xl leading-tight text-white sm:text-6xl">
+            <h1 className="mt-2 font-serif text-4xl leading-[1.02] text-white sm:text-6xl">
               {activeCategory?.name ?? "Pieces made for a bold entrance"}
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
               {activeCategory?.description
                 ?? "Explore jewelry, accessories, and giftable pieces selected for everyday confidence and standout moments."}
             </p>
@@ -55,7 +55,7 @@ export function CollectionShell({
           <Link
             href="/shop"
             aria-current={!activeCategory ? "page" : undefined}
-            className={`inline-flex min-h-11 shrink-0 snap-start items-center justify-center rounded-full border px-5 text-xs font-semibold uppercase tracking-[0.14em] transition ${
+            className={`inline-flex min-h-11 shrink-0 snap-start items-center justify-center rounded-full border px-5 text-sm font-medium transition-colors ${
               !activeCategory
                 ? "border-ink bg-ink text-white"
                 : "border-border bg-white/75 text-muted hover:border-bronze hover:text-ink"
@@ -70,7 +70,7 @@ export function CollectionShell({
                 key={category.id}
                 href={`/shop/${category.slug}`}
                 aria-current={active ? "page" : undefined}
-                className={`inline-flex min-h-11 shrink-0 snap-start items-center justify-center rounded-full border px-5 text-xs font-semibold uppercase tracking-[0.14em] transition ${
+                className={`inline-flex min-h-11 shrink-0 snap-start items-center justify-center rounded-full border px-5 text-sm font-medium transition-colors ${
                   active
                     ? "border-ink bg-ink text-white"
                     : "border-border bg-white/75 text-muted hover:border-bronze hover:text-ink"

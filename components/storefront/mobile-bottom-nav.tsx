@@ -25,7 +25,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-champagne/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-ink shadow-[0_-10px_30px_rgba(43,20,37,0.1)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-cream shadow-[0_-10px_30px_rgba(43,20,37,0.2)] backdrop-blur md:hidden"
       aria-label="Mobile quick navigation"
     >
       <div className="mx-auto grid max-w-lg grid-cols-4">
@@ -38,8 +38,8 @@ export function MobileBottomNav() {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold uppercase tracking-[0.1em] transition focus:outline-none focus:ring-2 focus:ring-champagne ${
-                active ? "bg-bronze/15 text-bronze" : "text-muted hover:bg-white/55 hover:text-ink"
+              className={`relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold tracking-[0.06em] transition focus:outline-none focus:ring-2 focus:ring-champagne ${
+                active ? "bg-white/10 text-champagne" : "text-white/60 hover:bg-white/10 hover:text-white"
               }`}
             >
               <span className="relative">

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "ui-ux-pro-max": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "skillPath": "cli-tool/components/skills/creative-design/ui-ux-pro-max/SKILL.md",
+      "computedHash": "adab776dc60f4f3466185318575abe670981c64b3584368dbb09f985d2ac0965"
+    }
+  }
+}
