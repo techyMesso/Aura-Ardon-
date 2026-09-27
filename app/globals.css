@@ -8,21 +8,56 @@
 
 /* ─── CSS Variables ─────────────────────────────────────── */
 :root {
-  color-scheme: light;
   --nav-height: 72px;
+  --mobile-bottom-nav-height: 72px;
+
+  /* Semantic light tokens preserve the approved Aura Ardon palette exactly. */
+  --theme-background: 255 247 248;
+  --theme-surface: 255 249 250;
+  --theme-elevated: 247 216 222;
+  --theme-card: 255 252 253;
+  --theme-foreground: 43 20 37;
+  --theme-muted: 117 91 104;
+  --theme-border: 232 182 196;
+  --theme-primary: 123 45 94;
+  --theme-accent: 182 77 125;
+  --theme-highlight: 244 194 194;
+  --theme-success: 21 128 61;
+  --theme-warning: 180 83 9;
+  --theme-danger: 185 28 28;
+  --theme-shadow: 43 20 37;
 
   /* Brand palette as CSS vars (useful for inline styles) */
-  --color-background: #FFF7F8;
-  --color-champagne: #F4C2C2;
-  --color-bronze:    #7B2D5E;
-  --color-rose:      #B64D7D;
-  --color-ink:       #2B1425;
-  --color-muted:     #755B68;
-  --color-cream:     #FFF9FA;
-  --color-sand:      #F7D8DE;
-  --color-card:      #FFFCFD;
-  --color-border:    #E8B6C4;
-  --mobile-bottom-nav-height: 72px;
+  --color-background: rgb(var(--theme-background));
+  --color-champagne: rgb(var(--theme-highlight));
+  --color-bronze: rgb(var(--theme-primary));
+  --color-rose: rgb(var(--theme-accent));
+  --color-ink: rgb(var(--theme-foreground));
+  --color-muted: rgb(var(--theme-muted));
+  --color-cream: rgb(var(--theme-surface));
+  --color-sand: rgb(var(--theme-elevated));
+  --color-card: rgb(var(--theme-card));
+  --color-border: rgb(var(--theme-border));
+}
+
+html.light { color-scheme: light; }
+
+html.dark {
+  color-scheme: dark;
+  --theme-background: 27 13 23;
+  --theme-surface: 43 20 37;
+  --theme-elevated: 56 24 47;
+  --theme-card: 69 32 57;
+  --theme-foreground: 255 249 250;
+  --theme-muted: 231 199 209;
+  --theme-border: 244 194 194;
+  --theme-primary: 213 123 155;
+  --theme-accent: 213 123 155;
+  --theme-highlight: 244 194 194;
+  --theme-success: 110 231 183;
+  --theme-warning: 253 230 138;
+  --theme-danger: 252 165 165;
+  --theme-shadow: 0 0 0;
 }
 
 /* ─── Base Reset & Smoothing ────────────────────────────── */
@@ -47,9 +82,20 @@ body {
   color: var(--color-ink);
 }
 
+html.dark body {
+  background:
+    radial-gradient(ellipse 75% 55% at 5% 0%, rgb(var(--theme-primary) / 0.18) 0%, transparent 58%),
+    radial-gradient(ellipse 55% 42% at 95% 8%, rgb(var(--theme-highlight) / 0.08) 0%, transparent 55%),
+    linear-gradient(180deg, #1B0D17 0%, #1B0D17 100%);
+}
+
 @media (max-width: 767px) {
   body {
     background: #FFF7F8;
+  }
+
+  html.dark body {
+    background: #1B0D17;
   }
 }
 
@@ -68,6 +114,66 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: #7B2D5E; }
 
+/* Existing white utility surfaces become dark porcelain alternatives without changing light output. */
+html.dark .bg-white,
+html.dark .bg-white\/95,
+html.dark .bg-white\/90,
+html.dark .bg-white\/85,
+html.dark .bg-white\/80,
+html.dark .bg-white\/75,
+html.dark .bg-white\/70,
+html.dark .bg-white\/60,
+html.dark .bg-white\/55,
+html.dark .bg-white\/45 {
+  background-color: rgb(var(--theme-surface) / var(--tw-bg-opacity, 1));
+}
+
+html.dark .border-white,
+html.dark .border-white\/80,
+html.dark .border-white\/65,
+html.dark .border-white\/60,
+html.dark .border-white\/20,
+html.dark .border-white\/15,
+html.dark .border-white\/10 {
+  border-color: rgb(var(--theme-border) / 0.22);
+}
+
+html.dark .text-white { color: rgb(var(--theme-foreground)); }
+
+html.dark .bg-green-50,
+html.dark .bg-green-100,
+html.dark .bg-emerald-50 { background-color: rgb(var(--theme-success) / 0.14); }
+html.dark .text-green-600,
+html.dark .text-green-700,
+html.dark .text-green-800,
+html.dark .text-green-900,
+html.dark .text-emerald-800 { color: rgb(var(--theme-success)); }
+html.dark .border-green-200 { border-color: rgb(var(--theme-success) / 0.35); }
+
+html.dark .bg-amber-50,
+html.dark .bg-amber-50\/60,
+html.dark .bg-amber-50\/70,
+html.dark .bg-amber-100 { background-color: rgb(var(--theme-warning) / 0.14); }
+html.dark .text-amber-800,
+html.dark .text-amber-900 { color: rgb(var(--theme-warning)); }
+html.dark .border-amber-200,
+html.dark .border-amber-300 { border-color: rgb(var(--theme-warning) / 0.35); }
+
+html.dark .bg-red-50,
+html.dark .bg-red-100 { background-color: rgb(var(--theme-danger) / 0.14); }
+html.dark .text-red-600,
+html.dark .text-red-700,
+html.dark .text-red-800,
+html.dark .text-red-900 { color: rgb(var(--theme-danger)); }
+html.dark .border-red-200 { border-color: rgb(var(--theme-danger) / 0.35); }
+
+html.dark .storefront-shell main {
+  background: transparent;
+}
+
+.theme-soft-surface { background: #f9ecee; }
+html.dark .theme-soft-surface { background: rgb(var(--theme-elevated)); }
+
 /* ─── Focus Ring ────────────────────────────────────────── */
 *:focus-visible {
   outline: 2px solid var(--color-rose);
@@ -85,7 +191,7 @@ body {
 
   /* Gradient text */
   .gradient-text {
-    background: linear-gradient(135deg, #7B2D5E 0%, #B64D7D 100%);
+    background: linear-gradient(135deg, rgb(var(--theme-primary)) 0%, rgb(var(--theme-accent)) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -252,6 +358,10 @@ body {
     background:
       radial-gradient(ellipse 105% 28% at 50% 0%, rgba(244, 194, 194, 0.34), transparent 100%),
       #FFF7F8;
+  }
+
+  html.dark .storefront-shell main {
+    background: #1B0D17;
   }
 
   .jewel-header {

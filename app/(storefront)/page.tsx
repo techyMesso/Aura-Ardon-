@@ -126,7 +126,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-border/60 bg-[#f9ecee]" aria-label="Store services">
+      <section className="theme-soft-surface border-b border-border/60" aria-label="Store services">
         <div className="mx-auto grid max-w-7xl divide-y divide-border/60 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:px-6 lg:px-10">
           <div className="flex min-h-20 items-center gap-3 py-4 sm:pr-5">
             <CreditCard className="h-5 w-5 shrink-0 text-bronze" aria-hidden />
@@ -227,7 +227,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="border-y border-border/60 bg-[#f9ecee] py-16 lg:py-20">
+      <section className="theme-soft-surface border-y border-border/60 py-16 lg:py-20">
         <div className="mx-auto max-w-7xl px-5 md:px-6 lg:px-10">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>

@@ -7,6 +7,7 @@ import { Gem, Menu, ShoppingBag, X } from "lucide-react";
 
 import { useCartValue } from "@/lib/cart";
 import type { Category } from "@/lib/types";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const MOBILE_LINKS = [
   { label: "Shop", href: "/shop" },
@@ -126,6 +127,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
           </nav>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href="/cart"
               aria-label={`Shopping cart with ${itemCount} items`}
@@ -189,6 +191,12 @@ export function Navbar({ categories }: { categories: Category[] }) {
                 {link.label}
               </Link>
             ))}
+          </div>
+          <div className="mt-5 border-t border-border pt-4">
+            <div className="flex items-center justify-between gap-3 px-3">
+              <span className="text-sm font-medium text-muted">Appearance</span>
+              <ThemeToggle />
+            </div>
           </div>
           <Link
             href="/shop"

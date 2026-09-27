@@ -19,6 +19,8 @@ import {
   X
 } from "lucide-react";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+
 const PRIMARY_ITEMS = [
   { href: "/admin", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", Icon: Package },
@@ -201,6 +203,7 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
         <Link href="/admin/products/new" aria-label="Add product" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bronze text-white transition-colors hover:bg-rose focus:outline-none focus:ring-2 focus:ring-bronze">
           <Plus className="h-4 w-4" aria-hidden />
         </Link>
+        <ThemeToggle />
       </header>
 
       <header className="mb-6 hidden min-h-16 items-center justify-between border-b border-border/70 pb-4 md:flex">
@@ -213,6 +216,7 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
             <Plus className="h-4 w-4" aria-hidden />
             Add product
           </Link>
+          <ThemeToggle />
           <div className="flex h-11 items-center gap-2 border-l border-border pl-3 text-sm text-muted">
             <UserRound className="h-4 w-4" aria-hidden />
             <span className="max-w-40 truncate">{email}</span>
@@ -232,6 +236,10 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
           <div className="mt-auto border-t border-border/70 pt-5">
             <p className="px-3 text-xs text-muted">Signed in as</p>
             <p className="mt-1 break-words px-3 text-sm font-medium text-ink">{email}</p>
+            <div className="mt-4 flex items-center justify-between gap-3 px-3">
+              <span className="text-sm font-medium text-muted">Appearance</span>
+              <ThemeToggle />
+            </div>
             <Link href="/" onClick={closeDrawer} className="mt-4 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted transition-colors hover:bg-sand hover:text-ink focus:outline-none focus:ring-2 focus:ring-bronze"><Store className="h-4 w-4" aria-hidden />View storefront</Link>
             <form action="/auth/signout" method="post" className="mt-1"><button type="submit" className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-bronze"><LogOut className="h-4 w-4" aria-hidden />Sign out</button></form>
           </div>

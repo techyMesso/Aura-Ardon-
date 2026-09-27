@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
 
+const themeColor = (token: string) => `rgb(var(${token}) / <alpha-value>)`;
+
 const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
@@ -10,18 +12,21 @@ const config: Config = {
     extend: {
       // ─── Brand Color Palette ────────────────────────────────
       colors: {
-        background: "#FFF7F8",
-        foreground: "#2B1425",
-        cream:      "#FFF9FA",
-        sand:       "#F7D8DE",
-        champagne:  "#F4C2C2",
-        gold:       "#B64D7D",
-        bronze:     "#7B2D5E",
-        ink:        "#2B1425",
-        card:       "#FFFCFD",
-        border:     "#E8B6C4",
-        muted:      "#755B68",
-        rose:       "#B64D7D",
+        background: themeColor("--theme-background"),
+        foreground: themeColor("--theme-foreground"),
+        cream:      themeColor("--theme-surface"),
+        sand:       themeColor("--theme-elevated"),
+        champagne:  themeColor("--theme-highlight"),
+        gold:       themeColor("--theme-accent"),
+        bronze:     themeColor("--theme-primary"),
+        ink:        themeColor("--theme-foreground"),
+        card:       themeColor("--theme-card"),
+        border:     themeColor("--theme-border"),
+        muted:      themeColor("--theme-muted"),
+        rose:       themeColor("--theme-accent"),
+        success:    themeColor("--theme-success"),
+        warning:    themeColor("--theme-warning"),
+        danger:     themeColor("--theme-danger"),
       },
 
       // ─── Typography ─────────────────────────────────────────
@@ -32,10 +37,10 @@ const config: Config = {
 
       // ─── Shadows ────────────────────────────────────────────
       boxShadow: {
-        luxe:  "0 20px 70px rgba(43, 20, 37, 0.10)",
-        card:  "0 4px 24px rgba(43, 20, 37, 0.07)",
-        glow:  "0 0 48px rgba(182, 77, 125, 0.28)",
-        inner: "inset 0 2px 8px rgba(43, 20, 37, 0.06)",
+        luxe:  "0 20px 70px rgb(var(--theme-shadow) / 0.10)",
+        card:  "0 4px 24px rgb(var(--theme-shadow) / 0.07)",
+        glow:  "0 0 48px rgb(var(--theme-accent) / 0.28)",
+        inner: "inset 0 2px 8px rgb(var(--theme-shadow) / 0.06)",
       },
 
       // ─── Border Radius ──────────────────────────────────────
@@ -90,9 +95,9 @@ const config: Config = {
 
       // ─── Background Images ──────────────────────────────────
       backgroundImage: {
-        "gradient-luxe": "linear-gradient(135deg, #7B2D5E 0%, #B64D7D 100%)",
-        "gradient-warm": "linear-gradient(180deg, #FFF9FA 0%, #F7D8DE 100%)",
-        "gradient-card": "linear-gradient(135deg, rgba(255,252,253,0.95) 0%, rgba(247,216,222,0.55) 100%)",
+        "gradient-luxe": "linear-gradient(135deg, rgb(var(--theme-primary)) 0%, rgb(var(--theme-accent)) 100%)",
+        "gradient-warm": "linear-gradient(180deg, rgb(var(--theme-surface)) 0%, rgb(var(--theme-elevated)) 100%)",
+        "gradient-card": "linear-gradient(135deg, rgb(var(--theme-card) / 0.95) 0%, rgb(var(--theme-elevated) / 0.55) 100%)",
       },
     },
   },
