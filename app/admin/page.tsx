@@ -1,6 +1,6 @@
 import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard";
 import { buildAdminDashboardOverview } from "@/lib/admin-dashboard";
-import { listAdminDashboardData } from "@/lib/data";
+import { getAdminAnalytics, listAdminDashboardData } from "@/lib/data";
 
 export const metadata = {
   title: "Admin Dashboard | Auro Ardon",
@@ -8,8 +8,11 @@ export const metadata = {
 };
 
 export default async function AdminDashboardPage() {
-  const { products, orders } = await listAdminDashboardData();
+  const [{ products, orders }, analytics] = await Promise.all([
+    listAdminDashboardData(),
+    getAdminAnalytics()
+  ]);
   const dashboard = buildAdminDashboardOverview(products, orders);
 
-  return <AnalyticsDashboard dashboard={dashboard} />;
+  return <AnalyticsDashboard dashboard={dashboard} analytics={analytics} products={products} />;
 }

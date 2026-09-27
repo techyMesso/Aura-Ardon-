@@ -44,7 +44,7 @@ export default async function InvoicePage({
         <PrintButton />
       </div>
 
-      <div className="min-w-0 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-luxe backdrop-blur sm:rounded-[2rem] sm:p-8">
+       <div className="min-w-0 border border-border/70 bg-card p-4 shadow-card sm:p-8">
         <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="font-serif text-3xl text-ink">Invoice</h1>
@@ -66,7 +66,7 @@ export default async function InvoicePage({
 
         <div className="mb-8 grid gap-8 sm:grid-cols-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-bronze mb-2">
+            <p className="mb-2 text-sm font-medium text-bronze">
               Bill To
             </p>
             <p className="text-ink">{order.customer_name}</p>
@@ -93,7 +93,7 @@ export default async function InvoicePage({
           </div>
         </div>
 
-        <div className="mb-8 overflow-x-auto rounded-[1.5rem] border border-border">
+        <div className="mb-8 overflow-x-auto border border-border">
           <table className="min-w-[560px] divide-y divide-border text-sm">
             <thead className="bg-sand/50 text-left uppercase tracking-[0.18em] text-muted">
               <tr>

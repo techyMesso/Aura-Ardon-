@@ -60,7 +60,7 @@ function Toggle({
       aria-checked={checked}
       aria-describedby={`${id}-description`}
       onClick={() => onChange(!checked)}
-      className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-champagne ${
+       className={`flex w-full items-start gap-3 border p-4 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-champagne ${
         checked ? "border-bronze/50 bg-champagne/15" : "border-border bg-white/60"
       }`}
     >
@@ -171,10 +171,10 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-0" noValidate>
-      <section className="rounded-2xl border border-border/70 bg-white/60 p-4 sm:p-6" aria-labelledby="product-details-heading">
+      <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6" aria-labelledby="product-details-heading">
         <div className="mb-5">
-          <p className="section-label">Product details</p>
-          <h3 id="product-details-heading" className="mt-2 font-serif text-2xl text-ink">The essentials</h3>
+          <p className="text-sm font-medium text-bronze">Product details</p>
+          <h3 id="product-details-heading" className="mt-1 font-serif text-2xl text-ink">The essentials</h3>
         </div>
         <div className="space-y-4">
           <div>
@@ -211,10 +211,10 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/70 bg-white/60 p-4 sm:p-6" aria-labelledby="pricing-inventory-heading">
+      <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6" aria-labelledby="pricing-inventory-heading">
         <div className="mb-5">
-          <p className="section-label">Pricing and inventory</p>
-          <h3 id="pricing-inventory-heading" className="mt-2 font-serif text-2xl text-ink">Set availability</h3>
+          <p className="text-sm font-medium text-bronze">Pricing and inventory</p>
+          <h3 id="pricing-inventory-heading" className="mt-1 font-serif text-2xl text-ink">Set availability</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -230,19 +230,19 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/70 bg-white/60 p-4 sm:p-6" aria-labelledby="product-images-heading">
+      <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6" aria-labelledby="product-images-heading">
         <div className="mb-5">
-          <p className="section-label">Product images</p>
-          <h3 id="product-images-heading" className="mt-2 font-serif text-2xl text-ink">Show the details</h3>
+          <p className="text-sm font-medium text-bronze">Product images</p>
+          <h3 id="product-images-heading" className="mt-1 font-serif text-2xl text-ink">Show the details</h3>
           <p className="mt-1 text-sm text-muted">The first uploaded image is used as the cover image.</p>
         </div>
         <ImageDropzone value={images} onChange={setImages} />
       </section>
 
-      <section className="rounded-2xl border border-border/70 bg-white/60 p-4 sm:p-6" aria-labelledby="publishing-heading">
+      <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6" aria-labelledby="publishing-heading">
         <div className="mb-5">
-          <p className="section-label">Publishing</p>
-          <h3 id="publishing-heading" className="mt-2 font-serif text-2xl text-ink">Choose visibility</h3>
+          <p className="text-sm font-medium text-bronze">Publishing</p>
+          <h3 id="publishing-heading" className="mt-1 font-serif text-2xl text-ink">Choose visibility</h3>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <Toggle id="product-active" checked={active} onChange={setActive} label="Active" description="Visible in the storefront." />
@@ -250,9 +250,9 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-champagne/50 bg-sand/60" aria-labelledby="product-preview-heading">
+      <section className="overflow-hidden border border-champagne/50 bg-sand/60" aria-labelledby="product-preview-heading">
         <div className="border-b border-champagne/35 px-4 py-3 sm:px-6">
-          <p className="section-label">Product preview</p>
+          <p className="text-sm font-medium text-bronze">Product preview</p>
           <h3 id="product-preview-heading" className="mt-1 font-serif text-2xl text-ink">Before you save</h3>
         </div>
         <div className="flex gap-4 p-4 sm:p-6">

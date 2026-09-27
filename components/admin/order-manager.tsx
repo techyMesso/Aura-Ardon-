@@ -225,10 +225,10 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
 
   return (
     <div className="grid min-w-0 gap-4 md:gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(360px,1fr)]">
-      <section className="min-w-0 rounded-2xl border border-white/50 bg-white/70 p-4 shadow-luxe backdrop-blur sm:p-6">
+      <section className="min-w-0 border border-border/70 bg-card p-4 shadow-card sm:p-6">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">
+            <p className="text-sm font-medium text-bronze">
               Orders
             </p>
             <h2 className="font-serif text-3xl text-ink">Fulfillment queue</h2>
@@ -384,7 +384,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
           ) : null}
         </div>
 
-        <div className="hidden overflow-hidden rounded-2xl border border-border md:block">
+          <div className="hidden overflow-hidden border border-border md:block">
           <div className="overflow-x-auto">
             <table className="min-w-[720px] divide-y divide-border text-sm">
               <thead className="bg-sand/50 text-left uppercase tracking-[0.18em] text-muted">
@@ -450,7 +450,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
         </div>
       </section>
 
-      <aside className="min-w-0 rounded-2xl border border-white/50 bg-white/70 p-4 shadow-luxe backdrop-blur sm:p-6">
+      <aside className="min-w-0 border border-border/70 bg-card p-4 shadow-card sm:p-6">
         {!selectedOrder || loadingDetail ? (
           <div className="flex min-h-[320px] items-center justify-center text-sm text-muted">
             {loadingDetail ? "Loading order details..." : "Select an order to view details."}
@@ -459,7 +459,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
           <div className="space-y-6">
               <div className="flex min-w-0 items-start justify-between gap-4">
                 <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">
+                <p className="text-sm font-medium text-bronze">
                   Order details
                 </p>
                 <h3 className="mt-2 font-serif text-2xl text-ink">

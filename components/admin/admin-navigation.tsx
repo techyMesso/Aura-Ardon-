@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   ClipboardList,
+  FileText,
   FolderTree,
   LayoutDashboard,
   LogOut,
@@ -13,29 +15,84 @@ import {
   Package,
   Plus,
   Store,
+  UserRound,
   X
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-
-const NAV_ITEMS = [
+const PRIMARY_ITEMS = [
   { href: "/admin", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", Icon: Package },
   { href: "/admin/categories", label: "Categories", Icon: FolderTree },
   { href: "/admin/orders", label: "Orders", Icon: ClipboardList }
 ];
 
+const REPORT_ITEMS = [
+  { href: "/admin#sales-overview", label: "Analytics", Icon: BarChart3 },
+  { href: "/admin/invoices", label: "Invoices", Icon: FileText }
+];
+
+const PAGE_TITLES: Record<string, string> = {
+  "/admin": "Dashboard",
+  "/admin/products": "Products",
+  "/admin/categories": "Categories",
+  "/admin/orders": "Orders",
+  "/admin/invoices": "Invoices"
+};
+
 function matchesRoute(pathname: string, href: string) {
-  if (href === "/admin") return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (href.includes("#")) return false;
+  const basePath = href.split("#")[0];
+  if (basePath === "/admin") return pathname === basePath;
+  return pathname === basePath || pathname.startsWith(`${basePath}/`);
+}
+
+function getPageTitle(pathname: string) {
+  if (pathname.startsWith("/admin/products/")) return pathname.endsWith("/edit") ? "Edit product" : "Add product";
+  if (pathname.startsWith("/admin/invoices/")) return "Invoice";
+  return PAGE_TITLES[pathname] ?? "Admin";
+}
+
+function AdminNavLink({
+  href,
+  label,
+  Icon,
+  active,
+  onClick,
+  linkRef
+}: {
+  href: string;
+  label: string;
+  Icon: typeof LayoutDashboard;
+  active: boolean;
+  onClick?: () => void;
+  linkRef?: React.Ref<HTMLAnchorElement>;
+}) {
+  return (
+    <Link
+      ref={linkRef}
+      href={href}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-bronze ${
+        active
+          ? "bg-bronze text-white shadow-sm"
+          : "text-muted hover:bg-sand/55 hover:text-ink"
+      }`}
+    >
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
+      {label}
+    </Link>
+  );
 }
 
 export function AdminNavigation({ email }: { email: string | null | undefined }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const moreActive = !NAV_ITEMS.filter(item => item.label !== "Categories").some(item => matchesRoute(pathname, item.href));
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstDrawerLinkRef = useRef<HTMLAnchorElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const pageTitle = getPageTitle(pathname);
+  const moreActive = REPORT_ITEMS.some(item => matchesRoute(pathname, item.href));
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -44,10 +101,22 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
     firstDrawerLinkRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setDrawerOpen(false);
+      if (event.key !== "Tab") return;
+      const controls = drawerRef.current?.querySelectorAll<HTMLElement>("a[href], button:not(:disabled)");
+      if (!controls?.length) return;
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKeyDown);
-
     return () => {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKeyDown);
@@ -59,116 +128,122 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
     setDrawerOpen(false);
   }
 
+  const navigation = (onClick?: () => void, firstLink?: React.Ref<HTMLAnchorElement>) => (
+    <>
+      <p className="mb-2 px-3 text-xs font-medium text-muted">Workspace</p>
+      <div className="space-y-1">
+        {PRIMARY_ITEMS.map((item, index) => (
+          <AdminNavLink
+            key={item.href}
+            {...item}
+            active={matchesRoute(pathname, item.href)}
+            onClick={onClick}
+            linkRef={index === 0 ? firstLink : undefined}
+          />
+        ))}
+      </div>
+      <p className="mb-2 mt-6 px-3 text-xs font-medium text-muted">Reports</p>
+      <div className="space-y-1">
+        {REPORT_ITEMS.map(item => (
+          <AdminNavLink
+            key={item.href}
+            {...item}
+            active={matchesRoute(pathname, item.href)}
+            onClick={onClick}
+          />
+        ))}
+      </div>
+    </>
+  );
+
   return (
     <>
-      <header className="sticky top-0 z-50 -mx-4 -mt-4 mb-4 flex min-h-[64px] items-center gap-2 border-b border-champagne/25 bg-ink/95 px-4 py-2 text-cream shadow-card backdrop-blur md:hidden">
-        <button
-          ref={menuButtonRef}
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Open admin navigation"
-          aria-expanded={drawerOpen}
-          aria-controls="admin-mobile-drawer"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cream transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-champagne"
-        >
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/70 bg-cream px-4 py-5 md:flex md:flex-col">
+        <Link href="/admin" className="flex min-h-12 items-center gap-3 rounded-lg px-2 focus:outline-none focus:ring-2 focus:ring-bronze">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink text-champagne">
+            <LayoutDashboard className="h-4 w-4" aria-hidden />
+          </span>
+          <span className="font-serif text-2xl text-ink">Auro Ardon</span>
+        </Link>
+        <p className="mt-1 px-2 text-sm text-muted">Store operations</p>
+        <nav className="mt-8" aria-label="Admin navigation">{navigation()}</nav>
+        <div className="mt-auto border-t border-border/70 pt-5">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sand text-bronze">
+              <UserRound className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ink">Administrator</p>
+              <p className="truncate text-xs text-muted">{email}</p>
+            </div>
+          </div>
+          <Link href="/" className="mt-3 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted transition-colors hover:bg-sand/55 hover:text-ink focus:outline-none focus:ring-2 focus:ring-bronze">
+            <Store className="h-4 w-4" aria-hidden />
+            View storefront
+          </Link>
+          <form action="/auth/signout" method="post" className="mt-1">
+            <button type="submit" className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-bronze">
+              <LogOut className="h-4 w-4" aria-hidden />
+              Sign out
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <header className="sticky top-0 z-50 -mx-4 -mt-4 mb-4 flex min-h-16 items-center gap-3 border-b border-border/70 bg-cream/95 px-4 py-2 backdrop-blur md:hidden">
+        <button ref={menuButtonRef} type="button" onClick={() => setDrawerOpen(true)} aria-label="Open admin navigation" aria-expanded={drawerOpen} aria-controls="admin-mobile-drawer" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-sand focus:outline-none focus:ring-2 focus:ring-bronze">
           <Menu className="h-5 w-5" aria-hidden />
         </button>
-        <Link href="/admin" className="min-w-0 flex-1 truncate font-serif text-xl text-cream focus:outline-none focus:ring-2 focus:ring-champagne">
-          Auro <span className="text-champagne">Admin</span>
-        </Link>
-        <Link
-          href="/admin/products/new"
-          aria-label="Add product"
-          className="inline-flex h-11 shrink-0 items-center justify-center gap-1 rounded-full bg-bronze px-3 text-xs font-semibold uppercase tracking-[0.1em] text-white transition hover:bg-rose focus:outline-none focus:ring-2 focus:ring-champagne"
-        >
+        <div className="min-w-0 flex-1">
+          <Link href="/admin" className="block truncate font-serif text-xl text-ink focus:outline-none focus:ring-2 focus:ring-bronze">Auro Ardon</Link>
+          <p className="truncate text-xs text-muted">{pageTitle}</p>
+        </div>
+        <Link href="/admin/products/new" aria-label="Add product" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bronze text-white transition-colors hover:bg-rose focus:outline-none focus:ring-2 focus:ring-bronze">
           <Plus className="h-4 w-4" aria-hidden />
-          <span className="hidden min-[380px]:inline">Add</span>
         </Link>
       </header>
 
-      <div className="hidden space-y-6 md:block">
-        <header className="flex min-w-0 flex-col justify-between gap-6 rounded-[2rem] border border-white/60 bg-white/70 p-6 shadow-luxe backdrop-blur lg:flex-row lg:items-center">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bronze">Protected admin</p>
-            <div className="mt-3 flex min-w-0 items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-champagne/25 text-bronze">
-                <LayoutDashboard className="h-5 w-5" aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <h1 className="font-serif text-4xl text-ink">Atelier control room</h1>
-                <p className="truncate text-sm text-muted">{email}</p>
-              </div>
-            </div>
+      <header className="mb-6 hidden min-h-16 items-center justify-between border-b border-border/70 pb-4 md:flex">
+        <div>
+          <p className="text-sm text-muted">Operations workspace</p>
+          <h1 className="mt-0.5 font-serif text-3xl text-ink">{pageTitle}</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/products/new" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-bronze px-4 text-sm font-semibold text-white transition-colors hover:bg-rose focus:outline-none focus:ring-2 focus:ring-bronze">
+            <Plus className="h-4 w-4" aria-hidden />
+            Add product
+          </Link>
+          <div className="flex h-11 items-center gap-2 border-l border-border pl-3 text-sm text-muted">
+            <UserRound className="h-4 w-4" aria-hidden />
+            <span className="max-w-40 truncate">{email}</span>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-3">
-            <Link href="/" className="inline-flex min-h-11 items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-ink transition hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-champagne">
-              Storefront
-            </Link>
-            <form action="/auth/signout" method="post">
-              <Button variant="ghost" type="submit" className="min-h-11">
-                <LogOut className="mr-2 h-4 w-4" aria-hidden />
-                Sign out
-              </Button>
-            </form>
-          </div>
-        </header>
+        </div>
+      </header>
 
-        <nav className="flex min-w-0 flex-wrap gap-2 rounded-[2rem] border border-white/60 bg-white/70 p-3 shadow-luxe backdrop-blur" aria-label="Admin navigation">
-          {NAV_ITEMS.map(({ href, label, Icon }) => {
-            const active = matchesRoute(pathname, href);
-            return (
-              <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium uppercase tracking-[0.12em] transition focus:outline-none focus:ring-2 focus:ring-champagne ${active ? "bg-ink text-champagne" : "text-ink hover:bg-sand/50"}`}>
-                <Icon className="h-4 w-4" aria-hidden />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      <div id="admin-mobile-drawer" role="dialog" aria-modal="true" aria-label="Admin navigation" className={`fixed inset-0 z-[60] md:hidden ${drawerOpen ? "visible" : "invisible pointer-events-none"}`}>
-        <button type="button" tabIndex={drawerOpen ? 0 : -1} aria-label="Close admin navigation" onClick={closeDrawer} className={`absolute inset-0 bg-ink/55 backdrop-blur-sm transition-opacity ${drawerOpen ? "opacity-100" : "opacity-0"}`} />
-        <aside className={`relative flex h-full w-[min(20rem,calc(100%-2rem))] flex-col border-r border-champagne/25 bg-ink p-5 text-cream shadow-2xl transition-transform duration-300 ${drawerOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <div id="admin-mobile-drawer" role="dialog" aria-modal="true" aria-label="Admin navigation" className={`fixed inset-0 z-[70] md:hidden ${drawerOpen ? "visible" : "invisible pointer-events-none"}`}>
+        <button type="button" tabIndex={drawerOpen ? 0 : -1} aria-label="Close admin navigation" onClick={closeDrawer} className={`absolute inset-0 bg-ink/35 backdrop-blur-sm transition-opacity ${drawerOpen ? "opacity-100" : "opacity-0"}`} />
+        <aside ref={drawerRef} className={`relative flex h-full w-[min(19rem,calc(100%-1.5rem))] flex-col bg-cream p-5 text-ink shadow-2xl transition-transform duration-200 ${drawerOpen ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="font-serif text-2xl">Auro <span className="text-champagne">Admin</span></p>
-            <button type="button" onClick={closeDrawer} aria-label="Close admin navigation" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-cream transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-champagne">
-              <X className="h-5 w-5" aria-hidden />
-            </button>
+            <p className="font-serif text-2xl">Auro Ardon</p>
+            <button type="button" onClick={closeDrawer} aria-label="Close admin navigation" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink transition-colors hover:bg-sand focus:outline-none focus:ring-2 focus:ring-bronze"><X className="h-5 w-5" aria-hidden /></button>
           </div>
-          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-champagne">Signed in</p>
-            <p className="mt-2 break-words text-sm text-sand">{email}</p>
+          <p className="mt-1 text-sm text-muted">Store operations</p>
+          <nav className="mt-7" aria-label="Admin drawer links">{navigation(closeDrawer, firstDrawerLinkRef)}</nav>
+          <div className="mt-auto border-t border-border/70 pt-5">
+            <p className="px-3 text-xs text-muted">Signed in as</p>
+            <p className="mt-1 break-words px-3 text-sm font-medium text-ink">{email}</p>
+            <Link href="/" onClick={closeDrawer} className="mt-4 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted transition-colors hover:bg-sand hover:text-ink focus:outline-none focus:ring-2 focus:ring-bronze"><Store className="h-4 w-4" aria-hidden />View storefront</Link>
+            <form action="/auth/signout" method="post" className="mt-1"><button type="submit" className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-bronze"><LogOut className="h-4 w-4" aria-hidden />Sign out</button></form>
           </div>
-          <nav className="mt-6 space-y-1" aria-label="Admin drawer links">
-            {NAV_ITEMS.map(({ href, label, Icon }, index) => {
-              const active = matchesRoute(pathname, href);
-              return (
-                <Link key={href} ref={index === 0 ? firstDrawerLinkRef : undefined} href={href} onClick={closeDrawer} aria-current={active ? "page" : undefined} className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-champagne ${active ? "bg-white/10 text-champagne" : "text-sand hover:bg-white/5 hover:text-cream"}`}>
-                  <Icon className="h-5 w-5" aria-hidden />
-                  {label}
-                </Link>
-              );
-            })}
-            <Link href="/" onClick={closeDrawer} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-sand transition hover:bg-white/5 hover:text-cream focus:outline-none focus:ring-2 focus:ring-champagne">
-              <Store className="h-5 w-5" aria-hidden />
-              Storefront
-            </Link>
-          </nav>
-          <form action="/auth/signout" method="post" className="mt-auto border-t border-white/10 pt-5">
-            <Button type="submit" variant="ghost" className="min-h-12 w-full justify-start px-3 text-sand hover:bg-white/5 hover:text-cream">
-              <LogOut className="mr-3 h-5 w-5" aria-hidden />
-              Sign out
-            </Button>
-          </form>
         </aside>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-champagne/25 bg-ink/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-sand shadow-[0_-10px_30px_rgba(43,20,37,0.12)] backdrop-blur md:hidden" aria-label="Admin quick navigation">
-        {NAV_ITEMS.filter(item => item.label !== "Categories").map(({ href, label, Icon }) => {
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border/70 bg-cream/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgba(43,20,37,0.1)] backdrop-blur md:hidden" aria-label="Admin quick navigation">
+        {PRIMARY_ITEMS.filter(item => item.label !== "Categories").map(({ href, label, Icon }) => {
           const active = matchesRoute(pathname, href);
-          return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold uppercase tracking-[0.08em] transition focus:outline-none focus:ring-2 focus:ring-champagne ${active ? "bg-white/10 text-champagne" : "hover:text-cream"}`}><Icon className="h-4 w-4" aria-hidden />{label}</Link>;
+          return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-bronze ${active ? "bg-bronze/10 text-bronze" : "text-muted hover:bg-sand/60 hover:text-ink"}`}><Icon className="h-4 w-4" aria-hidden />{label}</Link>;
         })}
-        <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Open more admin navigation" className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold uppercase tracking-[0.08em] transition hover:text-cream focus:outline-none focus:ring-2 focus:ring-champagne ${moreActive ? "bg-white/10 text-champagne" : "text-sand"}`}><MoreHorizontal className="h-4 w-4" aria-hidden />More</button>
+        <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Open more admin navigation" className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-bronze ${moreActive ? "bg-bronze/10 text-bronze" : "text-muted hover:bg-sand/60 hover:text-ink"}`}><MoreHorizontal className="h-4 w-4" aria-hidden />More</button>
       </nav>
     </>
   );

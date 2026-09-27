@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Filter, Pencil, Plus, Power, Search, Trash2, X } from "lucide-react";
+import { ArrowDownUp, Filter, Pencil, Plus, Power, Search, Trash2, X } from "lucide-react";
 
 import { ProductStockStatus } from "@/components/admin/product-stock-status";
 import { Button } from "@/components/ui/button";
@@ -73,10 +73,20 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
   const [products, setProducts] = useState(initialProducts);
   const [filters, setFilters] = useState<ProductListFilters>(DEFAULT_PRODUCT_LIST_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sort, setSort] = useState("newest");
   const [error, setError] = useState<string | null>(initialError);
   const [pendingMutation, setPendingMutation] = useState<{ productId: string; action: "updating" | "deleting" } | null>(null);
   const categories = useMemo(() => Array.from(new Set(products.map(product => product.category))).sort(), [products]);
-  const filtered = useMemo(() => filterProducts(products, filters), [products, filters]);
+  const filtered = useMemo(() => {
+    const result = [...filterProducts(products, filters)];
+    return result.sort((left, right) => {
+      if (sort === "title") return left.title.localeCompare(right.title);
+      if (sort === "price-low") return Number(left.price) - Number(right.price);
+      if (sort === "price-high") return Number(right.price) - Number(left.price);
+      if (sort === "stock-low") return left.stock_quantity - right.stock_quantity;
+      return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+    });
+  }, [products, filters, sort]);
   const activeFilterCount = [filters.category !== "all", filters.active !== "all", filters.featured !== "all", filters.stock !== "all"].filter(Boolean).length;
 
   useEffect(() => {
@@ -130,8 +140,8 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
     <section className="min-w-0 space-y-4 md:space-y-6">
       <div className="flex min-w-0 items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="section-label">Inventory</p>
-          <h2 className="mt-2 font-serif text-[clamp(1.75rem,8vw,2.25rem)] leading-tight text-ink">Products</h2>
+          <p className="text-sm font-medium text-bronze">Inventory</p>
+          <h2 className="mt-1 font-serif text-[clamp(1.75rem,8vw,2.25rem)] leading-tight text-ink">Products</h2>
         </div>
         <Link href="/admin/products/new" className="hidden shrink-0 md:block"><Button><Plus className="mr-2 h-4 w-4" />New Product</Button></Link>
       </div>
@@ -147,13 +157,13 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
         </Button>
       </div>
 
-      <div className="hidden items-end justify-between gap-4 lg:flex">
+        <div className="hidden items-end justify-between gap-4 lg:flex">
         <label className="relative block min-w-0">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-muted">Title</span>
           <Search className="absolute bottom-3 left-3 h-4 w-4 text-muted" aria-hidden />
           <Input aria-label="Search product titles" placeholder="Search titles..." value={filters.search} onChange={event => updateFilter("search", event.target.value)} className="w-48 pl-10" />
         </label>
-        <div className="grid flex-1 grid-cols-4 gap-3"><FilterFields categories={categories} filters={filters} updateFilter={updateFilter} /></div>
+          <div className="grid flex-1 grid-cols-5 gap-3"><FilterFields categories={categories} filters={filters} updateFilter={updateFilter} /><label className="block min-w-0"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-muted">Sort</span><select value={sort} onChange={event => setSort(event.target.value)} className="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-bronze focus:ring-2 focus:ring-sand"><option value="newest">Newest</option><option value="title">Title</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="stock-low">Stock: low to high</option></select></label></div>
       </div>
 
       <div aria-live="polite" aria-atomic="true">
@@ -166,7 +176,7 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
           const image = getSafeCatalogImageUrl(product.images[0]) || "/hero-jewelry.png";
           const pending = pendingMutation?.productId === product.id;
           return (
-            <article key={product.id} className={`flex min-w-0 gap-3 rounded-2xl border border-white/65 bg-white/75 p-3 shadow-card ${pending ? "opacity-60" : ""}`}>
+            <article key={product.id} className={`flex min-w-0 gap-3 border border-border/70 bg-card p-3 shadow-card ${pending ? "opacity-60" : ""}`}>
               <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-cream"><Image src={image} alt="" fill sizes="64px" className="object-cover" /></div>
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-start justify-between gap-2">
@@ -183,10 +193,10 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
           );
         })}
         {!filtered.length ? <p className="rounded-2xl border border-dashed border-border bg-white/60 px-4 py-12 text-center text-sm text-muted">No products match the current filters.</p> : null}
-        <Link href="/admin/products/new" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-bronze px-5 text-sm font-semibold uppercase tracking-[0.14em] text-white shadow-card transition hover:bg-rose"><Plus className="h-4 w-4" aria-hidden />Add Product</Link>
+        <Link href="/admin/products/new" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-bronze px-5 text-sm font-semibold text-white shadow-card transition hover:bg-rose"><Plus className="h-4 w-4" aria-hidden />Add product</Link>
       </div>
 
-      <div className="hidden overflow-hidden rounded-[2rem] border border-white/60 bg-white/70 shadow-luxe backdrop-blur md:block">
+      <div className="hidden overflow-hidden border border-border/70 bg-white shadow-card md:block">
         <div className="overflow-x-auto" tabIndex={0} aria-label="Product list. Scroll horizontally to see all columns.">
           <table className="min-w-[780px] w-full divide-y divide-border text-sm">
             <thead className="bg-sand/50 text-left uppercase tracking-[0.18em] text-muted"><tr><th className="px-4 py-3">Title</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Stock</th><th className="px-4 py-3">Active</th><th className="px-4 py-3">Actions</th></tr></thead>
@@ -200,9 +210,9 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
 
       <div role="dialog" aria-modal="true" aria-label="Product filters" className={`fixed inset-0 z-[70] md:hidden ${filtersOpen ? "visible" : "invisible pointer-events-none"}`}>
         <button type="button" onClick={() => setFiltersOpen(false)} aria-label="Close product filters" className={`absolute inset-0 bg-ink/45 transition-opacity ${filtersOpen ? "opacity-100" : "opacity-0"}`} />
-        <section className={`absolute inset-x-0 bottom-0 max-h-[80dvh] overflow-y-auto rounded-t-[2rem] bg-cream p-5 shadow-2xl transition-transform ${filtersOpen ? "translate-y-0" : "translate-y-full"}`}>
-          <div className="flex items-center justify-between gap-3"><div><p className="section-label">Products</p><h3 className="mt-1 font-serif text-2xl text-ink">Filters</h3></div><button type="button" onClick={() => setFiltersOpen(false)} aria-label="Close product filters" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-champagne"><X className="h-5 w-5" /></button></div>
-          <div className="mt-5 grid gap-4"><FilterFields categories={categories} filters={filters} updateFilter={updateFilter} /></div>
+        <section className={`absolute inset-x-0 bottom-0 max-h-[80dvh] overflow-y-auto rounded-t-[2rem] border-t border-border bg-cream p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl transition-transform ${filtersOpen ? "translate-y-0" : "translate-y-full"}`}>
+          <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium text-bronze">Products</p><h3 className="mt-1 font-serif text-2xl text-ink">Filters</h3></div><button type="button" onClick={() => setFiltersOpen(false)} aria-label="Close product filters" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-champagne"><X className="h-5 w-5" /></button></div>
+          <div className="mt-5 grid gap-4"><FilterFields categories={categories} filters={filters} updateFilter={updateFilter} /><label className="block min-w-0"><span className="mb-1.5 block text-sm font-medium text-ink">Sort</span><div className="relative"><ArrowDownUp className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden /><select value={sort} onChange={event => setSort(event.target.value)} className="h-12 w-full rounded-xl border border-border bg-white pl-10 pr-3 text-sm text-ink outline-none transition focus:border-bronze focus:ring-2 focus:ring-sand"><option value="newest">Newest</option><option value="title">Title</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="stock-low">Stock: low to high</option></select></div></label></div>
           <div className="mt-6 flex gap-3"><Button type="button" variant="ghost" onClick={clearFilters} className="flex-1">Clear filters</Button><Button type="button" onClick={() => setFiltersOpen(false)} className="flex-1">Show {filtered.length}</Button></div>
         </section>
       </div>

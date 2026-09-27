@@ -13,7 +13,7 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
       role="status"
       aria-label={`Order status: ${getOrderStatusLabel(status)}`}
     >
-      <Badge className={getOrderStatusBadgeClassName(status)}>
+      <Badge className={`normal-case tracking-normal ${getOrderStatusBadgeClassName(status)}`}>
         {getOrderStatusLabel(status)}
       </Badge>
     </span>
@@ -26,7 +26,7 @@ export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
       role="status"
       aria-label={`Payment status: ${getPaymentStatusLabel(status)}`}
     >
-      <Badge className={getPaymentStatusBadgeClassName(status)}>
+      <Badge className={`normal-case tracking-normal ${getPaymentStatusBadgeClassName(status)}`}>
         {getPaymentStatusLabel(status)}
       </Badge>
     </span>

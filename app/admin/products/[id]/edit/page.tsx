@@ -44,9 +44,9 @@ export default async function EditProductPage({
   if (!product) notFound();
 
   return (
-    <section className="min-w-0 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-luxe backdrop-blur sm:rounded-[2rem] sm:p-6">
+    <section className="min-w-0 border border-border/70 bg-card p-4 shadow-card sm:p-6">
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bronze">
+        <p className="text-sm font-medium text-bronze">
           Inventory
         </p>
         <h2 className="font-serif text-3xl text-ink">Edit jewelry piece</h2>

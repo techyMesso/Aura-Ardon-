@@ -132,9 +132,10 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="min-w-0 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-luxe backdrop-blur sm:rounded-[2rem] sm:p-6">
-        <h3 className="font-serif text-2xl text-ink mb-4">
+    <section className="min-w-0 space-y-6">
+      <div className="min-w-0 border border-border/70 bg-card p-4 shadow-card sm:p-6">
+        <p className="text-sm font-medium text-bronze">Catalog structure</p>
+        <h3 className="mt-1 font-serif text-2xl text-ink mb-4">
           {editingId ? "Edit category" : "Create new category"}
         </h3>
         <form onSubmit={saveCategory} className="space-y-4 pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-0">
@@ -189,7 +190,16 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
         </form>
       </div>
 
-      <div className="min-w-0 overflow-hidden rounded-2xl border border-white/60 bg-white/70 shadow-luxe backdrop-blur sm:rounded-[2rem]">
+      <div className="space-y-3 md:hidden">
+        {categories.map((cat, index) => (
+          <article key={cat.id} className="border border-border/70 bg-card p-4 shadow-card">
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-medium text-ink">{cat.name}</p><p className="mt-1 truncate text-sm text-muted">/{cat.slug}</p>{cat.description ? <p className="mt-2 text-sm leading-6 text-muted">{cat.description}</p> : null}</div><span className="shrink-0 text-sm text-muted">#{cat.display_order}</span></div>
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-border/70 pt-3"><Button variant="ghost" onClick={() => moveCategory(cat.id, "up")} disabled={index === 0} className="min-h-11 px-3 text-sm normal-case tracking-normal" aria-label={`Move ${cat.name} up`}><ArrowUp className="mr-1 h-4 w-4" aria-hidden />Move up</Button><Button variant="ghost" onClick={() => moveCategory(cat.id, "down")} disabled={index === categories.length - 1} className="min-h-11 px-3 text-sm normal-case tracking-normal" aria-label={`Move ${cat.name} down`}><ArrowDown className="mr-1 h-4 w-4" aria-hidden />Move down</Button><Button variant="ghost" onClick={() => startEdit(cat)} className="min-h-11 px-3 text-sm normal-case tracking-normal"><Pencil className="mr-1 h-4 w-4" aria-hidden />Edit</Button><Button variant="destructive" onClick={() => deleteCategory(cat.id)} className="min-h-11 px-3 text-sm normal-case tracking-normal"><Trash2 className="mr-1 h-4 w-4" aria-hidden />Delete</Button></div>
+          </article>
+        ))}
+        {!categories.length ? <div className="border border-dashed border-border bg-white p-8 text-center"><p className="font-medium text-ink">No categories yet</p><p className="mt-1 text-sm text-muted">Create a category to organize the catalog.</p></div> : null}
+      </div>
+      <div className="hidden min-w-0 overflow-hidden border border-border/70 bg-white shadow-card md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-sand/50 text-left uppercase tracking-[0.18em] text-muted">
@@ -202,7 +212,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-white/80">
-              {categories.map((cat) => (
+              {categories.map((cat, index) => (
                 <tr key={cat.id}>
                   <td className="px-4 py-4 text-muted">{cat.display_order}</td>
                   <td className="px-4 py-4 font-medium text-ink">{cat.name}</td>
@@ -215,30 +225,34 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                       <Button
                         variant="ghost"
                         onClick={() => moveCategory(cat.id, "up")}
-                        disabled={cat.display_order === 0}
-                        className="h-8 w-8 p-0"
+                          disabled={index === 0}
+                          className="h-8 w-8 p-0"
+                          aria-label={`Move ${cat.name} up`}
                       >
                         <ArrowUp className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         onClick={() => moveCategory(cat.id, "down")}
-                        disabled={cat.display_order === categories.length - 1}
-                        className="h-8 w-8 p-0"
+                          disabled={index === categories.length - 1}
+                          className="h-8 w-8 p-0"
+                          aria-label={`Move ${cat.name} down`}
                       >
                         <ArrowDown className="h-4 w-4" />
                       </Button>
                        <Button
                          variant="ghost"
-                         className="h-8 w-8 p-0"
-                         onClick={() => startEdit(cat)}
+                          className="h-8 w-8 p-0"
+                          onClick={() => startEdit(cat)}
+                          aria-label={`Edit ${cat.name}`}
                        >
                          <Pencil className="h-4 w-4" />
                        </Button>
                        <Button
                          variant="destructive"
-                         className="h-8 w-8 p-0"
-                         onClick={() => deleteCategory(cat.id)}
+                          className="h-8 w-8 p-0"
+                          onClick={() => deleteCategory(cat.id)}
+                          aria-label={`Delete ${cat.name}`}
                        >
                          <Trash2 className="h-4 w-4" />
                        </Button>
