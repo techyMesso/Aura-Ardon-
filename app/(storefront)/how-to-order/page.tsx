@@ -14,16 +14,16 @@ export default function HowToOrderPage() {
   ];
 
   return (
-    <section className="mx-auto max-w-5xl px-5 py-12 md:px-6 lg:px-10 lg:py-16">
-      <header className="mx-auto max-w-2xl text-center">
+    <section className="jewel-page">
+      <header className="jewel-header">
         <p className="section-label">Ordering guide</p>
         <h1 className="heading-display mt-3">From piece to checkout</h1>
         <p className="mt-4 text-muted">A direct mobile-friendly path, with no account required.</p>
       </header>
 
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
+      <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-3 md:gap-5">
         {steps.map(step => (
-          <article key={step.number} className="rounded-[1.75rem] border border-border/60 bg-white/75 p-6 shadow-card">
+          <article key={step.number} className="jewel-panel p-6">
             <div className="flex items-center justify-between">
               <step.Icon className="h-5 w-5 text-bronze" aria-hidden />
               <span className="font-serif text-2xl text-champagne">{step.number}</span>

@@ -26,13 +26,13 @@ export default function AboutPage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-16 md:px-6 lg:px-10 lg:py-20">
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 md:gap-5">
           {[
             { title: "Nairobi rooted", copy: "The store and delivery experience are centered in Nairobi.", Icon: MapPin },
             { title: "Bold by design", copy: "Each edit is chosen to finish a look rather than fade into it.", Icon: Sparkles },
             { title: "Personal ordering", copy: "Checkout online or continue directly with the store through WhatsApp.", Icon: Gem }
           ].map(value => (
-            <article key={value.title} className="rounded-[1.5rem] border border-border/60 bg-white/75 p-6 shadow-card">
+            <article key={value.title} className="jewel-panel p-6">
               <value.Icon className="h-5 w-5 text-bronze" aria-hidden />
               <h2 className="mt-5 font-serif text-2xl text-ink">{value.title}</h2>
               <p className="mt-2 text-sm leading-7 text-muted">{value.copy}</p>
@@ -40,7 +40,7 @@ export default function AboutPage() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-start justify-between gap-6 rounded-[2rem] bg-sand p-8 sm:p-10 md:flex-row md:items-center">
+        <div className="jewel-callout mt-10 flex flex-col items-start justify-between gap-6 p-7 sm:mt-12 sm:p-10 md:flex-row md:items-center">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ink/70">The collection</p>
             <h2 className="mt-2 font-serif text-4xl text-ink">Find the piece that speaks first.</h2>

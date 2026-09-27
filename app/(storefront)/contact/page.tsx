@@ -15,8 +15,8 @@ export default function ContactPage() {
   const whatsappUrl = createWhatsAppLink(whatsappNumber ?? "", "Hello Auro Ardon, I would like help choosing a piece.");
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-12 md:px-6 lg:px-10 lg:py-16">
-      <header className="mx-auto mb-10 max-w-2xl text-center">
+    <div className="jewel-page">
+      <header className="jewel-header">
         <p className="section-label">Get in touch</p>
         <h1 className="heading-display mt-3">Let&apos;s find your piece</h1>
         <p className="mx-auto mt-4 max-w-xl text-muted">
@@ -28,7 +28,7 @@ export default function ContactPage() {
         <ContactForm whatsappNumber={whatsappNumber} />
 
         <aside className="space-y-5">
-          <div className="rounded-[2rem] border border-white/60 bg-white/75 p-5 shadow-luxe backdrop-blur sm:p-7">
+          <div className="jewel-panel p-5 sm:p-7">
             <h2 className="font-serif text-2xl text-ink">Store contact</h2>
             <div className="mt-6 space-y-5">
               <div className="flex min-h-11 items-center gap-4">

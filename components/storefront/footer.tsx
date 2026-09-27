@@ -96,7 +96,7 @@ export function Footer({ categories }: { categories: Category[] }) {
                 </li>
               ) : null}
             </ul>
-            <div className="mt-6 rounded-2xl border border-border/60 bg-white/55 p-4">
+            <div className="jewel-panel mt-6 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink">Ordering options</p>
               <p className="mt-2 text-sm leading-6 text-muted">
                 {normalizedNumber

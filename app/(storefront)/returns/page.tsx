@@ -8,25 +8,25 @@ export const metadata = {
 
 export default function ReturnsPage() {
   return (
-    <section className="mx-auto max-w-5xl px-5 py-12 md:px-6 lg:px-10 lg:py-16">
-      <header className="mx-auto max-w-2xl text-center">
+    <section className="jewel-page">
+      <header className="jewel-header">
         <p className="section-label">Order support</p>
         <h1 className="heading-display mt-3">Returns and exchanges</h1>
         <p className="mt-4 text-muted">Contact the store promptly so the condition of the item and the available resolution can be confirmed.</p>
       </header>
 
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
-        <article className="rounded-[1.75rem] border border-border/60 bg-white/75 p-6 shadow-card">
+      <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-3 md:gap-5">
+        <article className="jewel-panel p-6">
           <MessageCircle className="h-5 w-5 text-bronze" aria-hidden />
           <h2 className="mt-5 font-serif text-2xl text-ink">Start with your order</h2>
           <p className="mt-2 text-sm leading-7 text-muted">Share your order reference, the item name, and the reason you need help.</p>
         </article>
-        <article className="rounded-[1.75rem] border border-border/60 bg-white/75 p-6 shadow-card">
+        <article className="jewel-panel p-6">
           <Camera className="h-5 w-5 text-bronze" aria-hidden />
           <h2 className="mt-5 font-serif text-2xl text-ink">Document any issue</h2>
           <p className="mt-2 text-sm leading-7 text-muted">For an incorrect or damaged item, keep the packaging and provide clear photos when you contact the store.</p>
         </article>
-        <article className="rounded-[1.75rem] border border-border/60 bg-white/75 p-6 shadow-card">
+        <article className="jewel-panel p-6">
           <PackageOpen className="h-5 w-5 text-bronze" aria-hidden />
           <h2 className="mt-5 font-serif text-2xl text-ink">Wait for instructions</h2>
           <p className="mt-2 text-sm leading-7 text-muted">Do not send an item before the store confirms eligibility and the correct return or exchange handoff.</p>
