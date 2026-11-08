@@ -2,111 +2,133 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Loader2, MapPin, MessageCircle, Phone, User } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
+import { formatKES, PriceKES } from "@/components/storefront/price-kes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart, useCartValue } from "@/lib/cart";
-import { formatCurrency, normalizeWhatsAppNumber } from "@/lib/utils";
+import { normalizeWhatsAppNumber } from "@/lib/utils";
 
 type PaymentMethod = "CASH_ON_DELIVERY" | "WHATSAPP";
+
+const NAIROBI_AREAS = [
+  "Westlands",
+  "Kilimani",
+  "Lavington",
+  "Kileleshwa",
+  "Karen",
+  "Nairobi CBD",
+  "Parklands",
+  "Upper Hill",
+  "South B / South C",
+  "Lang'ata",
+  "Runda / Gigiri",
+  "Kasarani / Roysambu",
+  "Thika Road",
+  "Eastlands",
+  "Other"
+] as const;
+
+function isValidKenyanPhone(input: string): boolean {
+  const digits = input.replace(/[\s()-]/g, "");
+  return /^(?:\+?254|0)(?:7|1)\d{8}$/.test(digits);
+}
 
 export function CheckoutPageClient() {
   const { items, clearCart } = useCart();
   const { total, itemCount } = useCartValue();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
+  const [orderStatusToken, setOrderStatusToken] = useState<string | null>(null);
+  const [trackedStatus, setTrackedStatus] = useState<{
+    orderStatus: string;
+    paymentStatus: string;
+  } | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [orderTotals, setOrderTotals] = useState<{
     subtotal: string | number;
     shippingFee: string | number;
     total: string | number;
   } | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH_ON_DELIVERY");
-  const [formData, setFormData] = useState({
-    customerName: "",
-    customerPhone: "",
-    customerLocation: "",
-    notes: ""
-  });
-  const formRef = useRef<HTMLFormElement>(null);
+
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("+254 ");
+  const [deliveryArea, setDeliveryArea] = useState<string>(NAIROBI_AREAS[0]);
+  const [locationDetail, setLocationDetail] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const [isGift, setIsGift] = useState(false);
+  const [giftNote, setGiftNote] = useState("");
+  const [hidePrices, setHidePrices] = useState(false);
+
   const whatsappConfigured = Boolean(
     normalizeWhatsAppNumber(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER)
   );
   const idempotencyKeyRef = useRef(
-    typeof crypto !== "undefined" ? crypto.randomUUID() : `checkout-${Date.now()}`
+    typeof crypto !== "undefined"
+      ? crypto.randomUUID()
+      : `checkout-${Date.now()}`
   );
   const submittingRef = useRef(false);
 
-  if (items.length === 0 && !success) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center px-6 pb-[calc(8rem+env(safe-area-inset-bottom))] text-center">
-        <h1 className="font-serif text-4xl text-ink">Your cart is empty</h1>
-        <p className="mt-3 max-w-md text-muted">
-          Add a few pieces first, then come back here to confirm delivery and payment.
-        </p>
-        <Link href="/shop" className="btn-primary mt-8 bg-bronze text-white hover:bg-rose">
-          Shop now
-        </Link>
-      </div>
-    );
+  async function handleCheckOrderStatus() {
+    if (!orderStatusToken || checkingStatus) return;
+    setCheckingStatus(true);
+    try {
+      const response = await fetch(
+        `/api/orders/status/${encodeURIComponent(orderStatusToken)}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setTrackedStatus(data);
+      }
+    } finally {
+      setCheckingStatus(false);
+    }
   }
 
-  if (success) {
-    return (
-      <div className="mx-auto flex min-h-dvh max-w-2xl flex-col items-center justify-center px-6 py-14 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50">
-          <Check className="h-10 w-10 text-green-600" />
-        </div>
-        <h1 className="mt-6 font-serif text-4xl text-ink">Order confirmed</h1>
-        <p className="mt-3 text-muted">
-          We’ve saved your order{orderId ? ` (#${orderId.slice(0, 8).toUpperCase()})` : ""}.
-        </p>
-        <p className="mt-2 max-w-md text-sm leading-7 text-muted">
-          {paymentMethod === "WHATSAPP"
-            ? "Use the WhatsApp button below to send your saved order and we’ll confirm the next steps with you."
-            : "We’ll contact you using the phone number you provided and collect payment on delivery."}
-        </p>
-        {orderTotals ? (
-          <div className="mt-6 w-full max-w-sm border border-border/70 bg-card p-5 text-sm shadow-card">
-            <div className="flex justify-between gap-4 text-muted">
-              <span>Subtotal</span>
-              <span className="text-ink">{formatCurrency(orderTotals.subtotal)}</span>
-            </div>
-            <div className="mt-3 flex justify-between gap-4 text-muted">
-              <span>Shipping</span>
-              <span className="text-ink">{formatCurrency(orderTotals.shippingFee)}</span>
-            </div>
-            <div className="mt-3 flex justify-between gap-4 border-t border-border pt-3 font-semibold text-ink">
-              <span>Final total</span>
-              <span>{formatCurrency(orderTotals.total)}</span>
-            </div>
-          </div>
-        ) : null}
-        {whatsappUrl ? (
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary mt-8 bg-bronze text-white hover:bg-rose"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Send WhatsApp Confirmation
-          </a>
-        ) : null}
-        <Link href="/shop" className="btn-outline mt-4">
-          Continue Shopping
-        </Link>
-      </div>
-    );
-  }
-
-  async function handleSubmit(event?: React.FormEvent) {
-    event?.preventDefault();
+  async function submitCheckout(method: PaymentMethod) {
     if (submittingRef.current || loading) return;
+
+    if (!customerName.trim()) {
+      setError("Enter your name.");
+      return;
+    }
+
+    if (!isValidKenyanPhone(customerPhone)) {
+      setError("Enter a valid Kenyan mobile number, e.g. +254 712 345 678.");
+      return;
+    }
+
+    const combinedLocation = locationDetail.trim()
+      ? `${deliveryArea} — ${locationDetail.trim()}`
+      : deliveryArea;
+
+    if (!combinedLocation.trim()) {
+      setError("Select your delivery area.");
+      return;
+    }
+
+    const noteParts: string[] = [];
+    if (notes.trim()) {
+      noteParts.push(notes.trim());
+    }
+    if (isGift) {
+      const giftHeader = hidePrices
+        ? "[Gift order — hide prices on slip]"
+        : "[Gift order]";
+      noteParts.push(
+        giftNote.trim() ? `${giftHeader} Note: ${giftNote.trim()}` : giftHeader
+      );
+    }
+    const combinedNotes = noteParts.join(" | ").slice(0, 1000) || null;
+
     submittingRef.current = true;
     setLoading(true);
     setError(null);
@@ -123,24 +145,25 @@ export function CheckoutPageClient() {
             productId: item.product.id,
             quantity: item.quantity
           })),
-          customerName: formData.customerName,
+          customerName: customerName.trim(),
           customerEmail: null,
-          customerPhone: formData.customerPhone,
-          customerLocation: formData.customerLocation,
-          notes: formData.notes.trim() || null,
-          paymentMethod
+          customerPhone: customerPhone.trim(),
+          customerLocation: combinedLocation,
+          notes: combinedNotes,
+          paymentMethod: method
         })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to place order");
+        throw new Error(data.error || "Unable to place order.");
       }
 
       clearCart();
       setOrderId(data.orderId);
       setWhatsappUrl(data.whatsappUrl ?? null);
+      setOrderStatusToken(data.orderStatusToken ?? null);
       setOrderTotals({
         subtotal: data.subtotal,
         shippingFee: data.shippingFee,
@@ -148,12 +171,14 @@ export function CheckoutPageClient() {
       });
       setSuccess(true);
 
-      if (data.whatsappUrl && paymentMethod === "WHATSAPP") {
+      if (data.whatsappUrl && method === "WHATSAPP") {
         window.location.href = data.whatsappUrl;
       }
     } catch (caughtError) {
       setError(
-        caughtError instanceof Error ? caughtError.message : "Failed to place order"
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to place order."
       );
     } finally {
       submittingRef.current = false;
@@ -161,244 +186,286 @@ export function CheckoutPageClient() {
     }
   }
 
-  return (
-    <div className="mx-auto min-h-dvh max-w-7xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:py-8 lg:px-10 lg:py-12">
-      <Link href="/cart" className="inline-flex items-center text-sm text-muted hover:text-bronze">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to cart
-      </Link>
+  if (items.length === 0 && !success) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-20 sm:px-6">
+        <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+          Your bag is empty.
+        </h1>
+        <p className="mt-4 font-sans text-[16px] leading-[1.5] text-muted">
+          Add a piece from the catalog before checking out.
+        </p>
+        <div className="mt-6">
+          <Link href="/shop" className="btn-primary">
+            Shop new in
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
-          <div>
-            <p className="text-sm font-medium text-bronze">Checkout</p>
-            <h1 className="mt-2 font-serif text-[clamp(2rem,10vw,3rem)] leading-tight text-ink">Simple, fast order confirmation</h1>
-            <p className="mt-3 max-w-xl text-base leading-7 text-muted">
-              Just enter your name, phone, and location. We’ll handle the rest through WhatsApp or cash on delivery.
+  if (success) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 sm:px-6 lg:py-24">
+        <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+          Order #{orderId ? orderId.slice(0, 8) : "saved"}
+        </h1>
+
+        <div className="mt-5 space-y-1 font-sans text-[16px] leading-[1.5] text-text">
+          <p>We have reserved your pieces in our Nairobi studio.</p>
+          <p className="text-muted">
+            Our dispatch desk will call or message you shortly to confirm rider arrival; you pay on delivery by cash or M-Pesa.
+          </p>
+        </div>
+
+        {orderTotals ? (
+          <div className="mt-8 divide-y divide-text/12 border-y border-text/12 font-sans text-[14px]">
+            <div className="flex justify-between py-3">
+              <span className="text-muted">Subtotal</span>
+              <span className="text-text">{formatKES(orderTotals.subtotal)}</span>
+            </div>
+            <div className="flex justify-between py-3">
+              <span className="text-muted">Delivery</span>
+              <span className="text-text">{formatKES(orderTotals.shippingFee)}</span>
+            </div>
+            <div className="flex justify-between py-3 font-medium">
+              <span className="text-text">Total</span>
+              <PriceKES amount={orderTotals.total} />
+            </div>
+          </div>
+        ) : null}
+
+        {trackedStatus ? (
+          <div className="mt-6 bg-stone p-4 font-sans text-[14px] text-text">
+            <p>Order status: {trackedStatus.orderStatus.replace(/_/g, " ").toLowerCase()}</p>
+            <p className="text-muted">
+              Payment: {trackedStatus.paymentStatus.toLowerCase()}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          {whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary"
+            >
+              Message us on WhatsApp
+            </a>
+          ) : null}
+
+          {orderStatusToken ? (
+            <button
+              type="button"
+              onClick={() => void handleCheckOrderStatus()}
+              disabled={checkingStatus}
+              className="cursor-pointer font-sans text-[14px] text-text underline underline-offset-4 hover:text-brass"
+            >
+              {checkingStatus ? "Checking order..." : "Track your order"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-10 lg:py-14">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+        Checkout
+      </h1>
+
+      <div className="mt-8 grid gap-12 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <form
+          onSubmit={event => {
+            event.preventDefault();
+            void submitCheckout("CASH_ON_DELIVERY");
+          }}
+          className="space-y-6"
+        >
+          <div className="space-y-4">
+            <label className="block font-sans text-[14px]">
+              <span className="mb-1.5 block text-text">Name</span>
+              <Input
+                required
+                autoComplete="name"
+                placeholder="Your full name"
+                value={customerName}
+                onChange={event => setCustomerName(event.target.value)}
+              />
+            </label>
+
+            <label className="block font-sans text-[14px]">
+              <span className="mb-1.5 block text-text">Phone</span>
+              <Input
+                required
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="+254 712 345 678"
+                value={customerPhone}
+                onChange={event => setCustomerPhone(event.target.value)}
+              />
+            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block font-sans text-[14px]">
+                <span className="mb-1.5 block text-text">Delivery area</span>
+                <select
+                  value={deliveryArea}
+                  onChange={event => setDeliveryArea(event.target.value)}
+                  className="h-11 w-full rounded-[2px] border border-text/20 bg-paper px-3.5 font-sans text-[14px] text-text focus:border-brass focus:outline-none"
+                >
+                  {NAIROBI_AREAS.map(area => (
+                    <option key={area} value={area}>
+                      {area}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block font-sans text-[14px]">
+                <span className="mb-1.5 block text-text">
+                  Building, road, or landmark
+                </span>
+                <Input
+                  required={deliveryArea === "Other"}
+                  autoComplete="street-address"
+                  placeholder="Apartment, office, or gate"
+                  value={locationDetail}
+                  onChange={event => setLocationDetail(event.target.value)}
+                />
+              </label>
+            </div>
+
+            <label className="block font-sans text-[14px]">
+              <span className="mb-1.5 block text-text">Notes (optional)</span>
+              <Textarea
+                maxLength={800}
+                rows={3}
+                placeholder="Delivery timing or rider instructions"
+                value={notes}
+                onChange={event => setNotes(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="border-t border-text/12 pt-5 font-sans text-[14px]">
+            <label className="inline-flex cursor-pointer items-center gap-2.5 text-text">
+              <input
+                type="checkbox"
+                checked={isGift}
+                onChange={event => setIsGift(event.target.checked)}
+                className="h-4 w-4 accent-brass"
+              />
+              <span>This is a gift</span>
+            </label>
+
+            {isGift ? (
+              <div className="mt-4 space-y-3 bg-stone p-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-text">Gift note</span>
+                  <Textarea
+                    maxLength={300}
+                    rows={2}
+                    placeholder="Write the message for the gift card"
+                    value={giftNote}
+                    onChange={event => setGiftNote(event.target.value)}
+                  />
+                </label>
+
+                <label className="inline-flex cursor-pointer items-center gap-2.5 text-text">
+                  <input
+                    type="checkbox"
+                    checked={hidePrices}
+                    onChange={event => setHidePrices(event.target.checked)}
+                    className="h-4 w-4 accent-brass"
+                  />
+                  <span>Hide prices on packing slip</span>
+                </label>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border-t border-text/12 pt-5 font-sans text-[14px]">
+            <h2 className="font-medium text-text">Payment</h2>
+            <p className="mt-1 text-muted">
+              Pay on delivery — cash or M-Pesa.
             </p>
           </div>
 
-          <div className="grid divide-y divide-border/60 border-y border-border/60 bg-sand/35 md:grid-cols-3 md:divide-x md:divide-y-0">
-            <div className="p-4">
-              <p className="text-sm font-semibold text-ink">Pay on Delivery Available</p>
+          {error ? (
+            <div
+              role="alert"
+              className="rounded-[2px] border border-red-700/40 bg-stone px-4 py-3 font-sans text-[14px] text-red-700"
+            >
+              {error}
             </div>
-            <div className="p-4">
-              <p className="text-sm font-semibold text-ink">Fast Delivery in Nairobi</p>
-            </div>
-            <div className="p-4">
-              <p className="text-sm font-semibold text-ink">Order via WhatsApp</p>
-            </div>
-          </div>
+          ) : null}
 
-          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-            <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6">
-              <p className="text-sm font-medium text-bronze">Customer details</p>
-              <h2 className="mt-2 font-serif text-2xl text-ink">Delivery details</h2>
-              <div className="mt-5 space-y-4">
-                <label className="block">
-                  <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
-                    <User className="h-4 w-4 text-bronze" />
-                    Name
-                  </span>
-                    <Input
-                      required
-                      autoComplete="name"
-                    placeholder="Your full name"
-                    value={formData.customerName}
-                    onChange={event =>
-                      setFormData(current => ({ ...current, customerName: event.target.value }))
-                    }
-                  />
-                </label>
+          <div className="flex flex-col gap-2.5 pt-2 sm:flex-row">
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Placing order...
+                </>
+              ) : (
+                "Checkout"
+              )}
+            </Button>
 
-                <label className="block">
-                  <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
-                    <Phone className="h-4 w-4 text-bronze" />
-                    Phone
-                  </span>
-                    <Input
-                      required
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                    placeholder="Your mobile number"
-                    value={formData.customerPhone}
-                    onChange={event =>
-                      setFormData(current => ({ ...current, customerPhone: event.target.value }))
-                    }
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
-                    Optional notes
-                  </span>
-                  <Textarea
-                    maxLength={1000}
-                    rows={4}
-                    placeholder="Delivery directions, gift note, or anything we should know"
-                    value={formData.notes}
-                    onChange={event =>
-                      setFormData(current => ({ ...current, notes: event.target.value }))
-                    }
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink">
-                    <MapPin className="h-4 w-4 text-bronze" />
-                    Location
-                  </span>
-                    <Input
-                      required
-                      autoComplete="street-address"
-                    placeholder="Hostel, estate, campus gate, or pickup point"
-                    value={formData.customerLocation}
-                    onChange={event =>
-                      setFormData(current => ({ ...current, customerLocation: event.target.value }))
-                    }
-                  />
-                </label>
-              </div>
-            </section>
-
-            <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6">
-              <p className="text-sm font-medium text-bronze">Payment</p>
-              <h2 className="mt-2 font-serif text-2xl text-ink">How would you like to order?</h2>
-              <div className="mt-5 space-y-3">
-                <label
-                  className={`block rounded-[1.25rem] border p-4 transition ${
-                    paymentMethod === "CASH_ON_DELIVERY"
-                      ? "border-bronze bg-sand/45"
-                      : "border-border/60 bg-white"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === "CASH_ON_DELIVERY"}
-                      onChange={() => setPaymentMethod("CASH_ON_DELIVERY")}
-                      className="mt-1"
-                    />
-                    <div>
-                      <p className="font-semibold text-ink">Cash on Delivery</p>
-                      <p className="mt-1 text-sm text-muted">We confirm the order and you pay when it arrives.</p>
-                    </div>
-                  </div>
-                </label>
-
-                <label
-                  className={`block rounded-[1.25rem] border p-4 transition ${
-                    paymentMethod === "WHATSAPP"
-                      ? "border-bronze bg-sand/45"
-                      : "border-border/60 bg-white"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === "WHATSAPP"}
-                      onChange={() => setPaymentMethod("WHATSAPP")}
-                      disabled={!whatsappConfigured}
-                      className="mt-1"
-                    />
-                    <div>
-                      <p className="font-semibold text-ink">WhatsApp Order</p>
-                      <p className="mt-1 text-sm text-muted">
-                        {whatsappConfigured
-                          ? "We save the order and open WhatsApp so you can confirm it instantly."
-                          : "Unavailable until the store WhatsApp number is configured."}
-                      </p>
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </section>
-
-            {error ? (
-              <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="hidden md:block">
+            {whatsappConfigured ? (
               <Button
-                type="submit"
+                type="button"
+                variant="secondary"
                 disabled={loading}
-                className="min-h-[56px] w-full normal-case tracking-normal bg-bronze text-white hover:bg-rose"
+                onClick={() => void submitCheckout("WHATSAPP")}
+                className="flex-1"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Placing order...
-                  </>
-                ) : (
-                  "Place Order"
-                )}
+                Order on WhatsApp
               </Button>
-            </div>
-          </form>
-        </div>
+            ) : null}
+          </div>
+        </form>
 
-        <aside className="md:sticky md:top-24 md:h-fit">
-          <div className="border border-border/70 bg-card p-6 shadow-card">
-            <h2 className="font-serif text-2xl text-ink">Order summary</h2>
-            <div className="mt-5 space-y-3">
+        <aside className="lg:sticky lg:top-20 lg:h-fit">
+          <div className="border-t border-text/12 pt-5 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <h2 className="font-sans text-[14px] font-medium text-text">
+              Order summary ({itemCount})
+            </h2>
+
+            <ul className="mt-4 divide-y divide-text/10 font-sans text-[14px]">
               {items.map(item => (
-                <div key={item.product.id} className="flex min-w-0 items-start justify-between gap-4 text-sm">
-                  <div className="min-w-0">
-                    <p className="break-words font-medium text-ink">{item.product.title}</p>
-                    <p className="text-muted">{item.quantity} x {formatCurrency(item.product.price)}</p>
-                  </div>
-                  <p className="shrink-0 font-medium text-ink">
-                    {formatCurrency(Number(item.product.price) * item.quantity)}
-                  </p>
-                </div>
+                <li
+                  key={item.product.id}
+                  className="flex items-baseline justify-between gap-4 py-2.5"
+                >
+                  <span className="truncate text-text">
+                    {item.product.title} × {item.quantity}
+                  </span>
+                  <PriceKES
+                    amount={Number(item.product.price) * item.quantity}
+                    className="shrink-0"
+                  />
+                </li>
               ))}
-            </div>
+            </ul>
 
-            <div className="mt-5 border-t border-border/60 pt-4">
-              <div className="flex items-center justify-between text-sm text-muted">
-                <span>Items</span>
-                <span>{itemCount}</span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-muted">
+            <div className="mt-4 space-y-2 border-t border-text/12 pt-4 font-sans text-[14px]">
+              <div className="flex justify-between text-muted">
                 <span>Delivery</span>
-                <span>Confirmed with your order</span>
+                <span>Confirmed on dispatch</span>
               </div>
-              <div className="mt-4 flex items-center justify-between text-lg font-semibold text-ink">
+              <div className="flex justify-between pt-2 font-medium text-text">
                 <span>Subtotal</span>
-                <span>{formatCurrency(total)}</span>
+                <PriceKES amount={total} />
               </div>
             </div>
           </div>
         </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border/60 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium text-muted">Subtotal</p>
-            <p className="text-lg font-semibold text-ink">{formatCurrency(total)}</p>
-          </div>
-          <Button
-            type="button"
-            onClick={() => formRef.current?.requestSubmit()}
-            disabled={loading}
-            className="min-h-[52px] min-w-[160px] normal-case tracking-normal bg-bronze text-white hover:bg-rose"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Placing...
-              </>
-            ) : (
-              paymentMethod === "CASH_ON_DELIVERY" ? "Place COD order" : "Continue on WhatsApp"
-            )}
-          </Button>
-        </div>
       </div>
     </div>
   );

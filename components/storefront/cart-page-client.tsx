@@ -1,164 +1,195 @@
 "use client";
 
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 
+import {
+  DEFAULT_PRODUCT_BLUR_DATA_URL,
+  formatKES,
+  PriceKES
+} from "@/components/storefront/price-kes";
+import { ProductGallery } from "@/components/storefront/product-gallery";
+import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import {
   createCategoryMap,
   getCanonicalProductPath,
   getSafeCatalogImageUrl
 } from "@/lib/catalog";
 import { useCart, useCartValue } from "@/lib/cart";
-import { formatCurrency } from "@/lib/utils";
+import { createWhatsAppLink } from "@/lib/utils";
 
 export function CartPageClient() {
-  const { items, updateQuantity, removeItem, clearCart, categories } = useCart();
+  const { items, updateQuantity, removeItem, categories } = useCart();
   const { total, itemCount } = useCartValue();
+  const { openCart, recentlyViewedProducts } = useStorefrontUI();
   const categoryMap = createCategoryMap(categories);
 
-  if (items.length === 0) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center px-6 pb-[calc(8rem+env(safe-area-inset-bottom))] text-center">
-        <span className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-champagne/70 bg-sand/70">
-          <ShoppingBag className="h-9 w-9 text-bronze" aria-hidden />
-        </span>
-        <h1 className="font-serif text-4xl text-ink">Your cart is empty</h1>
-        <p className="mb-8 mt-3 max-w-md text-muted">
-          Your next statement piece is waiting in the collection.
-        </p>
-        <Link href="/shop" className="btn-primary min-h-12">Continue shopping</Link>
-      </div>
-    );
-  }
+  useEffect(() => {
+    openCart();
+  }, [openCart]);
+
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
+  const cartWhatsAppMessage = [
+    "Hello Auro Ardon, I would like to order these pieces:",
+    ...items.map(
+      item =>
+        `- ${item.product.title} x${item.quantity} (${formatKES(Number(item.product.price) * item.quantity)})`
+    ),
+    `Subtotal: ${formatKES(total)}`
+  ].join("\n");
+  const cartWhatsAppUrl = items.length
+    ? createWhatsAppLink(whatsappNumber, cartWhatsAppMessage)
+    : null;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:py-10 lg:px-10 lg:py-12">
-      <div className="mb-8 sm:mb-10">
-        <p className="text-sm font-medium text-bronze">Your selection</p>
-        <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Shopping cart</h1>
-        <p className="mt-2 text-sm text-muted">{itemCount} {itemCount === 1 ? "piece" : "pieces"} in your cart</p>
-      </div>
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-10 lg:py-14">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+        Bag ({itemCount})
+      </h1>
 
-      <div className="grid gap-8 lg:grid-cols-3 lg:gap-12">
-        <div className="min-w-0 space-y-4 lg:col-span-2">
-          {items.map(item => {
-            const productPath = getCanonicalProductPath(item.product, categoryMap);
-            const atStockLimit = item.quantity >= item.product.stock_quantity;
-            const media = (
-              <div className="relative aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-xl bg-sand sm:w-36 sm:rounded-2xl">
-                <Image
-                  src={getSafeCatalogImageUrl(item.product.images[0]) || "/hero-jewelry.png"}
-                  alt={item.product.title}
-                  fill
-                  loading="lazy"
-                  sizes="(max-width: 639px) 96px, 144px"
-                  className="object-cover"
-                />
-              </div>
-            );
+      {items.length === 0 ? (
+        <div className="mt-8 bg-stone p-8 font-sans text-[16px] leading-[1.5] text-text">
+          <p>Your bag is empty.</p>
+          <div className="mt-4">
+            <Link href="/shop" className="btn-primary">
+              Shop new in
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-8 space-y-8">
+          <ul className="divide-y divide-text/12 border-y border-text/12">
+            {items.map(item => {
+              const productPath = getCanonicalProductPath(
+                item.product,
+                categoryMap
+              );
+              const image =
+                getSafeCatalogImageUrl(item.product.images[0]) ||
+                "/hero-jewelry.png";
+              const atLimit = item.quantity >= item.product.stock_quantity;
 
-            return (
-              <article
-                key={item.product.id}
-                className="grid min-w-0 grid-cols-[96px_minmax(0,1fr)] gap-3 border border-border/70 bg-card p-3 shadow-card sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-6 sm:p-5"
-              >
-                {productPath ? <Link href={productPath}>{media}</Link> : media}
-
-                <div className="flex min-w-0 flex-col">
-                  <div className="flex min-w-0 items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      {productPath ? (
-                        <Link href={productPath} className="block">
-                          <h2 className="line-clamp-2 font-serif text-xl leading-6 text-ink transition-colors hover:text-bronze sm:text-2xl">
-                            {item.product.title}
-                          </h2>
-                        </Link>
-                      ) : (
-                        <h2 className="line-clamp-2 font-serif text-xl leading-6 text-ink sm:text-2xl">{item.product.title}</h2>
-                      )}
-                      {item.product.material ? <p className="mt-1 truncate text-xs text-muted sm:text-sm">{item.product.material}</p> : null}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.product.id)}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-red-50 hover:text-red-700"
-                      aria-label={`Remove ${item.product.title} from cart`}
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden />
-                    </button>
+              return (
+                <li key={item.product.id} className="flex gap-4 py-5">
+                  <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-none bg-paper">
+                    <Image
+                      src={image}
+                      alt={item.product.title}
+                      fill
+                      loading="lazy"
+                      placeholder="blur"
+                      blurDataURL={
+                        item.product.blur_data_url ||
+                        DEFAULT_PRODUCT_BLUR_DATA_URL
+                      }
+                      sizes="96px"
+                      className="object-cover"
+                    />
                   </div>
 
-                  <p className="mt-2 text-sm font-semibold text-ink sm:text-base">{formatCurrency(item.product.price)}</p>
-                  <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-3">
-                    <div>
-                      <div className="inline-flex min-h-11 items-center rounded-full border border-border bg-white p-0.5">
+                  <div className="flex min-w-0 flex-1 flex-col justify-between">
+                    <div className="flex items-start justify-between gap-3">
+                      {productPath ? (
+                        <Link
+                          href={productPath}
+                          className="font-sans text-[16px] text-text hover:text-brass"
+                        >
+                          {item.product.title}
+                        </Link>
+                      ) : (
+                        <p className="font-sans text-[16px] text-text">
+                          {item.product.title}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.product.id)}
+                        aria-label={`Remove ${item.product.title}`}
+                        className="text-muted hover:text-text"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </button>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="inline-flex items-center rounded-[2px] border border-text/20">
                         <button
                           type="button"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                          className="flex h-11 w-11 items-center justify-center rounded-full text-ink transition hover:bg-sand/50"
+                          onClick={() =>
+                            updateQuantity(item.product.id, item.quantity - 1)
+                          }
                           aria-label={`Decrease quantity of ${item.product.title}`}
+                          className="flex h-9 w-9 items-center justify-center text-text hover:text-brass"
                         >
                           <Minus className="h-3.5 w-3.5" aria-hidden />
                         </button>
-                        <span className="min-w-7 text-center text-sm font-semibold text-ink" aria-live="polite">{item.quantity}</span>
+                        <span
+                          className="min-w-8 text-center font-sans text-[14px] text-text"
+                          aria-live="polite"
+                        >
+                          {item.quantity}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                          disabled={atStockLimit}
-                          className="flex h-11 w-11 items-center justify-center rounded-full text-ink transition hover:bg-sand/50 disabled:text-muted/35"
+                          onClick={() =>
+                            updateQuantity(item.product.id, item.quantity + 1)
+                          }
+                          disabled={atLimit}
                           aria-label={`Increase quantity of ${item.product.title}`}
+                          className="flex h-9 w-9 items-center justify-center text-text hover:text-brass disabled:opacity-40"
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden />
                         </button>
                       </div>
-                      {atStockLimit ? <p className="mt-1 text-[11px] text-muted">Maximum available added</p> : null}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted">Line total</p>
-                      <p className="mt-1 text-sm font-semibold text-ink sm:text-base">
-                        {formatCurrency(Number(item.product.price) * item.quantity)}
-                      </p>
+
+                      <PriceKES
+                        amount={Number(item.product.price) * item.quantity}
+                      />
                     </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
+                </li>
+              );
+            })}
+          </ul>
 
-          <button type="button" onClick={clearCart} className="inline-flex min-h-11 items-center text-sm text-muted underline transition hover:text-bronze">
-            Clear cart
-          </button>
-        </div>
-
-         <aside className="hidden md:block lg:col-span-1">
-            <div className="border border-border/70 bg-card p-6 shadow-luxe sm:p-8 lg:sticky lg:top-24">
-            <h2 className="font-serif text-2xl text-ink">Order summary</h2>
-            <div className="mt-6 space-y-4 text-sm">
-              <div className="flex justify-between gap-4 text-muted">
-                <span>Subtotal</span>
-                <span className="font-medium text-ink">{formatCurrency(total)}</span>
-              </div>
-              <div className="flex justify-between gap-4 text-muted">
-                <span>Shipping</span>
-                <span className="text-right">Confirmed at checkout</span>
-              </div>
-              <div className="flex justify-between gap-4 border-t border-border pt-4 text-lg font-semibold text-ink">
-                <span>Order subtotal</span>
-                <span>{formatCurrency(total)}</span>
-              </div>
+          <div className="flex flex-col items-end gap-4">
+            <div className="flex items-baseline gap-6 font-sans text-[16px]">
+              <span className="text-muted">Subtotal</span>
+              <PriceKES amount={total} className="text-[18px] font-medium" />
             </div>
-            <Link href="/checkout" className="btn-primary mt-8 min-h-12 w-full justify-center">
-              Proceed to checkout
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link href="/shop" className="mt-3 flex min-h-11 items-center justify-center text-sm text-muted transition hover:text-bronze">Continue shopping</Link>
+
+            <div className="flex w-full flex-col gap-2 sm:w-72">
+              <Link href="/checkout" className="btn-primary w-full">
+                Checkout
+              </Link>
+              {cartWhatsAppUrl ? (
+                <a
+                  href={cartWhatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline w-full"
+                >
+                  Continue on WhatsApp
+                </a>
+              ) : null}
+            </div>
           </div>
-        </aside>
-      </div>
-      <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-white/96 px-4 py-3 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur md:hidden">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs font-medium text-muted">Subtotal</p><p className="text-lg font-semibold text-ink">{formatCurrency(total)}</p></div><Link href="/checkout" className="btn-primary min-h-12 shrink-0 px-4 text-xs">Checkout <ArrowRight className="h-4 w-4" aria-hidden /></Link></div>
-      </div>
+        </div>
+      )}
+
+      {recentlyViewedProducts.length > 0 ? (
+        <section className="mt-16 border-t border-text/12 pt-10">
+          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+            Recently viewed
+          </h2>
+          <ProductGallery
+            products={recentlyViewedProducts.slice(0, 4)}
+            columns={4}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }
