@@ -1,33 +1,34 @@
-import { Navbar } from "@/components/storefront/navbar";
+import { CartDrawer } from "@/components/storefront/cart-drawer";
 import { Footer } from "@/components/storefront/footer";
 import { MobileBottomNav } from "@/components/storefront/mobile-bottom-nav";
-import { WhatsAppFab } from "@/components/storefront/whatsapp-fab";
+import { Navbar } from "@/components/storefront/navbar";
+import { SearchCommandPalette } from "@/components/storefront/search-command-palette";
+import { StorefrontUIProvider } from "@/components/storefront/storefront-context";
 import { CartProvider } from "@/lib/cart";
-import { listCategories } from "@/lib/data";
+import { listCategories, listPublicProducts } from "@/lib/data";
 
-/**
- * Storefront Layout
- *
- * Wraps all customer-facing pages (homepage, shop, product,
- * cart, checkout) with the shared Navbar and Footer.
- *
- * The admin and login pages live outside this route group,
- * so they get their own chrome and never see this layout.
- */
 export default async function StorefrontLayout({
-  children,
+  children
 }: Readonly<{ children: React.ReactNode }>) {
-  const categories = await listCategories();
+  const [categories, products] = await Promise.all([
+    listCategories(),
+    listPublicProducts()
+  ]);
 
   return (
     <CartProvider categories={categories}>
-      <Navbar categories={categories} />
-      <div className="storefront-shell min-h-dvh min-w-0 overflow-x-hidden pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
-        <main className="min-h-dvh min-w-0 pt-[72px]">{children}</main>
-        <Footer categories={categories} />
-      </div>
-      <WhatsAppFab />
-      <MobileBottomNav />
+      <StorefrontUIProvider products={products}>
+        <Navbar categories={categories} />
+        <div className="min-h-dvh min-w-0 overflow-x-hidden pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
+          <main id="main-content" className="min-h-dvh min-w-0">
+            {children}
+          </main>
+          <Footer categories={categories} />
+        </div>
+        <CartDrawer />
+        <SearchCommandPalette />
+        <MobileBottomNav />
+      </StorefrontUIProvider>
     </CartProvider>
   );
 }

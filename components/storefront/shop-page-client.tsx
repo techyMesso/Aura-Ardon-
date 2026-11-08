@@ -1,66 +1,51 @@
 "use client";
 
-import { useDeferredValue, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Gem, MessageCircle, Search, SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 
+import { Drawer } from "@/components/storefront/drawer";
 import { ProductGallery } from "@/components/storefront/product-gallery";
-import { createCategoryMap } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
-import { getProductCategoryLabel } from "@/lib/product-card";
-import { createWhatsAppLink } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
-const SORT_OPTIONS = ["featured", "newest", "price-asc", "price-desc"] as const;
+const SORT_OPTIONS = ["newest", "price-asc", "price-desc"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
+
+const PRICE_RANGES = [
+  { id: "all", label: "All prices", min: 0, max: Number.POSITIVE_INFINITY },
+  { id: "under-1500", label: "Under KES 1,500", min: 0, max: 1500 },
+  { id: "1500-3000", label: "KES 1,500 – 3,000", min: 1500, max: 3000 },
+  { id: "over-3000", label: "Over KES 3,000", min: 3000, max: Number.POSITIVE_INFINITY }
+] as const;
 
 export function ShopPageClient({ products }: { products: Product[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { categories } = useCart();
-  const initialQuery = searchParams.get("q") ?? "";
-  const [search, setSearch] = useState(initialQuery);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const deferredSearch = useDeferredValue(search.trim().toLowerCase());
+
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [priceRangeId, setPriceRangeId] = useState<string>("all");
+  const [selectedMaterial, setSelectedMaterial] = useState<string>("all");
+
   const requestedSort = searchParams.get("sort");
   const sort: SortOption = SORT_OPTIONS.includes(requestedSort as SortOption)
     ? (requestedSort as SortOption)
-    : "featured";
+    : "newest";
   const inStock = searchParams.get("inStock") === "1";
-  const categoryMap = createCategoryMap(categories);
+  const queryText = (searchParams.get("q") ?? "").trim().toLowerCase();
 
-  useEffect(() => {
-    setSearch(initialQuery);
-  }, [initialQuery]);
-
-  useEffect(() => {
-    if (search.trim() === initialQuery) return;
-    const timer = window.setTimeout(() => {
-      const next = new URLSearchParams(searchParams.toString());
-      const value = search.trim();
-      if (value) next.set("q", value);
-      else next.delete("q");
-      const query = next.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [initialQuery, pathname, router, search, searchParams]);
-
-  useEffect(() => {
-    if (!filtersOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFiltersOpen(false);
-    };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [filtersOpen]);
+  const availableMaterials = useMemo(() => {
+    const set = new Set<string>();
+    for (const product of products) {
+      if (product.material?.trim()) {
+        set.add(product.material.trim());
+      }
+    }
+    return Array.from(set);
+  }, [products]);
 
   function updateParam(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams.toString());
@@ -70,133 +55,266 @@ export function ShopPageClient({ products }: { products: Product[] }) {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
-  function resetFilters() {
-    setSearch("");
+  function clearFilters() {
+    setPriceRangeId("all");
+    setSelectedMaterial("all");
     const next = new URLSearchParams(searchParams.toString());
-    next.delete("q");
-    next.delete("sort");
     next.delete("inStock");
+    next.delete("q");
     const query = next.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
-  const filtered = products
-    .filter(product => {
-      if (inStock && product.stock_quantity < 1) return false;
-      if (!deferredSearch) return true;
-      return [product.title, product.description, product.material, getProductCategoryLabel(product, categoryMap)]
-        .filter(Boolean)
-        .some(value => value!.toLowerCase().includes(deferredSearch));
-    })
-    .sort((a, b) => {
-      if (sort === "price-asc") return Number(a.price) - Number(b.price);
-      if (sort === "price-desc") return Number(b.price) - Number(a.price);
-      if (sort === "newest") {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-      return Number(b.is_featured) - Number(a.is_featured)
-        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  const whatsappUrl = createWhatsAppLink(
-    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "",
-    "Hello Auro Ardon, I need help finding a piece in the collection."
+  const activePriceRange =
+    PRICE_RANGES.find(range => range.id === priceRangeId) ?? PRICE_RANGES[0];
+
+  const filtered = useMemo(() => {
+    return products
+      .filter(product => {
+        if (inStock && product.stock_quantity < 1) return false;
+        const numericPrice = Number(product.price);
+        if (
+          numericPrice < activePriceRange.min ||
+          numericPrice > activePriceRange.max
+        ) {
+          return false;
+        }
+        if (
+          selectedMaterial !== "all" &&
+          (product.material?.trim().toLowerCase() ?? "") !==
+            selectedMaterial.toLowerCase()
+        ) {
+          return false;
+        }
+        if (queryText) {
+          return [product.title, product.description, product.material]
+            .filter(Boolean)
+            .some(value => value!.toLowerCase().includes(queryText));
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (sort === "price-asc") return Number(a.price) - Number(b.price);
+        if (sort === "price-desc") return Number(b.price) - Number(a.price);
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      });
+  }, [activePriceRange, inStock, products, queryText, selectedMaterial, sort]);
+
+  const necklacesHref =
+    categories.find(cat => cat.slug.includes("necklace"))
+      ? `/shop/${categories.find(cat => cat.slug.includes("necklace"))!.slug}`
+      : "/shop";
+  const setsHref =
+    categories.find(cat => cat.slug.includes("set"))
+      ? `/shop/${categories.find(cat => cat.slug.includes("set"))!.slug}`
+      : "/shop";
+
+  const filterControls = (
+    <div className="space-y-7 font-sans text-[14px] leading-[1.5]">
+      <div>
+        <h2 className="font-medium text-text">Category</h2>
+        <ul className="mt-2.5 space-y-1.5">
+          <li>
+            <Link
+              href="/shop"
+              className={`block ${
+                pathname === "/shop"
+                  ? "text-brass"
+                  : "text-muted hover:text-text"
+              }`}
+            >
+              All pieces
+            </Link>
+          </li>
+          {categories.map(category => {
+            const href = `/shop/${category.slug}`;
+            const active = pathname === href;
+            return (
+              <li key={category.id}>
+                <Link
+                  href={href}
+                  className={`block ${
+                    active ? "text-brass" : "text-muted hover:text-text"
+                  }`}
+                >
+                  {category.name}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <div>
+        <h2 className="font-medium text-text">Price (KES)</h2>
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {PRICE_RANGES.map(range => {
+            const active = priceRangeId === range.id;
+            return (
+              <button
+                key={range.id}
+                type="button"
+                onClick={() => setPriceRangeId(range.id)}
+                className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
+                  active
+                    ? "bg-ink text-white"
+                    : "bg-stone text-text hover:text-brass"
+                }`}
+              >
+                {range.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {availableMaterials.length > 0 ? (
+        <div>
+          <h2 className="font-medium text-text">Material & finish</h2>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSelectedMaterial("all")}
+              className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
+                selectedMaterial === "all"
+                  ? "bg-ink text-white"
+                  : "bg-stone text-text hover:text-brass"
+              }`}
+            >
+              All finishes
+            </button>
+            {availableMaterials.map(material => {
+              const active = selectedMaterial === material;
+              return (
+                <button
+                  key={material}
+                  type="button"
+                  onClick={() => setSelectedMaterial(material)}
+                  className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
+                    active
+                      ? "bg-ink text-white"
+                      : "bg-stone text-text hover:text-brass"
+                  }`}
+                >
+                  {material}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div>
+        <label className="inline-flex cursor-pointer items-center gap-2.5 text-text">
+          <input
+            type="checkbox"
+            checked={inStock}
+            onChange={event =>
+              updateParam("inStock", event.target.checked ? "1" : null)
+            }
+            className="h-4 w-4 accent-brass"
+          />
+          <span>In stock only</span>
+        </label>
+      </div>
+    </div>
   );
 
   return (
     <div>
-      <div className="sticky top-[72px] z-30 -mx-5 mb-6 border-y border-border/60 bg-cream/95 px-5 py-3 shadow-[0_8px_24px_rgba(43,20,37,0.06)] backdrop-blur md:-mx-6 md:mb-8 md:px-6 md:py-4 lg:-mx-10 lg:px-10">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:hidden">
-          <label className="relative block min-w-0">
-            <span className="sr-only">Search this collection</span>
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-            <input
-              type="search"
-              placeholder="Search this collection"
-              value={search}
-              onChange={event => setSearch(event.target.value)}
-              className="min-h-12 w-full rounded-full border border-border bg-white/90 py-2.5 pl-11 pr-4 text-sm text-ink placeholder:text-muted/70"
-            />
-          </label>
-          <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full border border-border bg-white px-4 text-xs font-semibold tracking-[0.04em] text-ink transition-colors hover:border-bronze focus:outline-none focus:ring-2 focus:ring-champagne" aria-label="Open filter and sort options">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="font-sans text-[14px] leading-[1.5] text-muted" aria-live="polite">
+          {filtered.length} {filtered.length === 1 ? "piece" : "pieces"}
+        </p>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen(true)}
+            className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-[2px] bg-stone px-3.5 py-1.5 font-sans text-[14px] text-text lg:hidden"
+          >
             <SlidersHorizontal className="h-4 w-4" aria-hidden />
-            Filter & Sort
+            <span>Filter</span>
           </button>
-        </div>
 
-        <div className="mx-auto hidden max-w-7xl gap-3 md:grid md:grid-cols-[minmax(220px,1fr)_220px_auto] md:items-center">
-          <label className="relative block min-w-0">
-            <span className="sr-only">Search this collection</span>
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-            <input type="search" placeholder="Search this collection" value={search} onChange={event => setSearch(event.target.value)} className="min-h-11 w-full rounded-full border border-border bg-white/90 py-2.5 pl-11 pr-4 text-sm text-ink placeholder:text-muted/70" />
-          </label>
-
-          <label className="relative block min-w-0">
-            <span className="sr-only">Sort products</span>
-            <SlidersHorizontal className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
+          <label className="inline-flex items-center gap-2 font-sans text-[14px] text-muted">
+            <span>Sort</span>
             <select
               value={sort}
               onChange={event => updateParam("sort", event.target.value)}
-              className="min-h-11 w-full appearance-none rounded-full border border-border bg-white/90 py-2.5 pl-11 pr-8 text-sm text-ink"
+              aria-label="Sort products"
+              className="h-10 rounded-[2px] border border-text/20 bg-paper px-3 font-sans text-[14px] text-text focus:border-brass focus:outline-none"
             >
-              <option value="featured">Featured</option>
-              <option value="newest">Newest</option>
+              <option value="newest">New in</option>
               <option value="price-asc">Price: low to high</option>
               <option value="price-desc">Price: high to low</option>
             </select>
           </label>
-
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-full border border-border bg-white/90 px-4 text-sm font-medium text-ink md:justify-center">
-            <input
-              type="checkbox"
-              checked={inStock}
-              onChange={event => updateParam("inStock", event.target.checked ? "1" : null)}
-              className="h-4 w-4 accent-bronze"
-            />
-            In stock only
-          </label>
         </div>
       </div>
 
-      <p className="mb-6 text-sm text-muted" aria-live="polite">
-        {filtered.length} {filtered.length === 1 ? "piece" : "pieces"}
-        {search.trim() ? ` matching “${search.trim()}”` : ""}
-      </p>
+      <div className="grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
+        <aside className="hidden lg:block" aria-label="Product filters">
+          {filterControls}
+        </aside>
 
-      {filtered.length ? (
-        <ProductGallery products={filtered} priorityCount={4} />
-      ) : (
-        <div className="flex flex-col items-center justify-center rounded-[2rem] border border-dashed border-bronze/30 bg-white/60 px-6 py-16 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-champagne/15">
-            <Gem className="h-7 w-7 text-bronze" aria-hidden />
-          </span>
-          <h2 className="mt-5 font-serif text-3xl text-ink">No pieces match just yet</h2>
-          <p className="mt-2 max-w-md text-sm leading-6 text-muted">
-            Clear the filters, browse the full collection, or ask us about the next restock.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <button type="button" onClick={resetFilters} className="btn-primary min-h-11">
-              Reset filters
+        <div>
+          {filtered.length > 0 ? (
+            <ProductGallery products={filtered} priorityCount={4} columns={4} />
+          ) : (
+            <div className="bg-stone p-8 font-sans text-[16px] leading-[1.5] text-text">
+              <p>
+                Nothing here yet — try{" "}
+                <Link
+                  href={necklacesHref}
+                  onClick={clearFilters}
+                  className="text-brass underline underline-offset-4"
+                >
+                  Necklaces
+                </Link>{" "}
+                or{" "}
+                <Link
+                  href={setsHref}
+                  onClick={clearFilters}
+                  className="text-brass underline underline-offset-4"
+                >
+                  Sets
+                </Link>
+                .
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Drawer
+        open={mobileFiltersOpen}
+        onClose={() => setMobileFiltersOpen(false)}
+        title="Filter pieces"
+        side="bottom"
+        footer={
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="btn-outline flex-1"
+            >
+              Clear
             </button>
-            <Link href="/shop" className="btn-outline min-h-11">Browse all</Link>
-            {whatsappUrl ? (
-              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-outline min-h-11">
-                <MessageCircle className="h-4 w-4" aria-hidden />
-                WhatsApp us
-              </a>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="btn-primary flex-1"
+            >
+              Show {filtered.length}
+            </button>
           </div>
-        </div>
-      )}
-
-      <div role="dialog" aria-modal="true" aria-label="Filter and sort products" className={`fixed inset-0 z-[80] md:hidden ${filtersOpen ? "visible" : "invisible pointer-events-none"}`}>
-        <button type="button" onClick={() => setFiltersOpen(false)} aria-label="Close filter and sort options" className={`absolute inset-0 bg-ink/45 transition-opacity ${filtersOpen ? "opacity-100" : "opacity-0"}`} />
-        <section className={`absolute inset-x-0 bottom-0 max-h-[80dvh] overflow-y-auto rounded-t-[2rem] border-t border-champagne/60 bg-cream p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl transition-transform ${filtersOpen ? "translate-y-0" : "translate-y-full"}`}>
-          <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium text-bronze">Collection</p><h2 className="mt-1 font-serif text-2xl text-ink">Filter & sort</h2></div><button type="button" onClick={() => setFiltersOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-white focus:outline-none focus:ring-2 focus:ring-bronze" aria-label="Close filter and sort options"><X className="h-5 w-5" aria-hidden /></button></div>
-          <label className="mt-6 block"><span className="mb-2 block text-sm font-semibold text-ink">Sort by</span><select value={sort} onChange={event => updateParam("sort", event.target.value)} className="min-h-12 w-full rounded-2xl border border-border bg-white px-4 text-sm text-ink"><option value="featured">Featured</option><option value="newest">Newest</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option></select></label>
-          <label className="mt-4 flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-white px-4 text-sm font-semibold text-ink"><input type="checkbox" checked={inStock} onChange={event => updateParam("inStock", event.target.checked ? "1" : null)} className="h-5 w-5 accent-bronze" />In stock only</label>
-          <div className="mt-6 flex gap-3"><button type="button" onClick={resetFilters} className="btn-outline min-h-12 flex-1 px-3 text-xs">Clear</button><button type="button" onClick={() => setFiltersOpen(false)} className="btn-primary min-h-12 flex-1 px-3 text-xs">Show {filtered.length}</button></div>
-        </section>
-      </div>
+        }
+      >
+        {filterControls}
+      </Drawer>
     </div>
   );
 }

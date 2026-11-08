@@ -44,6 +44,7 @@ export interface Product {
   images: string[];
   is_featured: boolean;   // DB column: is_featured
   active: boolean;        // NEW: active/inactive toggle
+  blur_data_url?: string | null;
   created_at: string;
 }
 

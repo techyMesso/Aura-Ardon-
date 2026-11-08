@@ -18,9 +18,12 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    const nextTheme: Theme = saved === "dark" || saved === "light"
-      ? saved
-      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const nextTheme: Theme =
+      saved === "dark" || saved === "light"
+        ? saved
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
     setTheme(nextTheme);
     applyTheme(nextTheme);
   }, []);
@@ -40,7 +43,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggleTheme}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       aria-pressed={isDark}
-      className={`inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-white/45 text-ink transition-colors hover:border-bronze hover:bg-sand/55 focus:outline-none focus:ring-2 focus:ring-bronze ${className}`}
+      className={`inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-[2px] text-current transition-colors hover:text-brass ${className}`}
     >
       {isDark ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
     </button>

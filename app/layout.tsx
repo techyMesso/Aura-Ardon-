@@ -1,58 +1,53 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import { Bodoni_Moda, Geist } from "next/font/google";
 
 import "./globals.css";
 
 const themeScript = `(() => { try { const saved = localStorage.getItem("auro-ardon-theme"); const theme = saved === "dark" || saved === "light" ? saved : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; document.documentElement.classList.remove("light", "dark"); document.documentElement.classList.add(theme); document.documentElement.style.colorScheme = theme; } catch {} })();`;
 
-const displayFont = Cormorant_Garamond({
+const displayFont = Bodoni_Moda({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  weight: ["400", "500", "600", "700"]
+  weight: ["400"]
 });
 
-const bodyFont = Manrope({
+const bodyFont = Geist({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap"
 });
 
-// ─── Default SEO metadata ─────────────────────────────────
 export const metadata: Metadata = {
   title: {
-    default:  "Auro Ardon | African Modern Luxury Jewelry & Beauty",
-    template: "%s | Auro Ardon",
+    default: "Auro Ardon | Nairobi Jewelry",
+    template: "%s | Auro Ardon"
   },
   description:
-    "Shop premium handcrafted jewelry and accessories from Nairobi. Order through WhatsApp or cash on delivery.",
-  keywords: [
-    "African jewelry Nairobi",
-    "stainless necklaces Kenya",
-    "African bracelets",
-    "rings and earrings Nairobi",
-    "giftable jewelry sets Kenya",
-    "WhatsApp shopping Kenya",
-  ],
+    "Gold-tone stainless necklaces, bracelets, rings, earrings, watches, and gift sets delivered in Nairobi. Pay on delivery or order on WhatsApp.",
+  manifest: "/manifest.webmanifest",
   openGraph: {
-    type:     "website",
-    locale:   "en_KE",
-    siteName: "Auro Ardon",
-  },
+    type: "website",
+    locale: "en_KE",
+    siteName: "Auro Ardon"
+  }
 };
 
-// ─── Root Layout ──────────────────────────────────────────
-// Deliberately minimal: just fonts + globals.
-// Each sub-layout (storefront, admin) adds its own chrome.
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={`${displayFont.variable} ${bodyFont.variable} bg-background font-sans text-foreground antialiased`}>
+      <body className={`${displayFont.variable} ${bodyFont.variable} bg-paper font-sans text-text antialiased`}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-[2px] focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+        >
+          Skip to content
+        </a>
         {children}
       </body>
     </html>

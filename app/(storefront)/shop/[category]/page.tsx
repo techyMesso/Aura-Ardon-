@@ -44,7 +44,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <CollectionShell categories={categories} activeCategory={category}>
-      <Suspense fallback={<div className="h-40 animate-pulse rounded-[2rem] bg-white/60" />}>
+      <Suspense fallback={<div className="h-40 bg-stone" />}>
         <ShopPageClient products={products} />
       </Suspense>
     </CollectionShell>

@@ -1,59 +1,70 @@
 "use client";
 
 import Link from "next/link";
-import { House, MessageCircle, ShoppingBag, Store } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { MessageCircle, Search, ShoppingBag, Store } from "lucide-react";
 
+import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import { useCartValue } from "@/lib/cart";
-
-const LINKS = [
-  { label: "Home", href: "/", Icon: House },
-  { label: "Shop", href: "/shop", Icon: Store },
-  { label: "Cart", href: "/cart", Icon: ShoppingBag },
-  { label: "Contact", href: "/contact", Icon: MessageCircle }
-];
+import { createWhatsAppLink } from "@/lib/utils";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { itemCount } = useCartValue();
+  const { openCart, openSearch } = useStorefrontUI();
 
-  function isActive(href: string) {
-    if (href === "/") return pathname === href;
-    if (href === "/shop") return pathname === href || pathname.startsWith("/shop/");
-    return pathname === href;
-  }
+  const whatsappUrl =
+    createWhatsAppLink(
+      process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "",
+      "Hello Auro Ardon, I would like help with a piece."
+    ) || "/contact";
+
+  const shopActive = pathname === "/shop" || pathname.startsWith("/shop/");
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-cream shadow-[0_-10px_30px_rgba(43,20,37,0.2)] backdrop-blur md:hidden"
-      aria-label="Mobile quick navigation"
+      className="fixed inset-x-0 bottom-0 z-40 h-[56px] border-t border-white/12 bg-ink text-white md:hidden"
+      aria-label="Mobile bottom navigation"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-4">
-        {LINKS.map(({ label, href, Icon }) => {
-          const active = isActive(href);
-          const isCart = href === "/cart";
+      <div className="mx-auto grid h-full max-w-lg grid-cols-4 font-sans text-[12px] leading-[1.5]">
+        <Link
+          href="/shop"
+          aria-current={shopActive ? "page" : undefined}
+          className={`flex flex-col items-center justify-center gap-0.5 ${
+            shopActive ? "text-brass" : "text-white/80 hover:text-white"
+          }`}
+        >
+          <Store className="h-4 w-4" aria-hidden />
+          <span>Shop</span>
+        </Link>
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className={`relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold tracking-[0.06em] transition focus:outline-none focus:ring-2 focus:ring-champagne ${
-                active ? "bg-white/10 text-champagne" : "text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <span className="relative">
-                <Icon className="h-4 w-4" aria-hidden />
-                {isCart && itemCount > 0 ? (
-                  <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-champagne px-1 text-[9px] font-bold text-ink">
-                    {itemCount > 9 ? "9+" : itemCount}
-                  </span>
-                ) : null}
-              </span>
-              {label}
-            </Link>
-          );
-        })}
+        <button
+          type="button"
+          onClick={openSearch}
+          className="flex cursor-pointer flex-col items-center justify-center gap-0.5 text-white/80 hover:text-white"
+        >
+          <Search className="h-4 w-4" aria-hidden />
+          <span>Search</span>
+        </button>
+
+        <a
+          href={whatsappUrl}
+          target={whatsappUrl.startsWith("http") ? "_blank" : undefined}
+          rel={whatsappUrl.startsWith("http") ? "noopener noreferrer" : undefined}
+          className="flex flex-col items-center justify-center gap-0.5 text-white/80 hover:text-white"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden />
+          <span>WhatsApp</span>
+        </a>
+
+        <button
+          type="button"
+          onClick={openCart}
+          className="flex cursor-pointer flex-col items-center justify-center gap-0.5 text-white/80 hover:text-white"
+        >
+          <ShoppingBag className="h-4 w-4" aria-hidden />
+          <span>Cart ({itemCount})</span>
+        </button>
       </div>
     </nav>
   );

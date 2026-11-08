@@ -8,13 +8,13 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
   default:
-    "bg-bronze text-white shadow-luxe transition hover:bg-rose disabled:opacity-60",
+    "bg-brass text-ink transition-colors duration-150 hover:bg-brass/90 disabled:opacity-50",
   secondary:
-    "bg-sand text-ink transition hover:bg-champagne disabled:opacity-60",
+    "border border-text/30 bg-transparent text-text transition-colors duration-150 hover:border-brass hover:text-brass disabled:opacity-50",
   ghost:
-    "bg-transparent text-ink transition hover:bg-white/70 disabled:opacity-60",
+    "bg-transparent text-text transition-colors duration-150 hover:text-brass disabled:opacity-50",
   destructive:
-    "bg-red-700 text-white transition hover:bg-red-800 disabled:opacity-60"
+    "bg-red-700 text-white transition-colors duration-150 hover:bg-red-800 disabled:opacity-50"
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -23,7 +23,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       type={type}
       className={cn(
-        "inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold tracking-[0.18em] uppercase",
+        "inline-flex min-h-11 items-center justify-center rounded-[2px] px-5 py-2.5 text-[14px] font-medium leading-[1.5]",
         variants[variant],
         className
       )}

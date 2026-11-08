@@ -3,6 +3,9 @@
 -- Safe, idempotent migration for production scale
 -- =========================================================
 
+alter table public.products
+  add column if not exists blur_data_url text;
+
 -- 1. Catalog & New Arrivals indexes
 create index if not exists products_created_at_idx
   on public.products (created_at desc);
