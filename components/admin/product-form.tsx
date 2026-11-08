@@ -264,7 +264,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             <p className="mt-1 text-sm text-bronze">{selectedCategory?.name || "No category selected"}</p>
             <p className="mt-2 font-semibold text-ink">{Number.isFinite(numericPrice) && numericPrice > 0 ? formatCurrency(numericPrice) : "Price not set"}</p>
             <p className="mt-1 text-sm text-muted">{Number.isInteger(numericStock) && numericStock >= 0 ? `${numericStock} in stock` : "Stock not set"}</p>
-            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">{active ? "Active" : "Inactive"} · {isFeatured ? "Featured" : "Standard"}</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">{active ? "Active" : "Inactive"} — {isFeatured ? "Featured" : "Standard"}</p>
           </div>
         </div>
       </section>

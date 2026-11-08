@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Search, ShoppingBag } from "lucide-react";
@@ -18,36 +18,36 @@ const HELP_LINKS = [
   { label: "Returns", href: "/returns" }
 ];
 
-const DEFAULT_CATEGORY_LINKS = [
-  { label: "Necklaces", href: "/shop?q=necklace" },
-  { label: "Bracelets", href: "/shop?q=bracelet" },
-  { label: "Rings", href: "/shop?q=ring" },
-  { label: "Earrings", href: "/shop?q=earring" },
-  { label: "Sets", href: "/shop?q=set" }
-];
-
 export function Navbar({ categories }: { categories: Category[] }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { itemCount } = useCartValue();
   const { openCart, openSearch } = useStorefrontUI();
 
-  const categoryNavLinks =
-    categories.length > 0
-      ? categories.slice(0, 5).map(category => ({
-          label: category.name,
-          href: `/shop/${category.slug}`
-        }))
-      : DEFAULT_CATEGORY_LINKS;
+  const sortedCategories = useMemo(
+    () =>
+      [...categories].sort(
+        (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
+      ),
+    [categories]
+  );
 
-  const centerLinks = [
-    ...categoryNavLinks,
-    { label: "New in", href: "/shop?sort=newest" }
-  ];
+  const centerLinks = useMemo(
+    () => [
+      ...sortedCategories.map(category => ({
+        label: category.name,
+        href: `/shop/${category.slug}`
+      })),
+      { label: "New in", href: "/shop?sort=newest" },
+      { label: "Shop all", href: "/shop" }
+    ],
+    [sortedCategories]
+  );
 
   function isActive(href: string) {
     if (href === "/") return pathname === href;
     if (href.startsWith("/shop?")) return false;
+    if (href === "/shop") return pathname === "/shop";
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
@@ -75,28 +75,22 @@ export function Navbar({ categories }: { categories: Category[] }) {
           </div>
 
           <nav
-            className="hidden items-center gap-2 font-sans text-[14px] leading-[1.5] lg:flex"
+            className="hidden items-center gap-8 font-sans text-[14px] leading-[1.5] lg:flex"
             aria-label="Catalog navigation"
           >
-            {centerLinks.map((link, index) => (
-              <Fragment key={`${link.href}-${link.label}`}>
-                {index > 0 ? (
-                  <span className="text-white/40" aria-hidden>
-                    ·
-                  </span>
-                ) : null}
-                <Link
-                  href={link.href}
-                  aria-current={isActive(link.href) ? "page" : undefined}
-                  className={`px-1.5 py-1 transition-colors ${
-                    isActive(link.href)
-                      ? "text-brass"
-                      : "text-white/85 hover:text-white"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              </Fragment>
+            {centerLinks.map(link => (
+              <Link
+                key={`${link.href}-${link.label}`}
+                href={link.href}
+                aria-current={isActive(link.href) ? "page" : undefined}
+                className={`py-1 transition-colors ${
+                  isActive(link.href)
+                    ? "text-brass"
+                    : "text-white/85 hover:text-white"
+                }`}
+              >
+                {link.label}
+              </Link>
             ))}
           </nav>
 
@@ -134,6 +128,21 @@ export function Navbar({ categories }: { categories: Category[] }) {
         <nav aria-label="Mobile navigation" className="space-y-6">
           <div>
             <ul className="space-y-1">
+              {sortedCategories.map(category => (
+                <li key={category.id}>
+                  <Link
+                    href={`/shop/${category.slug}`}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex min-h-11 items-center font-sans text-[16px] ${
+                      isActive(`/shop/${category.slug}`)
+                        ? "text-brass"
+                        : "text-text hover:text-brass"
+                    }`}
+                  >
+                    {category.name}
+                  </Link>
+                </li>
+              ))}
               <li>
                 <Link
                   href="/shop?sort=newest"
@@ -147,26 +156,15 @@ export function Navbar({ categories }: { categories: Category[] }) {
                 <Link
                   href="/shop"
                   onClick={() => setMobileOpen(false)}
-                  className="flex min-h-11 items-center font-sans text-[16px] text-text hover:text-brass"
+                  className={`flex min-h-11 items-center font-sans text-[16px] ${
+                    isActive("/shop")
+                      ? "text-brass"
+                      : "text-text hover:text-brass"
+                  }`}
                 >
                   Shop all
                 </Link>
               </li>
-              {categoryNavLinks.map(link => (
-                <li key={`${link.href}-${link.label}`}>
-                  <Link
-                    href={link.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex min-h-11 items-center font-sans text-[16px] ${
-                      isActive(link.href)
-                        ? "text-brass"
-                        : "text-text hover:text-brass"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
             </ul>
           </div>
 

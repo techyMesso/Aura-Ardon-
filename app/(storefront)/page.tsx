@@ -153,9 +153,11 @@ export default async function HomePage() {
           <p className="max-w-4xl font-serif text-[32px] font-normal leading-[1.15] tracking-[-0.01em] text-white md:text-[40px]">
             Auro Ardon is a Nairobi jewelry house. We pick bold, giftable, tarnish-free pieces, deliver across Nairobi in a day, and you pay when it arrives.
           </p>
-          <p className="mt-6 font-sans text-[14px] leading-[1.5] text-white/80">
-            Same-day Nairobi delivery · Pay on delivery (cash or M-Pesa) · Order or ask on WhatsApp
-          </p>
+          <div className="mt-6 flex flex-col gap-2 font-sans text-[14px] leading-[1.5] text-white/80 sm:flex-row sm:flex-wrap sm:gap-8">
+            <span>Same-day Nairobi delivery</span>
+            <span>Pay on delivery (cash or M-Pesa)</span>
+            <span>Order or ask on WhatsApp</span>
+          </div>
         </div>
       </section>
 

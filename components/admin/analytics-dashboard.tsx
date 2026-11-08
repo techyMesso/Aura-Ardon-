@@ -110,7 +110,7 @@ function RecentOrders({ dashboard }: { dashboard: AdminDashboardOverview }) {
       <div className="space-y-3 md:hidden">
         {dashboard.recentOrders.map(order => (
           <Link key={order.id} href={`/admin/orders?order=${order.id}`} className="block border border-border/70 bg-white p-4 transition-colors hover:border-bronze focus:outline-none focus:ring-2 focus:ring-bronze">
-            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-medium text-ink">{order.customer_name}</p><p className="mt-1 text-xs text-muted">#{order.id.slice(0, 8).toUpperCase()} · {formatOrderDate(order.created_at)}</p></div><OrderStatusBadge status={order.order_status} /></div>
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-medium text-ink">{order.customer_name}</p><p className="mt-1 text-xs text-muted">#{order.id.slice(0, 8).toUpperCase()} — {formatOrderDate(order.created_at)}</p></div><OrderStatusBadge status={order.order_status} /></div>
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3"><span className="font-semibold text-ink">{formatCurrency(order.total)}</span><PaymentStatusBadge status={order.payment_status} /></div>
           </Link>
         ))}
