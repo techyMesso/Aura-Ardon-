@@ -19,8 +19,8 @@ export default async function StorefrontLayout({
     <CartProvider categories={categories}>
       <StorefrontUIProvider products={products}>
         <Navbar categories={categories} />
-        <div className="min-h-dvh min-w-0 overflow-x-hidden pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
-          <main id="main-content" className="min-h-dvh min-w-0">
+        <div className="flex min-h-dvh min-w-0 flex-col overflow-x-hidden pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
+          <main id="main-content" className="min-w-0 flex-1">
             {children}
           </main>
           <Footer categories={categories} />

@@ -195,5 +195,24 @@ describe("catalog price ranges and material chips", () => {
       count: 2
     });
   });
+
+  it("hides homepage bestsellers when fewer than 3 featured or Sets products exist outside New in", async () => {
+    const { selectHomepageBestsellers } = await import("@/lib/catalog");
+    const newIn = [
+      makeProduct({ id: "1", is_featured: true }),
+      makeProduct({ id: "2", is_featured: true })
+    ];
+    expect(selectHomepageBestsellers(newIn, [category], newIn)).toEqual([]);
+
+    const extraFeatured = [
+      makeProduct({ id: "3", is_featured: true }),
+      makeProduct({ id: "4", is_featured: true }),
+      makeProduct({ id: "5", category: "Gift Sets" })
+    ];
+    expect(
+      selectHomepageBestsellers([...newIn, ...extraFeatured], [category], newIn)
+    ).toHaveLength(3);
+  });
 });
+
 

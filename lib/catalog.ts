@@ -175,4 +175,36 @@ export function computeMaterialChips(
     .slice(0, maxChips);
 }
 
+export function selectHomepageBestsellers(
+  allProducts: Product[],
+  categories: Category[],
+  newInProducts: Product[]
+): Product[] {
+  const newInIds = new Set(newInProducts.map(product => product.id));
+  const setsCategoryIds = new Set(
+    categories
+      .filter(
+        category =>
+          category.slug.toLowerCase().includes("set") ||
+          category.name.toLowerCase().includes("set")
+      )
+      .map(category => category.id)
+  );
+
+  const distinct = allProducts.filter(product => {
+    if (newInIds.has(product.id)) return false;
+    const inSetsCategory =
+      (product.category_id && setsCategoryIds.has(product.category_id)) ||
+      Boolean(product.category?.toLowerCase().includes("set"));
+    return Boolean(product.is_featured || inSetsCategory);
+  });
+
+  if (distinct.length < 3) {
+    return [];
+  }
+
+  return distinct.slice(0, 6);
+}
+
+
 

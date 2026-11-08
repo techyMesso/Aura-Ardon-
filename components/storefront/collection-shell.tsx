@@ -11,7 +11,7 @@ export function CollectionShell({
   children
 }: CollectionShellProps) {
   return (
-    <div className="min-h-dvh bg-paper text-text">
+    <div className="bg-paper text-text">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
         <header className="mb-8 border-b border-text/12 pb-6">
           <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">

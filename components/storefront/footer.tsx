@@ -26,7 +26,7 @@ export function Footer({ categories }: { categories: Category[] }) {
   ];
 
   return (
-    <footer className="mt-20 bg-ink text-white">
+    <footer className="border-t border-white/12 bg-ink text-white">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-10">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>

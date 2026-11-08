@@ -4,7 +4,10 @@ import Link from "next/link";
 import { DEFAULT_PRODUCT_BLUR_DATA_URL } from "@/components/storefront/price-kes";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { ProductTile } from "@/components/storefront/product-tile";
-import { getSafeCatalogImageUrl } from "@/lib/catalog";
+import {
+  getSafeCatalogImageUrl,
+  selectHomepageBestsellers
+} from "@/lib/catalog";
 import {
   listCategories,
   listCategoryRepresentatives,
@@ -30,10 +33,11 @@ export default async function HomePage() {
     ]);
 
   const newInProducts = allProducts.slice(0, 8);
-  const bestsellers =
-    featuredProducts.length > 0
-      ? featuredProducts.slice(0, 6)
-      : allProducts.slice(0, 6);
+  const bestsellers = selectHomepageBestsellers(
+    allProducts,
+    categories,
+    newInProducts
+  );
 
   const heroProduct = featuredProducts[0] ?? allProducts[0];
   const heroImage =
