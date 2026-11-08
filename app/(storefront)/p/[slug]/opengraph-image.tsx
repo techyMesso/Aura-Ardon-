@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { formatKES } from "@/components/storefront/price-kes";
-import { getSafeCatalogImageUrl } from "@/lib/catalog";
+import { formatProductTitle, getSafeCatalogImageUrl } from "@/lib/catalog";
 import { getProductBySlug } from "@/lib/data";
 import { getOptionalSiteUrl } from "@/lib/env";
 
@@ -25,7 +25,7 @@ export default async function ProductOpenGraphImage({
       : `${siteUrl}${rawImage}`
     : `${siteUrl}/hero-jewelry.png`;
 
-  const title = product?.title ?? "Auro Ardon";
+  const title = product ? formatProductTitle(product.title) : "Auro Ardon";
   const price = product ? formatKES(product.price) : "";
 
   return new ImageResponse(

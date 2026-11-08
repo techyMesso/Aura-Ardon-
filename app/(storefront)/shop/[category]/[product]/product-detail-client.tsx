@@ -13,7 +13,10 @@ import {
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import { useCart } from "@/lib/cart";
-import { getSafeCatalogImageUrl } from "@/lib/catalog";
+import {
+  formatProductTitle,
+  getSafeCatalogImageUrl
+} from "@/lib/catalog";
 import { getProductDeliveryLine } from "@/lib/site-config";
 import { createWhatsAppLink } from "@/lib/utils";
 import type { Category, Product } from "@/lib/types";
@@ -40,6 +43,7 @@ export function ProductDetailClient({
     recentlyViewedProducts
   } = useStorefrontUI();
 
+  const displayTitle = formatProductTitle(product.title);
   const safeImages = product.images
     .map(getSafeCatalogImageUrl)
     .filter((image): image is string => Boolean(image));
@@ -68,12 +72,12 @@ export function ProductDetailClient({
     whatsappNumber ?? process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
 
   const askMessage = [
-    `Hello Auro Ardon, I have a question about ${product.title} (${formatKES(product.price)}).`,
+    `Hello Auro Ardon, I have a question about ${displayTitle} (${formatKES(product.price)}).`,
     ...(productUrl ? [`Link: ${productUrl}`] : [])
   ].join("\n");
 
   const notifyMessage = [
-    `Hello Auro Ardon, please notify me when ${product.title} is back in stock.`,
+    `Hello Auro Ardon, please notify me when ${displayTitle} is back in stock.`,
     ...(productUrl ? [`Link: ${productUrl}`] : [])
   ].join("\n");
 
@@ -127,7 +131,7 @@ export function ProductDetailClient({
     if (remaining < 1) return;
     const amount = Math.min(quantity, remaining);
     addItem(product, amount);
-    setStatus(`${product.title} added to bag.`);
+    setStatus(`${displayTitle} added to bag.`);
     openCart();
   }
 
@@ -175,13 +179,13 @@ export function ProductDetailClient({
         ) : null}
         <span aria-hidden>/</span>
         <span className="truncate text-text" aria-current="page">
-          {product.title}
+          {displayTitle}
         </span>
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-14">
         <section
-          aria-label={`${product.title} gallery`}
+          aria-label={`${displayTitle} gallery`}
           className="lg:sticky lg:top-20 lg:h-fit"
         >
           <button
@@ -196,11 +200,11 @@ export function ProductDetailClient({
             onTouchEnd={handleGalleryTouchEnd}
             className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-none bg-paper [touch-action:pinch-zoom]"
             style={{ viewTransitionName: `product-image-${product.id}` }}
-            aria-label={`Zoom image of ${product.title}`}
+            aria-label={`Zoom image of ${displayTitle}`}
           >
             <Image
               src={images[selectedIndex]}
-              alt={`${product.title}, photo ${selectedIndex + 1} of ${images.length}`}
+              alt={`${displayTitle}, photo ${selectedIndex + 1} of ${images.length}`}
               fill
               priority
               placeholder="blur"
@@ -247,15 +251,15 @@ export function ProductDetailClient({
         <section className="flex flex-col">
           <div className="flex items-start justify-between gap-4">
             <h1 className="font-serif text-[32px] font-normal leading-[1.05] tracking-[-0.01em] text-text">
-              {product.title}
+              {displayTitle}
             </h1>
             <button
               type="button"
               onClick={() => toggleWishlist(product.id)}
               aria-label={
                 wishlisted
-                  ? `Remove ${product.title} from wishlist`
-                  : `Save ${product.title} to wishlist`
+                  ? `Remove ${displayTitle} from wishlist`
+                  : `Save ${displayTitle} to wishlist`
               }
               aria-pressed={wishlisted}
               className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-[2px] border border-text/15 text-text hover:text-brass"

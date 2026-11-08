@@ -13,6 +13,7 @@ import {
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import {
   createCategoryMap,
+  formatProductTitle,
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
@@ -143,6 +144,7 @@ export function SearchCommandPalette() {
             <ul role="listbox" aria-label="Search results" className="divide-y divide-text/10">
               {results.map((product, index) => {
                 const path = productHref(product);
+                const displayTitle = formatProductTitle(product.title);
                 const image =
                   getSafeCatalogImageUrl(product.images[0]) || "/hero-jewelry.png";
                 const isSelected = index === activeIndex;
@@ -160,7 +162,7 @@ export function SearchCommandPalette() {
                       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-none bg-paper">
                         <Image
                           src={image}
-                          alt={product.title}
+                          alt={displayTitle}
                           fill
                           placeholder="blur"
                           blurDataURL={product.blur_data_url || DEFAULT_PRODUCT_BLUR_DATA_URL}
@@ -170,7 +172,7 @@ export function SearchCommandPalette() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-sans text-[14px] leading-[1.5] text-text">
-                          {product.title}
+                          {displayTitle}
                         </p>
                         <p className="truncate font-sans text-[12px] leading-[1.5] text-muted">
                           {getProductCategoryLabel(product, categoryMap)}

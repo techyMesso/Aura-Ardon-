@@ -11,7 +11,11 @@ import {
   PriceKES
 } from "@/components/storefront/price-kes";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
-import { getSafeCatalogImageUrl, productHref } from "@/lib/catalog";
+import {
+  formatProductTitle,
+  getSafeCatalogImageUrl,
+  productHref
+} from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
 import { getProductCardAvailability } from "@/lib/product-card";
 import type { Product } from "@/lib/types";
@@ -36,6 +40,7 @@ export function ProductTile({
   const [justAdded, setJustAdded] = useState(false);
 
   const href = productHref(product);
+  const displayTitle = formatProductTitle(product.title);
   const safeImages = product.images
     .map(getSafeCatalogImageUrl)
     .filter((image): image is string => Boolean(image));
@@ -54,7 +59,7 @@ export function ProductTile({
     if (availability.disabled) return;
     addItem(product, 1);
     setJustAdded(true);
-    onStatusChange?.(`${product.title} added to bag.`);
+    onStatusChange?.(`${displayTitle} added to bag.`);
     openCart();
     window.setTimeout(() => setJustAdded(false), 1200);
   }
@@ -99,7 +104,7 @@ export function ProductTile({
         >
           <Image
             src={coverImage}
-            alt={product.title}
+            alt={displayTitle}
             fill
             priority={priority}
             loading={priority ? undefined : "lazy"}
@@ -125,7 +130,7 @@ export function ProductTile({
 
         <div className="flex flex-col pt-2.5">
           <h3 className="line-clamp-1 font-sans text-[14px] leading-[1.5] text-text transition-colors group-hover:text-brass">
-            {product.title}
+            {displayTitle}
           </h3>
 
           <div className="mt-0.5 flex items-baseline justify-between gap-2">
@@ -148,8 +153,8 @@ export function ProductTile({
         onClick={() => toggleWishlist(product.id)}
         aria-label={
           wishlisted
-            ? `Remove ${product.title} from wishlist`
-            : `Save ${product.title} to wishlist`
+            ? `Remove ${displayTitle} from wishlist`
+            : `Save ${displayTitle} to wishlist`
         }
         aria-pressed={wishlisted}
         className="absolute right-2.5 top-2.5 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-[2px] bg-paper/85 text-text transition-colors hover:text-brass"

@@ -206,5 +206,52 @@ export function selectHomepageBestsellers(
   return distinct.slice(0, 6);
 }
 
+const MINOR_TITLE_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "as",
+  "at",
+  "by",
+  "for",
+  "from",
+  "in",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+  "with"
+]);
+
+export function formatProductTitle(
+  value: string | null | undefined
+): string {
+  const cleaned = (value ?? "").trim().replace(/\s+/g, " ");
+  if (!cleaned) return "";
+
+  const words = cleaned.split(" ");
+  return words
+    .map((word, index) => {
+      const lower = word.toLowerCase();
+      if (
+        index > 0 &&
+        index < words.length - 1 &&
+        MINOR_TITLE_WORDS.has(lower)
+      ) {
+        return lower;
+      }
+
+      return lower
+        .split("-")
+        .map(part =>
+          part ? part.charAt(0).toUpperCase() + part.slice(1) : part
+        )
+        .join("-");
+    })
+    .join(" ");
+}
+
+
 
 

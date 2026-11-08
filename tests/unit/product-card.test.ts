@@ -5,7 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import { ProductTile } from "@/components/storefront/product-tile";
 import { StorefrontUIProvider } from "@/components/storefront/storefront-context";
 import { CartProvider } from "@/lib/cart";
-import { createCategoryMap, productHref } from "@/lib/catalog";
+import {
+  createCategoryMap,
+  formatProductTitle,
+  productHref
+} from "@/lib/catalog";
 import {
   formatProductCardPrice,
   getProductCardAvailability,
@@ -138,7 +142,7 @@ describe("productHref and ProductTile links", () => {
       );
 
       expect(html).toContain(`href="/p/${product.slug}"`);
-      expect(html).toContain(product.title);
+      expect(html).toContain(formatProductTitle(product.title));
     }
   });
 });
@@ -213,6 +217,16 @@ describe("catalog price ranges and material chips", () => {
       selectHomepageBestsellers([...newIn, ...extraFeatured], [category], newIn)
     ).toHaveLength(3);
   });
+
+  it("title-cases product names at render time without mutating product records", async () => {
+    const { formatProductTitle } = await import("@/lib/catalog");
+    expect(formatProductTitle("lipgloss")).toBe("Lipgloss");
+    expect(formatProductTitle("gold chain and pendant set")).toBe(
+      "Gold Chain and Pendant Set"
+    );
+    expect(formatProductTitle("GOLD-PLATED CUFF")).toBe("Gold-Plated Cuff");
+  });
 });
+
 
 

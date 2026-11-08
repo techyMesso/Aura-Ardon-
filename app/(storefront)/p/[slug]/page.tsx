@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import {
   createCategoryMap,
+  formatProductTitle,
   getSafeCatalogImageUrl,
   productHref,
   resolveProductCategory
@@ -37,20 +38,21 @@ export async function generateMetadata({
   const product = await getProductBySlug(decodeURIComponent(slug));
   if (!product) return { title: "Product not found" };
 
+  const displayTitle = formatProductTitle(product.title);
   const canonicalPath = productHref(product);
   const siteUrl = getOptionalSiteUrl();
   const canonicalUrl = siteUrl ? `${siteUrl}${canonicalPath}` : null;
   const description =
     product.description.trim().slice(0, 160) ||
-    `${product.title} from Auro Ardon in Nairobi.`;
+    `${displayTitle} from Auro Ardon in Nairobi.`;
 
   return {
-    title: product.title,
+    title: displayTitle,
     description,
     alternates: canonicalUrl ? { canonical: canonicalUrl } : undefined,
     openGraph: {
       type: "website",
-      title: product.title,
+      title: displayTitle,
       description,
       url: canonicalUrl ?? undefined
     }
@@ -97,7 +99,7 @@ export default async function CanonicalProductPage({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: product.title,
+    name: formatProductTitle(product.title),
     description: product.description,
     sku: product.id,
     ...(structuredImage.length ? { image: structuredImage } : {}),
