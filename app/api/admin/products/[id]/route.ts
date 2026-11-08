@@ -41,6 +41,10 @@ export async function PATCH(
       updates.category_id = category.id;
     }
     if (payload.material !== undefined) updates.material = payload.material;
+    if (payload.finish !== undefined) updates.finish = payload.finish;
+    if (payload.size_label !== undefined) updates.size_label = payload.size_label;
+    if (payload.in_the_box !== undefined) updates.in_the_box = payload.in_the_box;
+    if (payload.care !== undefined) updates.care = payload.care;
     if (payload.images !== undefined) updates.images = payload.images;
     if (payload.active !== undefined) updates.active = payload.active;
     if (payload.is_featured !== undefined) updates.is_featured = payload.is_featured;

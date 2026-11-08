@@ -48,7 +48,22 @@ export interface CatalogQualityWarnings {
   missingCategory: Product[];
   missingSecondImage: Product[];
   shortName: Product[];
+  missingFinishSizeInTheBox: Product[];
   hasWarnings: boolean;
+}
+
+const BEAUTY_CATEGORY_PATTERN =
+  /\b(beauty|lip|gloss|lipgloss|cosmetic|cosmetics|makeup|skincare|skin\s*care|balm|fragrance|perfume)\b/i;
+
+export function isBeautyCategoryProduct(product: Product): boolean {
+  const categoryName = product.category?.trim() ?? "";
+  if (categoryName && BEAUTY_CATEGORY_PATTERN.test(categoryName)) {
+    return true;
+  }
+  const materialOrTitle = `${product.material ?? ""} ${product.title ?? ""}`;
+  return /\b(beauty|lip\s*gloss|lipgloss|cosmetic|cosmetics|makeup|skincare|lip\s*care|lip\s*oil|lip\s*balm)\b/i.test(
+    materialOrTitle
+  );
 }
 
 export function getCatalogQualityWarnings(
@@ -65,15 +80,24 @@ export function getCatalogQualityWarnings(
   const shortName = activeProducts.filter(
     product => (product.title?.trim().length ?? 0) < 8
   );
+  const missingFinishSizeInTheBox = activeProducts.filter(
+    product =>
+      !isBeautyCategoryProduct(product) &&
+      (!product.finish?.trim() ||
+        !product.size_label?.trim() ||
+        !product.in_the_box?.trim())
+  );
 
   return {
     missingCategory,
     missingSecondImage,
     shortName,
+    missingFinishSizeInTheBox,
     hasWarnings:
       missingCategory.length > 0 ||
       missingSecondImage.length > 0 ||
-      shortName.length > 0
+      shortName.length > 0 ||
+      missingFinishSizeInTheBox.length > 0
   };
 }
 

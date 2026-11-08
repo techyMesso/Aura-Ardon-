@@ -379,22 +379,30 @@ export function ProductDetailClient({
                 {product.material || "Gold-tone stainless steel"}
               </dd>
             </div>
-            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-              <dt className="text-muted">Finish</dt>
-              <dd className="text-text">Tarnish-free polished finish</dd>
-            </div>
-            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-              <dt className="text-muted">Length / size</dt>
-              <dd className="text-text">Standard fit</dd>
-            </div>
-            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-              <dt className="text-muted">Care</dt>
-              <dd className="text-text">Wipe dry; keep away from perfume</dd>
-            </div>
-            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-              <dt className="text-muted">In the box</dt>
-              <dd className="text-text">Auro Ardon pouch and care card</dd>
-            </div>
+            {product.finish?.trim() ? (
+              <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+                <dt className="text-muted">Finish</dt>
+                <dd className="text-text">{product.finish.trim()}</dd>
+              </div>
+            ) : null}
+            {product.size_label?.trim() ? (
+              <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+                <dt className="text-muted">Length / size</dt>
+                <dd className="text-text">{product.size_label.trim()}</dd>
+              </div>
+            ) : null}
+            {product.care?.trim() ? (
+              <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+                <dt className="text-muted">Care</dt>
+                <dd className="text-text">{product.care.trim()}</dd>
+              </div>
+            ) : null}
+            {product.in_the_box?.trim() ? (
+              <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+                <dt className="text-muted">In the box</dt>
+                <dd className="text-text">{product.in_the_box.trim()}</dd>
+              </div>
+            ) : null}
           </dl>
         </section>
       </div>

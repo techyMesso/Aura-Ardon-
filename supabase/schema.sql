@@ -72,6 +72,10 @@ create table if not exists public.products (
   price          numeric(12,2) not null check (price > 0),
   stock_quantity integer      not null default 0 check (stock_quantity >= 0), -- EXISTING
   material       text,
+  finish         text,
+  size_label     text,
+  in_the_box     text,
+  care           text,
   images         text[]      not null default '{}',
   is_featured    boolean     not null default false, -- EXISTING
   active         boolean     not null default true,  -- NEW

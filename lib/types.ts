@@ -29,7 +29,8 @@ export interface Category {
 
 // ─── Product ─────────────────────────────────────────────
 // Fields: id, title, slug, description, category, category_id, price,
-//         stock_quantity, material, images, is_featured, active, created_at
+//         stock_quantity, material, finish, size_label, in_the_box, care,
+//         images, is_featured, active, created_at
 
 export interface Product {
   id: string;
@@ -41,6 +42,10 @@ export interface Product {
   price: string;
   stock_quantity: number;  // DB column: stock_quantity
   material: string | null;
+  finish?: string | null;
+  size_label?: string | null;
+  in_the_box?: string | null;
+  care?: string | null;
   images: string[];
   is_featured: boolean;   // DB column: is_featured
   active: boolean;        // NEW: active/inactive toggle

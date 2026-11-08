@@ -87,6 +87,10 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
   const [stockQuantity, setStockQuantity] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [material, setMaterial] = useState("");
+  const [finish, setFinish] = useState("");
+  const [sizeLabel, setSizeLabel] = useState("");
+  const [inTheBox, setInTheBox] = useState("");
+  const [care, setCare] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [active, setActive] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
@@ -107,6 +111,10 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
     setStockQuantity(String(initialProduct.stock_quantity));
     setCategoryId(getInitialProductCategoryId(initialProduct, categories));
     setMaterial(initialProduct.material || "");
+    setFinish(initialProduct.finish || "");
+    setSizeLabel(initialProduct.size_label || "");
+    setInTheBox(initialProduct.in_the_box || "");
+    setCare(initialProduct.care || "");
     setImages(initialProduct.images);
     setActive(initialProduct.active);
     setIsFeatured(initialProduct.is_featured);
@@ -144,6 +152,10 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       stock_quantity: numericStock,
       category_id: categoryId,
       material: material.trim(),
+      finish: finish.trim() || null,
+      size_label: sizeLabel.trim() || null,
+      in_the_box: inTheBox.trim() || null,
+      care: care.trim() || null,
       images,
       active,
       is_featured: isFeatured
@@ -206,6 +218,24 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             <div>
               <FormLabel htmlFor="product-material" required>Material</FormLabel>
               <Input id="product-material" placeholder="Stainless steel" value={material} onChange={event => setMaterial(event.target.value)} required className="min-h-12 text-base" />
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <FormLabel htmlFor="product-finish">Finish</FormLabel>
+              <Input id="product-finish" placeholder="18k gold PVD mirror polish" value={finish} onChange={event => setFinish(event.target.value)} className="min-h-12 text-base" />
+            </div>
+            <div>
+              <FormLabel htmlFor="product-size-label">Length / size</FormLabel>
+              <Input id="product-size-label" placeholder="45 cm + 5 cm extender" value={sizeLabel} onChange={event => setSizeLabel(event.target.value)} className="min-h-12 text-base" />
+            </div>
+            <div>
+              <FormLabel htmlFor="product-in-the-box">In the box</FormLabel>
+              <Input id="product-in-the-box" placeholder="Auro Ardon pouch and polishing cloth" value={inTheBox} onChange={event => setInTheBox(event.target.value)} className="min-h-12 text-base" />
+            </div>
+            <div>
+              <FormLabel htmlFor="product-care">Care</FormLabel>
+              <Input id="product-care" placeholder="Wipe dry after wear; store in pouch" value={care} onChange={event => setCare(event.target.value)} className="min-h-12 text-base" />
             </div>
           </div>
         </div>

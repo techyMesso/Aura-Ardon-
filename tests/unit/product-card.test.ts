@@ -227,7 +227,7 @@ describe("catalog price ranges and material chips", () => {
     expect(formatProductTitle("GOLD-PLATED CUFF")).toBe("Gold-Plated Cuff");
   });
 
-  it("flags active products missing category_id, second image, or with names under 8 characters", async () => {
+  it("flags active products missing category_id, second image, short name, or missing finish/size/in-the-box in non-beauty categories only", async () => {
     const { getCatalogQualityWarnings } = await import(
       "@/lib/admin-product-filters"
     );
@@ -235,6 +235,7 @@ describe("catalog price ranges and material chips", () => {
       makeProduct({
         id: "p1",
         title: "Ring",
+        category: "Rings",
         category_id: null,
         images: ["https://x.supabase.co/1.jpg"],
         active: true
@@ -242,7 +243,26 @@ describe("catalog price ranges and material chips", () => {
       makeProduct({
         id: "p2",
         title: "Gold Statement Necklace",
+        category: "Necklaces",
         category_id: "cat-1",
+        finish: "18k gold PVD mirror polish",
+        size_label: "45 cm + 5 cm extender",
+        in_the_box: "Auro Ardon pouch and care card",
+        images: [
+          "https://x.supabase.co/1.jpg",
+          "https://x.supabase.co/2.jpg"
+        ],
+        active: true
+      }),
+      makeProduct({
+        id: "p-beauty",
+        title: "Hydrating Lip Gloss",
+        category: "Lip Care",
+        category_id: "cat-2",
+        material: "Cosmetic-grade lip gloss",
+        finish: null,
+        size_label: null,
+        in_the_box: null,
         images: [
           "https://x.supabase.co/1.jpg",
           "https://x.supabase.co/2.jpg"
@@ -262,6 +282,7 @@ describe("catalog price ranges and material chips", () => {
     expect(warnings.missingCategory.map(p => p.id)).toEqual(["p1"]);
     expect(warnings.missingSecondImage.map(p => p.id)).toEqual(["p1"]);
     expect(warnings.shortName.map(p => p.id)).toEqual(["p1"]);
+    expect(warnings.missingFinishSizeInTheBox.map(p => p.id)).toEqual(["p1"]);
   });
 });
 

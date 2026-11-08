@@ -212,6 +212,24 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
                 ))}
               </li>
             ) : null}
+            {qualityWarnings.missingFinishSizeInTheBox.length > 0 ? (
+              <li>
+                <span className="font-medium text-text">
+                  Missing finish/size/in-the-box ({qualityWarnings.missingFinishSizeInTheBox.length}):
+                </span>{" "}
+                {qualityWarnings.missingFinishSizeInTheBox.map((item, index) => (
+                  <span key={item.id}>
+                    {index > 0 ? ", " : ""}
+                    <Link
+                      href={`/admin/products/${item.id}/edit`}
+                      className="text-brass underline underline-offset-2"
+                    >
+                      {item.title}
+                    </Link>
+                  </span>
+                ))}
+              </li>
+            ) : null}
           </ul>
         </div>
       ) : null}

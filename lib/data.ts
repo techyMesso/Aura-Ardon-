@@ -29,7 +29,7 @@ async function listPublicProductsInner(): Promise<Product[]> {
     const supabase = createPublicServerSupabaseClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
+      .select("*")
       .eq("active", true)
       .order("created_at", { ascending: false });
 
@@ -64,7 +64,7 @@ async function listFeaturedProductsInner(limit = 6): Promise<Product[]> {
     // Try to get featured products first
     const { data: featuredData, error: featuredError } = await supabase
       .from("products")
-      .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
+      .select("*")
       .eq("is_featured", true)
       .eq("active", true)
       .order("created_at", { ascending: false })
@@ -119,7 +119,7 @@ async function listProductsByCategoryInner(
     const categoryId = categoryRecord.id;
     const { data, error } = await supabase
       .from("products")
-      .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
+      .select("*")
       .eq("category_id", categoryId)
       .eq("active", true)
       .order("created_at", { ascending: false });
@@ -162,7 +162,7 @@ async function getProductBySlugInner(
     const supabase = createPublicServerSupabaseClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
+      .select("*")
       .eq("slug", slug)
       .eq("active", true)
       .single();
@@ -173,7 +173,7 @@ async function getProductBySlugInner(
 
     const { data: legacyData, error: legacyError } = await supabase
       .from("products")
-      .select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at")
+      .select("*")
       .eq("id", slug)
       .eq("active", true)
       .single();
@@ -293,7 +293,7 @@ export async function listAdminDashboardData() {
     { data: orders,   error: ordersError   },
     { data: categories, error: categoriesError },
   ] = await Promise.all([
-    supabase.from("products").select("id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, created_at").order("created_at", { ascending: false }),
+    supabase.from("products").select("*").order("created_at", { ascending: false }),
     supabase.from("orders").select("id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at").order("created_at",  { ascending: false }),
     supabase.from("categories").select("id, name, slug, parent_id, description, image_url, display_order, created_at").order("display_order", { ascending: true }),
   ]);
