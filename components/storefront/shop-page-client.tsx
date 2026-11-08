@@ -7,18 +7,16 @@ import { SlidersHorizontal } from "lucide-react";
 
 import { Drawer } from "@/components/storefront/drawer";
 import { ProductGallery } from "@/components/storefront/product-gallery";
+import {
+  computeCatalogPriceRanges,
+  computeMaterialChips,
+  normalizeMaterialKey
+} from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
 import type { Product } from "@/lib/types";
 
 const SORT_OPTIONS = ["newest", "price-asc", "price-desc"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
-
-const PRICE_RANGES = [
-  { id: "all", label: "All prices", min: 0, max: Number.POSITIVE_INFINITY },
-  { id: "under-1500", label: "Under KES 1,500", min: 0, max: 1500 },
-  { id: "1500-3000", label: "KES 1,500 – 3,000", min: 1500, max: 3000 },
-  { id: "over-3000", label: "Over KES 3,000", min: 3000, max: Number.POSITIVE_INFINITY }
-] as const;
 
 export function ShopPageClient({ products }: { products: Product[] }) {
   const pathname = usePathname();
@@ -37,15 +35,15 @@ export function ShopPageClient({ products }: { products: Product[] }) {
   const inStock = searchParams.get("inStock") === "1";
   const queryText = (searchParams.get("q") ?? "").trim().toLowerCase();
 
-  const availableMaterials = useMemo(() => {
-    const set = new Set<string>();
-    for (const product of products) {
-      if (product.material?.trim()) {
-        set.add(product.material.trim());
-      }
-    }
-    return Array.from(set);
-  }, [products]);
+  const priceRanges = useMemo(
+    () => computeCatalogPriceRanges(products),
+    [products]
+  );
+
+  const availableMaterials = useMemo(
+    () => computeMaterialChips(products, 8),
+    [products]
+  );
 
   function updateParam(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams.toString());
@@ -66,7 +64,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
   }
 
   const activePriceRange =
-    PRICE_RANGES.find(range => range.id === priceRangeId) ?? PRICE_RANGES[0];
+    priceRanges.find(range => range.id === priceRangeId) ?? priceRanges[0];
 
   const filtered = useMemo(() => {
     return products
@@ -81,8 +79,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
         }
         if (
           selectedMaterial !== "all" &&
-          (product.material?.trim().toLowerCase() ?? "") !==
-            selectedMaterial.toLowerCase()
+          normalizeMaterialKey(product.material) !== selectedMaterial
         ) {
           return false;
         }
@@ -150,7 +147,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
       <div>
         <h2 className="font-medium text-text">Price (KES)</h2>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {PRICE_RANGES.map(range => {
+          {priceRanges.map(range => {
             const active = priceRangeId === range.id;
             return (
               <button
@@ -185,20 +182,20 @@ export function ShopPageClient({ products }: { products: Product[] }) {
             >
               All finishes
             </button>
-            {availableMaterials.map(material => {
-              const active = selectedMaterial === material;
+            {availableMaterials.map(chip => {
+              const active = selectedMaterial === chip.key;
               return (
                 <button
-                  key={material}
+                  key={chip.key}
                   type="button"
-                  onClick={() => setSelectedMaterial(material)}
+                  onClick={() => setSelectedMaterial(chip.key)}
                   className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
                     active
                       ? "bg-ink text-white"
                       : "bg-stone text-text hover:text-brass"
                   }`}
                 >
-                  {material}
+                  {chip.label}
                 </button>
               );
             })}

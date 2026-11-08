@@ -142,3 +142,58 @@ describe("productHref and ProductTile links", () => {
     }
   });
 });
+
+describe("catalog price ranges and material chips", () => {
+  it("computes 3 quantile-based price buckets from active product prices", async () => {
+    const { computeCatalogPriceRanges } = await import("@/lib/catalog");
+    const ranges = computeCatalogPriceRanges([
+      { price: "50" },
+      { price: "100" },
+      { price: "250" },
+      { price: "450" },
+      { price: "900" },
+      { price: "1200" }
+    ]);
+
+    expect(ranges).toHaveLength(4);
+    expect(ranges[0].id).toBe("all");
+    expect(ranges[1].min).toBe(0);
+    expect(ranges[1].max).toBe(250);
+    expect(ranges[2].min).toBe(250);
+    expect(ranges[2].max).toBe(900);
+    expect(ranges[3].min).toBe(900);
+    expect(ranges[3].max).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("merges case and hyphen variations of material into one chip and caps at 8 sorted by count", async () => {
+    const { computeMaterialChips } = await import("@/lib/catalog");
+    const chips = computeMaterialChips([
+      { material: "Cosmetic-grade lip gloss" },
+      { material: "cosmetic grade lip gloss" },
+      { material: "  COSMETIC-GRADE LIP GLOSS " },
+      { material: "Gold-tone stainless" },
+      { material: "gold tone stainless" },
+      { material: "M1" },
+      { material: "M2" },
+      { material: "M3" },
+      { material: "M4" },
+      { material: "M5" },
+      { material: "M6" },
+      { material: "M7" },
+      { material: "M8" }
+    ]);
+
+    expect(chips).toHaveLength(8);
+    expect(chips[0]).toEqual({
+      key: "cosmetic grade lip gloss",
+      label: "Cosmetic grade lip gloss",
+      count: 3
+    });
+    expect(chips[1]).toEqual({
+      key: "gold tone stainless",
+      label: "Gold tone stainless",
+      count: 2
+    });
+  });
+});
+
