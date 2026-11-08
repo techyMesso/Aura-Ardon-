@@ -1,73 +1,52 @@
-import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
-
 import { ContactForm } from "@/components/storefront/contact-form";
-import { createWhatsAppLink, formatWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils";
+import { formatWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils";
 
 export const metadata = {
-  title: "Contact Us | Auro Ardon",
-  description: "Ask Auro Ardon about products, orders, and delivery through the configured store contact."
+  title: "Contact",
+  description:
+    "Contact Auro Ardon in Nairobi by phone or WhatsApp about pieces, sizing, or delivery."
 };
 
 export default function ContactPage() {
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? null;
   const normalizedNumber = normalizeWhatsAppNumber(whatsappNumber);
   const displayNumber = formatWhatsAppNumber(whatsappNumber);
-  const whatsappUrl = createWhatsAppLink(whatsappNumber ?? "", "Hello Auro Ardon, I would like help choosing a piece.");
 
   return (
-    <div className="jewel-page">
-      <header className="jewel-header">
-        <p className="text-sm font-medium text-bronze">Get in touch</p>
-        <h1 className="heading-display mt-2">Let&apos;s find your piece</h1>
-        <p className="mx-auto mt-4 max-w-xl text-muted">
-          Ask about an item, an existing order, or delivery. Your message opens as a complete WhatsApp conversation for you to review and send.
-        </p>
-      </header>
+    <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+        Contact
+      </h1>
 
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+      <div className="mt-8 grid gap-12 lg:grid-cols-[minmax(0,1fr)_260px]">
         <ContactForm whatsappNumber={whatsappNumber} />
 
-        <aside className="space-y-5">
-          <div className="border border-border/70 bg-card p-5 shadow-card sm:p-7">
-            <h2 className="font-serif text-2xl text-ink">Store contact</h2>
-            <div className="mt-6 space-y-5">
-              <div className="flex min-h-11 items-center gap-4">
-                <MapPin className="h-5 w-5 shrink-0 text-bronze" aria-hidden />
-                <div>
-                  <p className="font-medium text-ink">Location</p>
-                  <p className="text-sm text-muted">Nairobi, Kenya</p>
-                </div>
-              </div>
-              {normalizedNumber && displayNumber ? (
-                <div className="flex min-h-11 items-center gap-4">
-                  <Phone className="h-5 w-5 shrink-0 text-bronze" aria-hidden />
-                  <div>
-                    <p className="font-medium text-ink">WhatsApp and phone</p>
-                    <a href={`tel:+${normalizedNumber}`} className="text-sm text-muted transition hover:text-bronze">{displayNumber}</a>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-amber-300/60 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                  Store messaging is temporarily unavailable because the WhatsApp contact is not configured.
-                </div>
-              )}
-            </div>
-            <div className="mt-6 grid gap-2">
-              {whatsappUrl ? <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-primary min-h-12 text-xs"><MessageCircle className="h-4 w-4" aria-hidden />WhatsApp us</a> : null}
-              {normalizedNumber ? <a href={`tel:+${normalizedNumber}`} className="btn-outline min-h-12 text-xs"><Phone className="h-4 w-4" aria-hidden />Call store</a> : null}
-              <a href="mailto:contact@auroardon.com" className="btn-outline min-h-12 text-xs"><Mail className="h-4 w-4" aria-hidden />Email us</a>
-            </div>
+        <aside className="space-y-4 border-t border-text/12 pt-6 font-sans text-[14px] leading-[1.5] text-text lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+          <div>
+            <p className="text-muted">Location</p>
+            <p className="mt-0.5">Nairobi, Kenya</p>
           </div>
 
-          <div className="border border-champagne/35 bg-ink p-7 text-white shadow-luxe">
-            <MessageCircle className="h-5 w-5 text-champagne" aria-hidden />
-            <h2 className="mt-4 font-serif text-2xl">What happens next?</h2>
-            <p className="mt-2 text-sm leading-6 text-white/68">
-              WhatsApp opens with every detail you entered. Review the message, tap send, and continue directly with the store.
-            </p>
+          {normalizedNumber && displayNumber ? (
+            <div>
+              <p className="text-muted">Phone & WhatsApp</p>
+              <p className="mt-0.5">
+                <a
+                  href={`tel:+${normalizedNumber}`}
+                  className="underline underline-offset-4 hover:text-brass"
+                >
+                  {displayNumber}
+                </a>
+              </p>
+            </div>
+          ) : null}
+
+          <div>
+            <p className="text-muted">Hours</p>
+            <p className="mt-0.5">Mon–Sat, 9am–7pm EAT</p>
           </div>
         </aside>
       </div>
-    </div>
+    </section>
   );
 }

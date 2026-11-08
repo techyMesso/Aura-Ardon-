@@ -1,15 +1,23 @@
 import Link from "next/link";
-import { Gem } from "lucide-react";
+
+import { Section } from "@/components/storefront/section";
 
 export default function StorefrontNotFound() {
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-12 text-center">
-      <div className="max-w-md border border-border bg-card p-7 shadow-card">
-        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-champagne/70 bg-sand/45 text-bronze"><Gem className="h-6 w-6" aria-hidden /></span>
-        <h1 className="mt-5 font-serif text-3xl text-ink">This piece has moved on</h1>
-        <p className="mt-3 text-sm leading-6 text-muted">Browse the latest collection to find a new signature.</p>
-        <Link href="/shop" className="btn-primary mt-6 min-h-12">Browse collection</Link>
+    <Section containerClassName="max-w-2xl">
+      <div className="border border-stone bg-paper p-8">
+        <h1 className="font-display text-[32px] font-normal leading-[1.05] tracking-[-0.01em] text-text">
+          Piece not found
+        </h1>
+        <p className="mt-3 text-base text-muted">
+          This page or piece is no longer available.
+        </p>
+        <div className="mt-6">
+          <Link href="/shop" className="btn-primary">
+            Shop pieces
+          </Link>
+        </div>
       </div>
-    </div>
+    </Section>
   );
 }

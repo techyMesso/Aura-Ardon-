@@ -1,41 +1,34 @@
 import Link from "next/link";
-import { MapPin, PackageCheck, ReceiptText } from "lucide-react";
 
 export const metadata = {
-  title: "Shipping & Delivery",
-  description: "How Auro Ardon confirms delivery locations, fees, and order totals."
+  title: "Delivery",
+  description:
+    "Same-day Nairobi rider delivery and 1–2 day nationwide parcel dispatch across Kenya."
 };
 
 export default function ShippingPage() {
   return (
-    <section className="jewel-page">
-      <header className="jewel-header">
-        <p className="text-sm font-medium text-bronze">Delivery information</p>
-        <h1 className="heading-display mt-2">Clear details before dispatch</h1>
-        <p className="mt-4 text-muted">Delivery is coordinated from Nairobi using the location you provide at checkout.</p>
-      </header>
+    <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+        Delivery
+      </h1>
 
-      <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-3 md:gap-5">
-        <article className="border border-border/70 bg-card p-6 shadow-card">
-          <MapPin className="h-5 w-5 text-bronze" aria-hidden />
-          <h2 className="mt-5 font-serif text-2xl text-ink">Share your location</h2>
-          <p className="mt-2 text-sm leading-7 text-muted">Enter an estate, building, campus gate, pickup point, or another clear delivery reference.</p>
-        </article>
-        <article className="border border-border/70 bg-card p-6 shadow-card">
-          <ReceiptText className="h-5 w-5 text-bronze" aria-hidden />
-          <h2 className="mt-5 font-serif text-2xl text-ink">Fee shown with the order</h2>
-          <p className="mt-2 text-sm leading-7 text-muted">The checkout response supplies the saved subtotal, shipping fee, and final total. The storefront does not invent a delivery charge.</p>
-        </article>
-        <article className="border border-border/70 bg-card p-6 shadow-card">
-          <PackageCheck className="h-5 w-5 text-bronze" aria-hidden />
-          <h2 className="mt-5 font-serif text-2xl text-ink">Confirm the handoff</h2>
-          <p className="mt-2 text-sm leading-7 text-muted">Use checkout notes for delivery directions. The store can confirm any additional details directly.</p>
-        </article>
+      <div className="mt-8 space-y-6 font-sans text-[16px] leading-[1.5] text-text">
+        <p>
+          Orders placed before 2pm EAT are dispatched the same day by rider across Nairobi, including Westlands, Kilimani, Lavington, Kileleshwa, Karen, CBD, Parklands, Upper Hill, South B, South C, Lang&apos;ata, and Thika Road.
+        </p>
+        <p>
+          Orders outside Nairobi ship via courier and arrive within 1 to 2 business days depending on your town.
+        </p>
+        <p>
+          Your exact delivery fee is confirmed with your order total at checkout before our rider is dispatched.
+        </p>
       </div>
 
-      <div className="mt-12 text-center">
-        <p className="text-muted">Need to confirm whether your location is currently served?</p>
-        <Link href="/contact" className="btn-primary mt-5 min-h-12">Contact the store</Link>
+      <div className="mt-8">
+        <Link href="/shop" className="btn-primary">
+          Shop new in
+        </Link>
       </div>
     </section>
   );

@@ -1,11 +1,11 @@
 "use client";
 
-import { ShoppingBag, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { useCart } from "@/lib/cart";
+import { formatKES } from "@/components/storefront/price-kes";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
+import { useCart } from "@/lib/cart";
 import type { Product } from "@/lib/types";
 
 interface CheckoutModalProps {
@@ -22,11 +22,7 @@ export function CheckoutModal({
   const { addItem } = useCart();
   const router = useRouter();
 
-  if (!open) {
-    return null;
-  }
-
-  if (!product) {
+  if (!open || !product) {
     return null;
   }
 
@@ -39,36 +35,29 @@ export function CheckoutModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-4 backdrop-blur">
-      <div className="w-full max-w-xl border border-champagne/60 bg-card p-6 shadow-luxe sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A1216]/60 p-4">
+      <div className="w-full max-w-xl border border-stone bg-paper p-6 sm:p-8">
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-bronze">
-              Order this item
-            </p>
-            <h3 className="font-serif text-3xl text-ink">{selectedProduct.title}</h3>
+            <h3 className="font-display text-[28px] font-normal leading-[1.05] tracking-[-0.01em] text-text">
+              {selectedProduct.title}
+            </h3>
             <p className="mt-2 text-sm text-muted">
-              Add this piece to your cart and continue with a confirmed checkout for {formatCurrency(selectedProduct.price)}.
+              Add this piece to your cart and continue to checkout for {formatKES(selectedProduct.price)}.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-ink transition hover:bg-sand/50"
+            className="flex h-10 w-10 items-center justify-center rounded-[2px] text-text hover:bg-stone"
             aria-label="Close checkout"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="space-y-4">
-          <div className="border-l-2 border-champagne bg-sand/35 p-4 text-sm leading-6 text-muted">
-            Your order will be created during checkout, where you can choose Cash on Delivery or WhatsApp confirmation.
-          </div>
-          <Button type="button" className="min-h-12 w-full normal-case tracking-normal" onClick={handleCheckout}>
-            <ShoppingBag className="mr-2 h-4 w-4" />
-            Add to Cart and Checkout
-          </Button>
-        </div>
+        <Button type="button" className="w-full" onClick={handleCheckout}>
+          Add to cart and checkout
+        </Button>
       </div>
     </div>
   );

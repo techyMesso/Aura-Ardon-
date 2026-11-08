@@ -1,41 +1,31 @@
 import Link from "next/link";
-import { Camera, MessageCircle, PackageOpen } from "lucide-react";
 
 export const metadata = {
-  title: "Returns & Exchanges",
-  description: "How to contact Auro Ardon about an order issue, return, or exchange request."
+  title: "Returns",
+  description:
+    "How to request an exchange or report a damaged item within 48 hours of delivery."
 };
 
 export default function ReturnsPage() {
   return (
-    <section className="jewel-page">
-      <header className="jewel-header">
-        <p className="text-sm font-medium text-bronze">Order support</p>
-        <h1 className="heading-display mt-2">Returns and exchanges</h1>
-        <p className="mt-4 text-muted">Contact the store promptly so the condition of the item and the available resolution can be confirmed.</p>
-      </header>
+    <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+        Returns and exchanges
+      </h1>
 
-      <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-3 md:gap-5">
-        <article className="border border-border/70 bg-card p-6 shadow-card">
-          <MessageCircle className="h-5 w-5 text-bronze" aria-hidden />
-          <h2 className="mt-5 font-serif text-2xl text-ink">Start with your order</h2>
-          <p className="mt-2 text-sm leading-7 text-muted">Share your order reference, the item name, and the reason you need help.</p>
-        </article>
-        <article className="border border-border/70 bg-card p-6 shadow-card">
-          <Camera className="h-5 w-5 text-bronze" aria-hidden />
-          <h2 className="mt-5 font-serif text-2xl text-ink">Document any issue</h2>
-          <p className="mt-2 text-sm leading-7 text-muted">For an incorrect or damaged item, keep the packaging and provide clear photos when you contact the store.</p>
-        </article>
-        <article className="border border-border/70 bg-card p-6 shadow-card">
-          <PackageOpen className="h-5 w-5 text-bronze" aria-hidden />
-          <h2 className="mt-5 font-serif text-2xl text-ink">Wait for instructions</h2>
-          <p className="mt-2 text-sm leading-7 text-muted">Do not send an item before the store confirms eligibility and the correct return or exchange handoff.</p>
-        </article>
+      <div className="mt-8 space-y-6 font-sans text-[16px] leading-[1.5] text-text">
+        <p>
+          Inspect your piece on arrival. If an item arrives damaged or does not match what you ordered, message us within 48 hours with your order number and a clear photo.
+        </p>
+        <p>
+          Unworn necklaces, bracelets, rings, watches, and sets in their original pouch can be exchanged within Nairobi. For hygiene reasons, earrings cannot be returned once opened unless faulty.
+        </p>
       </div>
 
-      <div className="mt-12 text-center">
-        <p className="text-muted">Ready to discuss an order issue?</p>
-        <Link href="/contact" className="btn-primary mt-5 min-h-12">Contact the store</Link>
+      <div className="mt-8">
+        <Link href="/contact" className="btn-primary">
+          Contact us
+        </Link>
       </div>
     </section>
   );

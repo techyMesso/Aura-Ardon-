@@ -2,6 +2,9 @@
 
 import { useEffect } from "react";
 
+import { Section } from "@/components/storefront/section";
+import { Button } from "@/components/ui/button";
+
 export default function StorefrontError({
   error,
   reset,
@@ -14,27 +17,20 @@ export default function StorefrontError({
   }, [error]);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-12">
-      <div className="w-full max-w-xl space-y-6 border border-border bg-card p-7 text-center shadow-card">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-red-200 bg-red-50">
-          <svg className="h-6 w-6 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2v2m0 16v2m6-10l-4 4-4-4" />
-          </svg>
+    <Section containerClassName="max-w-2xl">
+      <div className="border border-stone bg-paper p-8">
+        <h1 className="font-display text-[32px] font-normal leading-[1.05] tracking-[-0.01em] text-text">
+          Something went wrong
+        </h1>
+        <p className="mt-3 text-base text-muted">
+          The page could not load. Check your connection and try again.
+        </p>
+        <div className="mt-6">
+          <Button type="button" onClick={() => reset()}>
+            Try again
+          </Button>
         </div>
-        <h2 className="text-2xl font-bold text-ink">Something went wrong</h2>
-        <p className="text-muted">
-          The collection could not load. Check your connection, then try again.
-        </p>
-        <button
-          onClick={() => reset()}
-          className="btn-primary"
-        >
-          Try again
-        </button>
-        <p className="text-xs text-muted/60">
-          If the problem persists, please contact us on WhatsApp.
-        </p>
       </div>
-    </div>
+    </Section>
   );
 }

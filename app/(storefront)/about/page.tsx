@@ -1,55 +1,36 @@
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowRight, Gem, MapPin, Sparkles } from "lucide-react";
+
+import { DEFAULT_PRODUCT_BLUR_DATA_URL } from "@/components/storefront/price-kes";
 
 export const metadata = {
-  title: "About Auro Ardon",
-  description: "Meet Auro Ardon, a Nairobi jewelry and accessories house for bold women."
+  title: "About",
+  description:
+    "Auro Ardon is a Nairobi jewelry house offering tarnish-free gold-tone stainless necklaces, bracelets, rings, earrings, watches, and gift sets."
 };
 
 export default function AboutPage() {
   return (
-    <div className="min-h-dvh overflow-hidden">
-      <section className="bg-ink text-white">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 md:px-6 lg:grid-cols-2 lg:px-10 lg:py-16">
-          <div className="flex flex-col justify-center">
-            <p className="text-sm font-medium text-champagne">Our point of view</p>
-            <h1 className="mt-2 font-serif text-5xl leading-[1] sm:text-6xl">Made for women who set the tone.</h1>
-            <p className="mt-5 max-w-xl text-base leading-8 text-white/70">
-              Auro Ardon is a Nairobi jewelry and accessories house built around bold styling, giftable details, and an ordering experience that stays personal.
-            </p>
-          </div>
-          <div className="relative aspect-[4/3] overflow-hidden border border-champagne/50 bg-ink">
-            <Image src="/hero-jewelry.png" alt="Auro Ardon jewelry styling" fill priority sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
-          </div>
-        </div>
-      </section>
+    <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+        About Auro Ardon
+      </h1>
 
-      <section className="mx-auto max-w-7xl px-5 py-16 md:px-6 lg:px-10 lg:py-20">
-        <div className="grid gap-4 md:grid-cols-3 md:gap-5">
-          {[
-            { title: "Nairobi rooted", copy: "The store and delivery experience are centered in Nairobi.", Icon: MapPin },
-            { title: "Bold by design", copy: "Each edit is chosen to finish a look rather than fade into it.", Icon: Sparkles },
-            { title: "Personal ordering", copy: "Checkout online or continue directly with the store through WhatsApp.", Icon: Gem }
-          ].map(value => (
-            <article key={value.title} className="border border-border/70 bg-card p-6 shadow-card">
-              <value.Icon className="h-5 w-5 text-bronze" aria-hidden />
-              <h2 className="mt-5 font-serif text-2xl text-ink">{value.title}</h2>
-              <p className="mt-2 text-sm leading-7 text-muted">{value.copy}</p>
-            </article>
-          ))}
-        </div>
+      <div className="relative mt-8 aspect-[16/10] w-full overflow-hidden rounded-none bg-paper">
+        <Image
+          src="/hero-jewelry.png"
+          alt="Auro Ardon gold-tone jewelry collection"
+          fill
+          priority
+          placeholder="blur"
+          blurDataURL={DEFAULT_PRODUCT_BLUR_DATA_URL}
+          sizes="(max-width: 1024px) 100vw, 896px"
+          className="object-cover"
+        />
+      </div>
 
-        <div className="mt-10 flex flex-col items-start justify-between gap-6 border-l-2 border-bronze bg-sand/60 p-7 sm:mt-12 sm:p-10 md:flex-row md:items-center">
-          <div>
-            <p className="text-sm font-medium text-bronze">The collection</p>
-            <h2 className="mt-2 font-serif text-4xl text-ink">Find the piece that speaks first.</h2>
-          </div>
-          <Link href="/shop" className="btn-primary min-h-12 shrink-0 bg-bronze text-white hover:bg-rose">
-            Shop now <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        </div>
-      </section>
-    </div>
+      <p className="mt-8 max-w-2xl font-sans text-[16px] leading-[1.5] text-text">
+        Auro Ardon is a Nairobi jewelry house stocking tarnish-free gold-tone stainless necklaces, bracelets, rings, earrings, watches, and gift sets. We inspect and pack every order at our Nairobi studio, dispatch across the city the same day when ordered before 2pm, and collect payment on delivery by cash or M-Pesa.
+      </p>
+    </section>
   );
 }
