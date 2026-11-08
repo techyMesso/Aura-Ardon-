@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal } from "lucide-react";
@@ -18,22 +18,46 @@ import type { Product } from "@/lib/types";
 const SORT_OPTIONS = ["newest", "price-asc", "price-desc"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
-export function ShopPageClient({ products }: { products: Product[] }) {
-  const pathname = usePathname();
-  const router = useRouter();
+function ShopUrlSync({
+  onSync
+}: {
+  onSync: (next: { sort: SortOption; inStock: boolean; queryText: string }) => void;
+}) {
   const searchParams = useSearchParams();
-  const { categories } = useCart();
-
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [priceRangeId, setPriceRangeId] = useState<string>("all");
-  const [selectedMaterial, setSelectedMaterial] = useState<string>("all");
-
   const requestedSort = searchParams.get("sort");
   const sort: SortOption = SORT_OPTIONS.includes(requestedSort as SortOption)
     ? (requestedSort as SortOption)
     : "newest";
   const inStock = searchParams.get("inStock") === "1";
   const queryText = (searchParams.get("q") ?? "").trim().toLowerCase();
+
+  useEffect(() => {
+    onSync({ sort, inStock, queryText });
+  }, [inStock, onSync, queryText, sort]);
+
+  return null;
+}
+
+export function ShopPageClient({ products }: { products: Product[] }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { categories } = useCart();
+
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [priceRangeId, setPriceRangeId] = useState<string>("all");
+  const [selectedMaterial, setSelectedMaterial] = useState<string>("all");
+  const [sort, setSort] = useState<SortOption>("newest");
+  const [inStock, setInStock] = useState(false);
+  const [queryText, setQueryText] = useState("");
+
+  const handleUrlSync = useCallback(
+    (next: { sort: SortOption; inStock: boolean; queryText: string }) => {
+      setSort(next.sort);
+      setInStock(next.inStock);
+      setQueryText(next.queryText);
+    },
+    []
+  );
 
   const priceRanges = useMemo(
     () => computeCatalogPriceRanges(products),
@@ -46,7 +70,17 @@ export function ShopPageClient({ products }: { products: Product[] }) {
   );
 
   function updateParam(key: string, value: string | null) {
-    const next = new URLSearchParams(searchParams.toString());
+    if (key === "sort") {
+      const nextSort: SortOption = SORT_OPTIONS.includes(value as SortOption)
+        ? (value as SortOption)
+        : "newest";
+      setSort(nextSort);
+    } else if (key === "inStock") {
+      setInStock(value === "1");
+    }
+    const currentSearch =
+      typeof window !== "undefined" ? window.location.search : "";
+    const next = new URLSearchParams(currentSearch);
     if (value) next.set(key, value);
     else next.delete(key);
     const query = next.toString();
@@ -56,7 +90,11 @@ export function ShopPageClient({ products }: { products: Product[] }) {
   function clearFilters() {
     setPriceRangeId("all");
     setSelectedMaterial("all");
-    const next = new URLSearchParams(searchParams.toString());
+    setInStock(false);
+    setQueryText("");
+    const currentSearch =
+      typeof window !== "undefined" ? window.location.search : "";
+    const next = new URLSearchParams(currentSearch);
     next.delete("inStock");
     next.delete("q");
     const query = next.toString();
@@ -221,6 +259,9 @@ export function ShopPageClient({ products }: { products: Product[] }) {
 
   return (
     <div>
+      <Suspense fallback={null}>
+        <ShopUrlSync onSync={handleUrlSync} />
+      </Suspense>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="font-sans text-[14px] leading-[1.5] text-muted" aria-live="polite">
           {filtered.length} {filtered.length === 1 ? "piece" : "pieces"}

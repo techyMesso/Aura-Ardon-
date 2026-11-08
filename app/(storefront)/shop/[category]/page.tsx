@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 
 import { listCategories, listProductsByCategory } from "@/lib/data";
 import { CollectionShell } from "@/components/storefront/collection-shell";
@@ -44,9 +43,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <CollectionShell categories={categories} activeCategory={category}>
-      <Suspense fallback={<div className="h-40 bg-stone" />}>
-        <ShopPageClient products={products} />
-      </Suspense>
+      <ShopPageClient products={products} />
     </CollectionShell>
   );
 }

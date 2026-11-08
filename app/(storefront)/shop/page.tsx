@@ -1,5 +1,3 @@
-import { Suspense } from "react";
-
 import { CollectionShell } from "@/components/storefront/collection-shell";
 import { ShopPageClient } from "@/components/storefront/shop-page-client";
 import { listCategories, listPublicProducts } from "@/lib/data";
@@ -19,15 +17,7 @@ export default async function ShopPage() {
 
   return (
     <CollectionShell categories={categories}>
-      <Suspense
-        fallback={
-          <div className="bg-stone p-8 font-sans text-[16px] leading-[1.5] text-text">
-            {products.length} {products.length === 1 ? "piece" : "pieces"}
-          </div>
-        }
-      >
-        <ShopPageClient products={products} />
-      </Suspense>
+      <ShopPageClient products={products} />
     </CollectionShell>
   );
 }
