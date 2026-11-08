@@ -99,19 +99,19 @@ export async function POST(request: Request) {
 
   try {
     const ip = getClientIp(request.headers);
-    const rateLimit = checkRateLimit({
-      key: `checkout:${ip}`,
-      limit: 10,
-      windowMs: 5 * 60 * 1000
+    const ipRateLimit = await checkRateLimit({
+      key: `checkout:ip:${ip}`,
+      limit: 5,
+      windowMs: 10 * 60 * 1000
     });
 
-    if (!rateLimit.ok) {
+    if (!ipRateLimit.ok) {
       return NextResponse.json(
         { error: "Too many checkout attempts. Please try again later." },
         {
           status: 429,
           headers: {
-            "Retry-After": `${rateLimit.retryAfterSeconds}`
+            "Retry-After": `${ipRateLimit.retryAfterSeconds}`
           }
         }
       );
@@ -127,17 +127,55 @@ export async function POST(request: Request) {
     }
 
     const payload = checkoutSchema.parse(await request.json());
-    const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+    const normalizedPhone = normalizeKenyanPhoneNumber(payload.customerPhone);
 
-    if (
-      payload.paymentMethod === "WHATSAPP" &&
-      !normalizeWhatsAppNumber(whatsappNumber)
-    ) {
+    const phoneRateLimit = await checkRateLimit({
+      key: `checkout:phone:${normalizedPhone}`,
+      limit: 5,
+      windowMs: 10 * 60 * 1000
+    });
+
+    if (!phoneRateLimit.ok) {
       return NextResponse.json(
-        { error: "WhatsApp ordering is not configured. Choose cash on delivery instead." },
-        { status: 503 }
+        { error: "Too many checkout attempts for this phone number. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": `${phoneRateLimit.retryAfterSeconds}`
+          }
+        }
       );
     }
+
+    const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+
+    if (payload.paymentMethod === "WHATSAPP") {
+      if (!normalizeWhatsAppNumber(whatsappNumber)) {
+        return NextResponse.json(
+          { error: "WhatsApp ordering is not configured. Choose cash on delivery instead." },
+          { status: 503 }
+        );
+      }
+
+      const whatsappRateLimit = await checkRateLimit({
+        key: `whatsapp-handoff:${ip}:${normalizedPhone}`,
+        limit: 5,
+        windowMs: 10 * 60 * 1000
+      });
+
+      if (!whatsappRateLimit.ok) {
+        return NextResponse.json(
+          { error: "Too many WhatsApp order requests. Please try again later." },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": `${whatsappRateLimit.retryAfterSeconds}`
+            }
+          }
+        );
+      }
+    }
+
     const supabase = createAdminSupabaseClient();
 
     // The database function performs the entire checkout inside one transaction:
@@ -150,7 +188,7 @@ export async function POST(request: Request) {
         .rpc("create_checkout_order" as never, {
           checkout_customer_name: payload.customerName,
           checkout_customer_email: payload.customerEmail ?? null,
-          checkout_customer_phone: normalizeKenyanPhoneNumber(payload.customerPhone),
+          checkout_customer_phone: normalizedPhone,
           checkout_customer_location: payload.customerLocation,
           checkout_notes: payload.notes ?? null,
           checkout_payment_method: payload.paymentMethod,

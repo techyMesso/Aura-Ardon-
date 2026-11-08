@@ -16,7 +16,7 @@ export async function GET(
   context: { params: Promise<{ token: string }> }
 ) {
   const ip = getClientIp(request.headers);
-  const rateLimit = checkRateLimit({
+  const rateLimit = await checkRateLimit({
     key: `order-status:${ip}`,
     limit: 30,
     windowMs: 5 * 60 * 1000

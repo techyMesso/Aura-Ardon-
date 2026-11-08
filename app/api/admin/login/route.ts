@@ -39,7 +39,7 @@ function jsonError(message: string, status: number) {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request.headers);
-  const rateLimit = checkRateLimit({
+  const rateLimit = await checkRateLimit({
     key: `admin-login:${ip}`,
     limit: 5,
     windowMs: 10 * 60 * 1000

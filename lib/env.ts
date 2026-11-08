@@ -80,3 +80,15 @@ export function getOrderStatusTokenSecret() {
 export function getRevalidateSecret() {
   return process.env.REVALIDATE_SECRET?.trim() || null;
 }
+
+export function getUpstashRedisEnv() {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+
+  if (!url || !token) {
+    return null;
+  }
+
+  return { url, token };
+}
+
