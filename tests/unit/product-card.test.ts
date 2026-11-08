@@ -226,7 +226,45 @@ describe("catalog price ranges and material chips", () => {
     );
     expect(formatProductTitle("GOLD-PLATED CUFF")).toBe("Gold-Plated Cuff");
   });
+
+  it("flags active products missing category_id, second image, or with names under 8 characters", async () => {
+    const { getCatalogQualityWarnings } = await import(
+      "@/lib/admin-product-filters"
+    );
+    const warnings = getCatalogQualityWarnings([
+      makeProduct({
+        id: "p1",
+        title: "Ring",
+        category_id: null,
+        images: ["https://x.supabase.co/1.jpg"],
+        active: true
+      }),
+      makeProduct({
+        id: "p2",
+        title: "Gold Statement Necklace",
+        category_id: "cat-1",
+        images: [
+          "https://x.supabase.co/1.jpg",
+          "https://x.supabase.co/2.jpg"
+        ],
+        active: true
+      }),
+      makeProduct({
+        id: "p3",
+        title: "Tiny",
+        category_id: null,
+        images: [],
+        active: false
+      })
+    ]);
+
+    expect(warnings.hasWarnings).toBe(true);
+    expect(warnings.missingCategory.map(p => p.id)).toEqual(["p1"]);
+    expect(warnings.missingSecondImage.map(p => p.id)).toEqual(["p1"]);
+    expect(warnings.shortName.map(p => p.id)).toEqual(["p1"]);
+  });
 });
+
 
 
 

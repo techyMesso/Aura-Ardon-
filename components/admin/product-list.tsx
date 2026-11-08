@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import {
   DEFAULT_PRODUCT_LIST_FILTERS,
   filterProducts,
+  getCatalogQualityWarnings,
   type ProductListFilters
 } from "@/lib/admin-product-filters";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
@@ -77,6 +78,7 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
   const [error, setError] = useState<string | null>(initialError);
   const [pendingMutation, setPendingMutation] = useState<{ productId: string; action: "updating" | "deleting" } | null>(null);
   const categories = useMemo(() => Array.from(new Set(products.map(product => product.category))).sort(), [products]);
+  const qualityWarnings = useMemo(() => getCatalogQualityWarnings(products), [products]);
   const filtered = useMemo(() => {
     const result = [...filterProducts(products, filters)];
     return result.sort((left, right) => {
@@ -145,6 +147,74 @@ export function ProductList({ initialProducts, initialError = null }: ProductLis
         </div>
         <Link href="/admin/products/new" className="hidden shrink-0 md:block"><Button><Plus className="mr-2 h-4 w-4" />New Product</Button></Link>
       </div>
+
+      {qualityWarnings.hasWarnings ? (
+        <div
+          role="region"
+          aria-label="Catalog quality warnings"
+          className="border border-brass/50 bg-stone p-4 text-sm text-text"
+        >
+          <p className="font-medium text-text">
+            Catalog data warnings on active products
+          </p>
+          <ul className="mt-2 space-y-1.5 text-muted">
+            {qualityWarnings.missingCategory.length > 0 ? (
+              <li>
+                <span className="font-medium text-text">
+                  No category assigned ({qualityWarnings.missingCategory.length}):
+                </span>{" "}
+                {qualityWarnings.missingCategory.map((item, index) => (
+                  <span key={item.id}>
+                    {index > 0 ? ", " : ""}
+                    <Link
+                      href={`/admin/products/${item.id}/edit`}
+                      className="text-brass underline underline-offset-2"
+                    >
+                      {item.title}
+                    </Link>
+                  </span>
+                ))}
+              </li>
+            ) : null}
+            {qualityWarnings.missingSecondImage.length > 0 ? (
+              <li>
+                <span className="font-medium text-text">
+                  Missing second image ({qualityWarnings.missingSecondImage.length}):
+                </span>{" "}
+                {qualityWarnings.missingSecondImage.map((item, index) => (
+                  <span key={item.id}>
+                    {index > 0 ? ", " : ""}
+                    <Link
+                      href={`/admin/products/${item.id}/edit`}
+                      className="text-brass underline underline-offset-2"
+                    >
+                      {item.title}
+                    </Link>
+                  </span>
+                ))}
+              </li>
+            ) : null}
+            {qualityWarnings.shortName.length > 0 ? (
+              <li>
+                <span className="font-medium text-text">
+                  Name under 8 characters ({qualityWarnings.shortName.length}):
+                </span>{" "}
+                {qualityWarnings.shortName.map((item, index) => (
+                  <span key={item.id}>
+                    {index > 0 ? ", " : ""}
+                    <Link
+                      href={`/admin/products/${item.id}/edit`}
+                      className="text-brass underline underline-offset-2"
+                    >
+                      {item.title}
+                    </Link>
+                  </span>
+                ))}
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:hidden">
         <label className="relative min-w-0">

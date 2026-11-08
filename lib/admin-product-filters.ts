@@ -43,3 +43,37 @@ export function filterProducts(products: Product[], filters: ProductListFilters)
     return filters.stock === "all" || getProductStockStatus(product.stock_quantity) === filters.stock;
   });
 }
+
+export interface CatalogQualityWarnings {
+  missingCategory: Product[];
+  missingSecondImage: Product[];
+  shortName: Product[];
+  hasWarnings: boolean;
+}
+
+export function getCatalogQualityWarnings(
+  products: Product[]
+): CatalogQualityWarnings {
+  const activeProducts = products.filter(product => product.active);
+
+  const missingCategory = activeProducts.filter(
+    product => !product.category_id
+  );
+  const missingSecondImage = activeProducts.filter(
+    product => (product.images?.filter(Boolean).length ?? 0) < 2
+  );
+  const shortName = activeProducts.filter(
+    product => (product.title?.trim().length ?? 0) < 8
+  );
+
+  return {
+    missingCategory,
+    missingSecondImage,
+    shortName,
+    hasWarnings:
+      missingCategory.length > 0 ||
+      missingSecondImage.length > 0 ||
+      shortName.length > 0
+  };
+}
+
