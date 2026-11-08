@@ -1,12 +1,46 @@
-import { describe, expect, it } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
 
-import { createCategoryMap } from "@/lib/catalog";
+import { ProductTile } from "@/components/storefront/product-tile";
+import { StorefrontUIProvider } from "@/components/storefront/storefront-context";
+import { CartProvider } from "@/lib/cart";
+import { createCategoryMap, productHref } from "@/lib/catalog";
 import {
   formatProductCardPrice,
   getProductCardAvailability,
   getProductCategoryLabel
 } from "@/lib/product-card";
 import type { Category, Product } from "@/lib/types";
+
+(globalThis as unknown as { React: typeof React }).React = React;
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
+}));
+
+vi.mock("next/link", () => ({
+  __esModule: true,
+  default: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => React.createElement("a", { href, ...rest }, children)
+}));
+
+vi.mock("next/image", () => ({
+  __esModule: true,
+  default: ({
+    src,
+    alt
+  }: {
+    src: string;
+    alt: string;
+  }) => React.createElement("img", { src, alt })
+}));
 
 const category: Category = {
   id: "category-1",
@@ -70,5 +104,41 @@ describe("product card stock state", () => {
 
   it("formats storefront card prices with the KSh prefix and two decimals", () => {
     expect(formatProductCardPrice("300")).toBe("KSh 300.00");
+  });
+});
+
+describe("productHref and ProductTile links", () => {
+  it("builds a canonical /p/[slug] href even when category_id is null or slug is empty", () => {
+    expect(productHref(makeProduct({ category_id: null, slug: "gold-bangle" }))).toBe("/p/gold-bangle");
+    expect(productHref(makeProduct({ category_id: null, slug: "", id: "uuid-99" }))).toBe("/p/uuid-99");
+  });
+
+  it("renders an anchor href to /p/[slug] wrapping image, name, and price for categorized and uncategorized products", () => {
+    const categorized = makeProduct({ slug: "plum-cuff", price: "1200" });
+    const uncategorized = makeProduct({
+      id: "uncat-1",
+      title: "Solo Ring",
+      slug: "solo-ring",
+      category_id: null,
+      category: "",
+      price: "850"
+    });
+
+    for (const product of [categorized, uncategorized]) {
+      const html = renderToStaticMarkup(
+        React.createElement(
+          CartProvider,
+          { categories: [] },
+          React.createElement(
+            StorefrontUIProvider,
+            { products: [product] },
+            React.createElement(ProductTile, { product })
+          )
+        )
+      );
+
+      expect(html).toContain(`href="/p/${product.slug}"`);
+      expect(html).toContain(product.title);
+    }
   });
 });

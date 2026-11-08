@@ -19,7 +19,7 @@ import type { Category, Product } from "@/lib/types";
 
 interface ProductDetailClientProps {
   product: Product;
-  category: Category;
+  category: Category | null;
   productUrl: string | null;
   whatsappNumber: string | null;
 }
@@ -164,10 +164,14 @@ export function ProductDetailClient({
         <Link href="/shop" className="hover:text-text">
           Shop
         </Link>
-        <span aria-hidden>/</span>
-        <Link href={`/shop/${category.slug}`} className="hover:text-text">
-          {category.name}
-        </Link>
+        {category ? (
+          <>
+            <span aria-hidden>/</span>
+            <Link href={`/shop/${category.slug}`} className="hover:text-text">
+              {category.name}
+            </Link>
+          </>
+        ) : null}
         <span aria-hidden>/</span>
         <span className="truncate text-text" aria-current="page">
           {product.title}
@@ -463,3 +467,4 @@ export function ProductDetailClient({
     </div>
   );
 }
+

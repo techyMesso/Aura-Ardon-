@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 
@@ -12,8 +13,8 @@ import {
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import {
   createCategoryMap,
-  getCanonicalProductPath,
-  getSafeCatalogImageUrl
+  getSafeCatalogImageUrl,
+  productHref
 } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
 import { getProductCategoryLabel } from "@/lib/product-card";
@@ -88,18 +89,16 @@ export function SearchCommandPalette() {
 
       if (event.key === "Enter" && results[activeIndex]) {
         const selected = results[activeIndex];
-        const path = getCanonicalProductPath(selected, categoryMap);
-        if (path) {
-          event.preventDefault();
-          closeSearch();
-          router.push(path);
-        }
+        const path = productHref(selected);
+        event.preventDefault();
+        closeSearch();
+        router.push(path);
       }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeIndex, categoryMap, closeSearch, results, router, searchOpen]);
+  }, [activeIndex, closeSearch, results, router, searchOpen]);
 
   if (!searchOpen) return null;
 
@@ -143,19 +142,16 @@ export function SearchCommandPalette() {
           {results.length > 0 ? (
             <ul role="listbox" aria-label="Search results" className="divide-y divide-text/10">
               {results.map((product, index) => {
-                const path = getCanonicalProductPath(product, categoryMap) ?? "/shop";
+                const path = productHref(product);
                 const image =
                   getSafeCatalogImageUrl(product.images[0]) || "/hero-jewelry.png";
                 const isSelected = index === activeIndex;
 
                 return (
                   <li key={product.id} role="option" aria-selected={isSelected}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        closeSearch();
-                        router.push(path);
-                      }}
+                    <Link
+                      href={path}
+                      onClick={closeSearch}
                       onMouseEnter={() => setActiveIndex(index)}
                       className={`flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left transition-colors ${
                         isSelected ? "bg-stone" : "bg-paper hover:bg-stone"
@@ -181,7 +177,7 @@ export function SearchCommandPalette() {
                         </p>
                       </div>
                       <PriceKES amount={product.price} className="shrink-0" />
-                    </button>
+                    </Link>
                   </li>
                 );
               })}

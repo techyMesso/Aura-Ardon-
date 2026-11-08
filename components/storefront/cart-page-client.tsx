@@ -13,18 +13,16 @@ import {
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import {
-  createCategoryMap,
-  getCanonicalProductPath,
-  getSafeCatalogImageUrl
+  getSafeCatalogImageUrl,
+  productHref
 } from "@/lib/catalog";
 import { useCart, useCartValue } from "@/lib/cart";
 import { createWhatsAppLink } from "@/lib/utils";
 
 export function CartPageClient() {
-  const { items, updateQuantity, removeItem, categories } = useCart();
+  const { items, updateQuantity, removeItem } = useCart();
   const { total, itemCount } = useCartValue();
   const { openCart, recentlyViewedProducts } = useStorefrontUI();
-  const categoryMap = createCategoryMap(categories);
 
   useEffect(() => {
     openCart();
@@ -62,10 +60,7 @@ export function CartPageClient() {
         <div className="mt-8 space-y-8">
           <ul className="divide-y divide-text/12 border-y border-text/12">
             {items.map(item => {
-              const productPath = getCanonicalProductPath(
-                item.product,
-                categoryMap
-              );
+              const productPath = productHref(item.product);
               const image =
                 getSafeCatalogImageUrl(item.product.images[0]) ||
                 "/hero-jewelry.png";
@@ -91,18 +86,12 @@ export function CartPageClient() {
 
                   <div className="flex min-w-0 flex-1 flex-col justify-between">
                     <div className="flex items-start justify-between gap-3">
-                      {productPath ? (
-                        <Link
-                          href={productPath}
-                          className="font-sans text-[16px] text-text hover:text-brass"
-                        >
-                          {item.product.title}
-                        </Link>
-                      ) : (
-                        <p className="font-sans text-[16px] text-text">
-                          {item.product.title}
-                        </p>
-                      )}
+                      <Link
+                        href={productPath}
+                        className="font-sans text-[16px] text-text hover:text-brass"
+                      >
+                        {item.product.title}
+                      </Link>
                       <button
                         type="button"
                         onClick={() => removeItem(item.product.id)}

@@ -44,12 +44,16 @@ export function resolveProductCategory(
   return categories.get(product.category_id) ?? null;
 }
 
-export function getCanonicalProductPath(
-  product: Product,
-  categories: CategoryMap
-) {
-  const category = resolveProductCategory(product, categories);
-  if (!category) return null;
-
-  return `/shop/${category.slug}/${product.slug || product.id}`;
+export function productHref(product: Pick<Product, "id" | "slug">): string {
+  const identifier = (product.slug || product.id).trim();
+  return `/p/${encodeURIComponent(identifier)}`;
 }
+
+export function getCanonicalProductPath(
+  product: Pick<Product, "id" | "slug">,
+  _categories?: CategoryMap
+) {
+  void _categories;
+  return productHref(product);
+}
+

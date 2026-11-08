@@ -12,10 +12,10 @@ export const contentType = "image/png";
 export default async function ProductOpenGraphImage({
   params
 }: {
-  params: Promise<{ category: string; product: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { product: productSlug } = await params;
-  const product = await getProductBySlug(productSlug);
+  const { slug } = await params;
+  const product = await getProductBySlug(decodeURIComponent(slug));
   const siteUrl = getOptionalSiteUrl() ?? "https://aura-ardon.vercel.app";
 
   const rawImage = getSafeCatalogImageUrl(product?.images[0]);
@@ -95,7 +95,7 @@ export default async function ProductOpenGraphImage({
           </div>
 
           <div style={{ fontSize: 20, color: "rgba(26, 18, 22, 0.6)" }}>
-            Same-day delivery in Nairobi · Pay on delivery
+            Same-day delivery in Nairobi — Pay on delivery
           </div>
         </div>
       </div>

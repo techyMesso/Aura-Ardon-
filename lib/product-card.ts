@@ -1,5 +1,7 @@
-import { resolveProductCategory, type CategoryMap } from "@/lib/catalog";
+import { productHref, resolveProductCategory, type CategoryMap } from "@/lib/catalog";
 import type { Product } from "@/lib/types";
+
+export { productHref };
 
 export const PRODUCT_CARD_LOW_STOCK_THRESHOLD = 5;
 

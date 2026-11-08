@@ -12,15 +12,14 @@ import {
 } from "@/components/storefront/price-kes";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import {
-  createCategoryMap,
-  getCanonicalProductPath,
-  getSafeCatalogImageUrl
+  getSafeCatalogImageUrl,
+  productHref
 } from "@/lib/catalog";
 import { useCart, useCartValue } from "@/lib/cart";
 import { createWhatsAppLink } from "@/lib/utils";
 
 export function CartDrawer() {
-  const { items, updateQuantity, removeItem, categories } = useCart();
+  const { items, updateQuantity, removeItem } = useCart();
   const { total, itemCount } = useCartValue();
   const {
     cartOpen,
@@ -30,7 +29,6 @@ export function CartDrawer() {
     recentlyViewedProducts
   } = useStorefrontUI();
 
-  const categoryMap = createCategoryMap(categories);
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
 
   const cartWhatsAppMessage = [
@@ -108,10 +106,7 @@ export function CartDrawer() {
         ) : (
           <ul className="divide-y divide-text/12">
             {items.map(item => {
-              const productPath = getCanonicalProductPath(
-                item.product,
-                categoryMap
-              );
+              const productPath = productHref(item.product);
               const image =
                 getSafeCatalogImageUrl(item.product.images[0]) ||
                 "/hero-jewelry.png";
@@ -136,19 +131,13 @@ export function CartDrawer() {
 
                   <div className="flex min-w-0 flex-1 flex-col justify-between">
                     <div className="flex items-start justify-between gap-2">
-                      {productPath ? (
-                        <Link
-                          href={productPath}
-                          onClick={closeCart}
-                          className="truncate font-sans text-[14px] text-text hover:text-brass"
-                        >
-                          {item.product.title}
-                        </Link>
-                      ) : (
-                        <p className="truncate font-sans text-[14px] text-text">
-                          {item.product.title}
-                        </p>
-                      )}
+                      <Link
+                        href={productPath}
+                        onClick={closeCart}
+                        className="truncate font-sans text-[14px] text-text hover:text-brass"
+                      >
+                        {item.product.title}
+                      </Link>
                       <button
                         type="button"
                         onClick={() => removeItem(item.product.id)}
@@ -222,23 +211,19 @@ export function CartDrawer() {
             </div>
             <ul className="mt-3 divide-y divide-text/10">
               {wishlistProducts.map(product => {
-                const path = getCanonicalProductPath(product, categoryMap);
+                const path = productHref(product);
                 return (
                   <li
                     key={product.id}
                     className="flex items-center justify-between gap-2 py-2.5 text-[14px]"
                   >
-                    {path ? (
-                      <Link
-                        href={path}
-                        onClick={closeCart}
-                        className="truncate text-text hover:text-brass"
-                      >
-                        {product.title}
-                      </Link>
-                    ) : (
-                      <span className="truncate text-text">{product.title}</span>
-                    )}
+                    <Link
+                      href={path}
+                      onClick={closeCart}
+                      className="truncate text-text hover:text-brass"
+                    >
+                      {product.title}
+                    </Link>
                     <div className="flex shrink-0 items-center gap-3">
                       <PriceKES amount={product.price} />
                       <button
@@ -263,14 +248,14 @@ export function CartDrawer() {
             </h3>
             <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-2">
               {recentlyViewedProducts.slice(0, 6).map(product => {
-                const path = getCanonicalProductPath(product, categoryMap);
+                const path = productHref(product);
                 const image =
                   getSafeCatalogImageUrl(product.images[0]) ||
                   "/hero-jewelry.png";
                 return (
                   <Link
                     key={product.id}
-                    href={path ?? "/shop"}
+                    href={path}
                     onClick={closeCart}
                     className="w-24 shrink-0"
                   >
