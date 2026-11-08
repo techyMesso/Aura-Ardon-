@@ -37,27 +37,28 @@ export async function generateStaticParams() {
   });
 }
 
-export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params
+}: ProductPageProps): Promise<Metadata> {
   const { category: categorySlug, product: productSlug } = await params;
   const [product, categories] = await Promise.all([
     getProductBySlug(productSlug),
     listCategories()
   ]);
-  if (!product) return { title: "Product Not Found" };
+  if (!product) return { title: "Product not found" };
 
   const categoryMap = createCategoryMap(categories);
   const category = resolveProductCategory(product, categoryMap);
   const productPath = getCanonicalProductPath(product, categoryMap);
   if (!category || !productPath || category.slug !== categorySlug) {
-    return { title: "Product Not Found" };
+    return { title: "Product not found" };
   }
 
   const siteUrl = getOptionalSiteUrl();
   const canonicalUrl = siteUrl ? `${siteUrl}${productPath}` : null;
-  const image = getSafeCatalogImageUrl(product.images[0])
-    || (siteUrl ? `${siteUrl}/hero-jewelry.png` : "/hero-jewelry.png");
-  const description = product.description.trim().slice(0, 160)
-    || `Shop ${product.title} from Auro Ardon.`;
+  const description =
+    product.description.trim().slice(0, 160) ||
+    `${product.title} from Auro Ardon in Nairobi.`;
 
   return {
     title: product.title,
@@ -67,8 +68,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
       type: "website",
       title: product.title,
       description,
-      url: canonicalUrl ?? undefined,
-      images: [{ url: image, alt: product.title }]
+      url: canonicalUrl ?? undefined
     }
   };
 }
@@ -113,9 +113,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
       "@type": "Offer",
       priceCurrency: "KES",
       price: Number(product.price).toFixed(2),
-      availability: product.stock_quantity > 0
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
+      availability:
+        product.stock_quantity > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
       ...(productUrl ? { url: productUrl } : {})
     }
   };
@@ -134,15 +135,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
         productUrl={productUrl}
         whatsappNumber={process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? null}
       />
-      {relatedProducts.length ? (
-        <section className="mx-auto max-w-7xl px-5 pb-10 pt-6 md:px-6 lg:px-10 lg:pt-12">
-          <div className="mb-7 flex items-end justify-between gap-4">
-            <div>
-              <p className="section-label">More in {category.name}</p>
-              <h2 className="mt-2 font-serif text-3xl text-ink sm:text-4xl">You may also like</h2>
-            </div>
-          </div>
-          <ProductGallery products={relatedProducts} mode="compact" />
+      {relatedProducts.length > 0 ? (
+        <section className="mx-auto max-w-7xl px-4 pb-14 pt-6 sm:px-6 lg:px-10">
+          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+            Wear it with
+          </h2>
+          <ProductGallery products={relatedProducts} columns={4} />
         </section>
       ) : null}
     </>

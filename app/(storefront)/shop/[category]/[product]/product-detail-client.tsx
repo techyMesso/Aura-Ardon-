@@ -3,21 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Expand,
-  MessageCircle,
-  Minus,
-  Plus,
-  ShieldCheck,
-  X
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, Minus, Plus, X } from "lucide-react";
 
+import {
+  DEFAULT_PRODUCT_BLUR_DATA_URL,
+  formatKES,
+  PriceKES
+} from "@/components/storefront/price-kes";
+import { ProductGallery } from "@/components/storefront/product-gallery";
+import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import { useCart } from "@/lib/cart";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
-import { createWhatsAppLink, formatCurrency } from "@/lib/utils";
+import { createWhatsAppLink } from "@/lib/utils";
 import type { Category, Product } from "@/lib/types";
 
 interface ProductDetailClientProps {
@@ -34,52 +31,72 @@ export function ProductDetailClient({
   whatsappNumber
 }: ProductDetailClientProps) {
   const { addItem, items } = useCart();
+  const {
+    openCart,
+    isWishlisted,
+    toggleWishlist,
+    recordRecentlyViewed,
+    recentlyViewedProducts
+  } = useStorefrontUI();
+
   const safeImages = product.images
     .map(getSafeCatalogImageUrl)
     .filter((image): image is string => Boolean(image));
   const images = safeImages.length ? safeImages : ["/hero-jewelry.png"];
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
   const [status, setStatus] = useState("");
+
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const mainImageButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const didSwipeRef = useRef(false);
-  const quantityInCart = items.find(item => item.product.id === product.id)?.quantity ?? 0;
+
+  const quantityInCart =
+    items.find(item => item.product.id === product.id)?.quantity ?? 0;
   const remaining = Math.max(0, product.stock_quantity - quantityInCart);
   const soldOut = product.stock_quantity < 1;
-  const stockLabel = soldOut
-    ? "Sold out"
-    : product.stock_quantity <= 3
-      ? "Only a few left"
-      : "In stock";
-  const whatsappUrl = productUrl && whatsappNumber
-    ? createWhatsAppLink(
-        whatsappNumber,
-        soldOut
-          ? [
-              "Hello Auro Ardon, please let me know when this piece is restocked:",
-              product.title,
-              `Product: ${productUrl}`
-            ].join("\n")
-          : [
-              "Hello Auro Ardon, I would like to order:",
-              product.title,
-              `Quantity: ${quantity}`,
-              `Price: ${formatCurrency(product.price)}`,
-              `Product: ${productUrl}`
-            ].join("\n")
-      )
-    : null;
+  const lowStock = !soldOut && product.stock_quantity <= 3;
+  const wishlisted = isWishlisted(product.id);
+
+  const effectiveWhatsAppNumber =
+    whatsappNumber ?? process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
+
+  const askMessage = [
+    `Hello Auro Ardon, I have a question about ${product.title} (${formatKES(product.price)}).`,
+    ...(productUrl ? [`Link: ${productUrl}`] : [])
+  ].join("\n");
+
+  const notifyMessage = [
+    `Hello Auro Ardon, please notify me when ${product.title} is back in stock.`,
+    ...(productUrl ? [`Link: ${productUrl}`] : [])
+  ].join("\n");
+
+  const askWhatsAppUrl = createWhatsAppLink(effectiveWhatsAppNumber, askMessage);
+  const notifyWhatsAppUrl = createWhatsAppLink(
+    effectiveWhatsAppNumber,
+    notifyMessage
+  );
 
   useEffect(() => {
-    if (remaining > 0 && quantity > remaining) setQuantity(remaining);
+    recordRecentlyViewed(product.id);
+  }, [product.id, recordRecentlyViewed]);
+
+  useEffect(() => {
+    if (remaining > 0 && quantity > remaining) {
+      setQuantity(remaining);
+    }
   }, [quantity, remaining]);
 
   useEffect(() => {
-    if (!lightboxOpen) return;
+    if (!lightboxOpen) {
+      setZoomScale(1);
+      return;
+    }
     const previousOverflow = document.body.style.overflow;
     const mainImageButton = mainImageButtonRef.current;
     document.body.style.overflow = "hidden";
@@ -91,22 +108,9 @@ export function ProductDetailClient({
         setSelectedIndex(current => (current + 1) % images.length);
       }
       if (event.key === "ArrowLeft") {
-        setSelectedIndex(current => (current - 1 + images.length) % images.length);
-      }
-      if (event.key === "Tab") {
-        const controls = dialogRef.current?.querySelectorAll<HTMLButtonElement>(
-          "button:not(:disabled)"
+        setSelectedIndex(
+          current => (current - 1 + images.length) % images.length
         );
-        if (!controls?.length) return;
-        const first = controls[0];
-        const last = controls[controls.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
       }
     }
 
@@ -118,19 +122,12 @@ export function ProductDetailClient({
     };
   }, [images.length, lightboxOpen]);
 
-  function increment() {
-    setQuantity(current => Math.min(current + 1, Math.max(remaining, 1)));
-  }
-
-  function decrement() {
-    setQuantity(current => Math.max(1, current - 1));
-  }
-
-  function handleAddToCart() {
+  function handleAddToBag() {
     if (remaining < 1) return;
     const amount = Math.min(quantity, remaining);
     addItem(product, amount);
-    setStatus(`${amount} ${amount === 1 ? "piece" : "pieces"} of ${product.title} added to cart.`);
+    setStatus(`${product.title} added to bag.`);
+    openCart();
   }
 
   function showPrevious() {
@@ -154,18 +151,34 @@ export function ProductDetailClient({
     }, 0);
   }
 
+  const otherRecentlyViewed = recentlyViewedProducts
+    .filter(item => item.id !== product.id)
+    .slice(0, 4);
+
   return (
-    <div className="mx-auto max-w-7xl px-5 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:pb-12 md:pt-8 lg:px-10 lg:pt-12">
-      <nav className="mb-6 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-muted" aria-label="Breadcrumb">
-        <Link href="/shop" className="shrink-0 hover:text-bronze">Shop</Link>
+    <div className="mx-auto max-w-7xl px-4 pb-12 pt-6 sm:px-6 lg:px-10 lg:pt-10">
+      <nav
+        className="mb-6 flex items-center gap-2 font-sans text-[14px] text-muted"
+        aria-label="Breadcrumb"
+      >
+        <Link href="/shop" className="hover:text-text">
+          Shop
+        </Link>
         <span aria-hidden>/</span>
-        <Link href={`/shop/${category.slug}`} className="shrink-0 hover:text-bronze">{category.name}</Link>
+        <Link href={`/shop/${category.slug}`} className="hover:text-text">
+          {category.name}
+        </Link>
         <span aria-hidden>/</span>
-        <span className="truncate text-ink" aria-current="page">{product.title}</span>
+        <span className="truncate text-text" aria-current="page">
+          {product.title}
+        </span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
-        <section aria-label={`${product.title} images`}>
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-14">
+        <section
+          aria-label={`${product.title} gallery`}
+          className="lg:sticky lg:top-20 lg:h-fit"
+        >
           <button
             ref={mainImageButtonRef}
             type="button"
@@ -176,186 +189,275 @@ export function ProductDetailClient({
               touchStartX.current = event.touches[0]?.clientX ?? null;
             }}
             onTouchEnd={handleGalleryTouchEnd}
-            className="group relative block aspect-[4/5] w-full overflow-hidden rounded-[1.75rem] bg-sand shadow-card [touch-action:pinch-zoom]"
-            aria-label={`Open enlarged image of ${product.title}`}
+            className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-none bg-paper [touch-action:pinch-zoom]"
+            style={{ viewTransitionName: `product-image-${product.id}` }}
+            aria-label={`Zoom image of ${product.title}`}
           >
             <Image
               src={images[selectedIndex]}
-              alt={`${product.title}, view ${selectedIndex + 1} of ${images.length}`}
+              alt={`${product.title}, photo ${selectedIndex + 1} of ${images.length}`}
               fill
               priority
-              sizes="(max-width: 1024px) 100vw, 54vw"
-              className="object-cover transition duration-500 group-hover:scale-[1.02]"
+              placeholder="blur"
+              blurDataURL={
+                product.blur_data_url || DEFAULT_PRODUCT_BLUR_DATA_URL
+              }
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
             />
-            <span className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full bg-ink/82 text-white backdrop-blur">
-              <Expand className="h-4 w-4" aria-hidden />
-            </span>
-            <span className="absolute left-4 top-4 rounded-full bg-ink/82 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">{selectedIndex + 1} / {images.length}</span>
           </button>
 
           {images.length > 1 ? (
-            <div className="no-scrollbar mt-4 flex gap-3 overflow-x-auto pb-2" aria-label="Choose product image">
+            <div
+              className="no-scrollbar mt-3 flex gap-2 overflow-x-auto"
+              aria-label="Product thumbnails"
+            >
               {images.map((image, index) => (
                 <button
                   key={`${image}-${index}`}
                   type="button"
                   onClick={() => setSelectedIndex(index)}
-                  aria-label={`Show image ${index + 1}`}
+                  aria-label={`View photo ${index + 1}`}
                   aria-pressed={selectedIndex === index}
-                  className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 transition sm:h-24 sm:w-24 ${
-                    selectedIndex === index ? "border-bronze" : "border-transparent"
+                  className={`relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-none bg-paper ${
+                    selectedIndex === index
+                      ? "ring-2 ring-brass"
+                      : "opacity-70 hover:opacity-100"
                   }`}
                 >
-                  <Image src={image} alt="" fill loading="lazy" sizes="96px" className="object-cover" />
+                  <Image
+                    src={image}
+                    alt=""
+                    fill
+                    loading="lazy"
+                    sizes="80px"
+                    className="object-cover"
+                  />
                 </button>
               ))}
             </div>
           ) : null}
         </section>
 
-        <section className="border border-border/70 bg-card p-5 shadow-card lg:sticky lg:top-24 lg:h-fit lg:p-7">
-          <p className="text-sm font-medium text-bronze">{category.name}</p>
-          <h1 className="mt-2 font-serif text-4xl leading-[1.03] text-ink sm:text-5xl">{product.title}</h1>
-          <p className="mt-4 text-2xl font-semibold text-ink">{formatCurrency(product.price)}</p>
+        <section className="flex flex-col">
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-serif text-[32px] font-normal leading-[1.05] tracking-[-0.01em] text-text">
+              {product.title}
+            </h1>
+            <button
+              type="button"
+              onClick={() => toggleWishlist(product.id)}
+              aria-label={
+                wishlisted
+                  ? `Remove ${product.title} from wishlist`
+                  : `Save ${product.title} to wishlist`
+              }
+              aria-pressed={wishlisted}
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-[2px] border border-text/15 text-text hover:text-brass"
+            >
+              <Heart
+                className={`h-4 w-4 ${
+                  wishlisted ? "fill-brass text-brass" : "text-text"
+                }`}
+                aria-hidden
+              />
+            </button>
+          </div>
 
-          <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-ink">
-            <span className={`h-2.5 w-2.5 rounded-full ${soldOut ? "bg-muted" : product.stock_quantity <= 3 ? "bg-amber-600" : "bg-emerald-700"}`} />
-            {stockLabel}
+          <div className="mt-2 flex items-baseline gap-3">
+            <PriceKES amount={product.price} className="text-[18px]" />
+            {lowStock ? (
+              <span className="font-sans text-[14px] text-muted">
+                Low stock ({product.stock_quantity} left)
+              </span>
+            ) : soldOut ? (
+              <span className="font-sans text-[14px] text-muted">
+                Out of stock
+              </span>
+            ) : null}
           </div>
 
           {product.description ? (
-            <p className="mt-6 text-base leading-7 text-muted">{product.description}</p>
-          ) : null}
-          {product.material ? (
-            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-border/60 bg-white/70 px-4 py-3 text-sm text-ink">
-              <ShieldCheck className="h-4 w-4 shrink-0 text-bronze" aria-hidden />
-              <span><span className="font-semibold">Material:</span> {product.material}</span>
-            </div>
+            <p className="mt-5 font-sans text-[16px] leading-[1.5] text-text">
+              {product.description}
+            </p>
           ) : null}
 
-          <div className="mt-6 border-t border-border/70 pt-5">
-            <label className="block text-sm font-semibold text-ink" htmlFor="product-quantity">Quantity</label>
-            <div className="mt-3 inline-flex min-h-12 items-center rounded-full border border-border bg-white p-1">
-              <button
-                type="button"
-                onClick={decrement}
-                disabled={quantity <= 1 || remaining < 1}
-                className="flex h-11 w-11 items-center justify-center rounded-full text-ink transition hover:bg-sand/50 disabled:text-muted/40"
-                aria-label="Decrease quantity"
-              >
-                <Minus className="h-4 w-4" aria-hidden />
-              </button>
-              <output id="product-quantity" className="min-w-10 text-center font-semibold text-ink" aria-live="polite">{quantity}</output>
-              <button
-                type="button"
-                onClick={increment}
-                disabled={remaining < 1 || quantity >= remaining}
-                className="flex h-11 w-11 items-center justify-center rounded-full text-ink transition hover:bg-sand/50 disabled:text-muted/40"
-                aria-label="Increase quantity"
-              >
-                <Plus className="h-4 w-4" aria-hidden />
-              </button>
-            </div>
+          <div className="mt-6 space-y-3 border-t border-text/12 pt-6">
+            {!soldOut ? (
+              <div className="flex items-center gap-3">
+                <div className="inline-flex h-11 items-center rounded-[2px] border border-text/20 bg-paper">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(current => Math.max(1, current - 1))}
+                    disabled={quantity <= 1 || remaining < 1}
+                    aria-label="Decrease quantity"
+                    className="flex h-11 w-10 items-center justify-center text-text hover:text-brass disabled:opacity-40"
+                  >
+                    <Minus className="h-4 w-4" aria-hidden />
+                  </button>
+                  <output
+                    id="product-quantity"
+                    className="min-w-8 text-center font-sans text-[14px] text-text"
+                    aria-live="polite"
+                  >
+                    {quantity}
+                  </output>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuantity(current =>
+                        Math.min(current + 1, Math.max(remaining, 1))
+                      )
+                    }
+                    disabled={remaining < 1 || quantity >= remaining}
+                    aria-label="Increase quantity"
+                    className="flex h-11 w-10 items-center justify-center text-text hover:text-brass disabled:opacity-40"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
 
-            {quantityInCart > 0 ? (
-              <p className="mt-2 text-xs text-muted">{quantityInCart} already in your cart.</p>
-            ) : null}
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                disabled={remaining < 1}
-                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-bronze px-5 text-sm font-semibold tracking-[0.04em] text-white transition-colors hover:bg-rose disabled:cursor-not-allowed disabled:bg-sand disabled:text-muted"
+                <button
+                  type="button"
+                  onClick={handleAddToBag}
+                  disabled={remaining < 1}
+                  className="btn-primary flex-1"
+                >
+                  {remaining < 1 ? "Bag limit reached" : "Add to bag"}
+                </button>
+              </div>
+            ) : notifyWhatsAppUrl ? (
+              <a
+                href={notifyWhatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary w-full"
               >
-                <Check className="h-4 w-4" aria-hidden />
-                {soldOut ? "Sold out" : remaining < 1 ? "Cart limit reached" : "Add to cart"}
+                Notify me on WhatsApp
+              </a>
+            ) : (
+              <button type="button" disabled className="btn-primary w-full">
+                Out of stock
               </button>
-              {whatsappUrl ? (
+            )}
+
+            {askWhatsAppUrl ? (
+              <div>
                 <a
-                  href={whatsappUrl}
+                  href={askWhatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-border bg-white px-5 text-sm font-semibold text-ink transition-colors hover:bg-sand/40"
+                  className="inline-block font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-brass"
                 >
-                  <MessageCircle className="h-4 w-4" aria-hidden />
-                  {soldOut ? "Ask about restock" : "WhatsApp"}
+                  Ask about this piece on WhatsApp
                 </a>
-              ) : null}
-            </div>
-            {!whatsappUrl ? (
-              <p className="mt-3 text-xs leading-5 text-muted">WhatsApp ordering is unavailable until the store contact number and site URL are configured.</p>
+              </div>
             ) : null}
-            <p className="sr-only" aria-live="polite" aria-atomic="true">{status}</p>
+
+            <p className="pt-1 font-sans text-[14px] leading-[1.5] text-muted">
+              Order by 2pm for same-day delivery in Nairobi. 1–2 days elsewhere in Kenya.
+            </p>
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+              {status}
+            </p>
           </div>
+
+          <dl className="mt-8 divide-y divide-text/12 border-y border-text/12 font-sans text-[14px] leading-[1.5]">
+            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+              <dt className="text-muted">Material</dt>
+              <dd className="text-text">
+                {product.material || "Gold-tone stainless steel"}
+              </dd>
+            </div>
+            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+              <dt className="text-muted">Finish</dt>
+              <dd className="text-text">Tarnish-free polished finish</dd>
+            </div>
+            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+              <dt className="text-muted">Length / size</dt>
+              <dd className="text-text">Standard fit</dd>
+            </div>
+            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+              <dt className="text-muted">Care</dt>
+              <dd className="text-text">Wipe dry; keep away from perfume</dd>
+            </div>
+            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
+              <dt className="text-muted">In the box</dt>
+              <dd className="text-text">Auro Ardon pouch and care card</dd>
+            </div>
+          </dl>
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom))] z-30 border-t border-border/60 bg-white/96 px-3 py-2.5 shadow-[0_-8px_30px_rgba(43,20,37,0.12)] backdrop-blur md:hidden">
-        <div className="mx-auto flex max-w-7xl items-center gap-2">
-          <div className="min-w-0 flex-1 pl-1">
-            <p className="truncate text-xs font-semibold text-ink">{product.title}</p>
-            <p className="text-sm font-semibold text-bronze">{formatCurrency(product.price)}</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={remaining < 1}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-bronze px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-sand disabled:text-muted"
-          >
-            {soldOut ? "Sold out" : remaining < 1 ? "Limit reached" : "Add to cart"}
-          </button>
-          {whatsappUrl ? (
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bronze text-white"
-              aria-label={soldOut ? "Ask about this product restock on WhatsApp" : "Order this product via WhatsApp"}
-            >
-              <MessageCircle className="h-5 w-5" aria-hidden />
-            </a>
-          ) : null}
-        </div>
-      </div>
+      {otherRecentlyViewed.length > 0 ? (
+        <section className="mt-14 border-t border-text/12 pt-10">
+          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+            Recently viewed
+          </h2>
+          <ProductGallery products={otherRecentlyViewed} columns={4} />
+        </section>
+      ) : null}
 
       {lightboxOpen ? (
         <div
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
-          aria-label={`${product.title} image viewer`}
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 p-3 sm:p-8"
+          aria-label={`${product.title} zoom viewer`}
+          onWheel={event => {
+            event.preventDefault();
+            setZoomScale(current =>
+              Math.min(2.5, Math.max(1, current - event.deltaY * 0.002))
+            );
+          }}
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/95 p-4"
         >
           <button
             ref={closeButtonRef}
             type="button"
             onClick={() => setLightboxOpen(false)}
-            className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:right-6 sm:top-6"
+            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-[2px] bg-paper text-text"
             aria-label="Close image viewer"
           >
             <X className="h-5 w-5" aria-hidden />
           </button>
+
           {images.length > 1 ? (
-            <button type="button" onClick={showPrevious} className="absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:left-6" aria-label="Previous image">
-              <ChevronLeft className="h-6 w-6" aria-hidden />
+            <button
+              type="button"
+              onClick={showPrevious}
+              className="absolute left-4 z-10 flex h-10 w-10 items-center justify-center rounded-[2px] bg-paper text-text"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="h-5 w-5" aria-hidden />
             </button>
           ) : null}
-          <div className="relative h-full max-h-[90vh] w-full max-w-5xl [touch-action:pinch-zoom]">
+
+          <div
+            onClick={() => setZoomScale(current => (current > 1 ? 1 : 1.75))}
+            className="relative h-full max-h-[88vh] w-full max-w-4xl cursor-zoom-in overflow-hidden [touch-action:pinch-zoom]"
+            style={{ transform: `scale(${zoomScale})` }}
+          >
             <Image
               src={images[selectedIndex]}
-              alt={`${product.title}, enlarged view ${selectedIndex + 1}`}
+              alt={`${product.title}, enlarged photo ${selectedIndex + 1}`}
               fill
               sizes="100vw"
               className="object-contain"
             />
           </div>
+
           {images.length > 1 ? (
-            <button type="button" onClick={showNext} className="absolute right-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:right-6" aria-label="Next image">
-              <ChevronRight className="h-6 w-6" aria-hidden />
+            <button
+              type="button"
+              onClick={showNext}
+              className="absolute right-4 z-10 flex h-10 w-10 items-center justify-center rounded-[2px] bg-paper text-text"
+              aria-label="Next image"
+            >
+              <ChevronRight className="h-5 w-5" aria-hidden />
             </button>
           ) : null}
-          <p className="absolute bottom-3 text-xs text-white/70 sm:bottom-6">{selectedIndex + 1} / {images.length}</p>
         </div>
       ) : null}
     </div>
