@@ -284,6 +284,37 @@ describe("catalog price ranges and material chips", () => {
     expect(warnings.shortName.map(p => p.id)).toEqual(["p1"]);
     expect(warnings.missingFinishSizeInTheBox.map(p => p.id)).toEqual(["p1"]);
   });
+
+  it("builds absolute URLs from NEXT_PUBLIC_SITE_URL with a hard fallback to https://aura-ardon.vercel.app", async () => {
+    const previousSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    const previousVercelUrl = process.env.VERCEL_URL;
+    try {
+      delete process.env.NEXT_PUBLIC_SITE_URL;
+      process.env.VERCEL_URL = "some-preview-branch.vercel.app";
+      const { getPublicSiteUrl, buildSiteUrl } = await import("@/lib/env");
+      expect(getPublicSiteUrl()).toBe("https://aura-ardon.vercel.app");
+      expect(buildSiteUrl("/p/gold-ring")).toBe(
+        "https://aura-ardon.vercel.app/p/gold-ring"
+      );
+
+      process.env.NEXT_PUBLIC_SITE_URL = "https://custom.auroardon.co.ke/";
+      expect(getPublicSiteUrl()).toBe("https://custom.auroardon.co.ke");
+      expect(buildSiteUrl("/p/gold-ring")).toBe(
+        "https://custom.auroardon.co.ke/p/gold-ring"
+      );
+    } finally {
+      if (previousSiteUrl === undefined) {
+        delete process.env.NEXT_PUBLIC_SITE_URL;
+      } else {
+        process.env.NEXT_PUBLIC_SITE_URL = previousSiteUrl;
+      }
+      if (previousVercelUrl === undefined) {
+        delete process.env.VERCEL_URL;
+      } else {
+        process.env.VERCEL_URL = previousVercelUrl;
+      }
+    }
+  });
 });
 
 

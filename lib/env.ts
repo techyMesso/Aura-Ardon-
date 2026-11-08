@@ -12,10 +12,6 @@ function normalizeSiteUrl(value: string) {
   return value.trim().replace(/\/+$/, "");
 }
 
-function isProduction() {
-  return process.env.NODE_ENV === "production";
-}
-
 export function hasPublicSupabaseEnv() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -30,14 +26,20 @@ export function getSupabaseEnv() {
   };
 }
 
+export const DEFAULT_SITE_URL = "https://aura-ardon.vercel.app";
+
 export function getOptionalSiteUrl() {
   const value = process.env.NEXT_PUBLIC_SITE_URL;
 
-  if (!value) {
+  if (!value || !value.trim()) {
     return null;
   }
 
   return normalizeSiteUrl(value);
+}
+
+export function getPublicSiteUrl() {
+  return getOptionalSiteUrl() ?? DEFAULT_SITE_URL;
 }
 
 export function getSiteUrl(requestOrigin?: string) {
@@ -47,15 +49,11 @@ export function getSiteUrl(requestOrigin?: string) {
     return configuredSiteUrl;
   }
 
-  if (isProduction()) {
-    throw new Error("Missing required environment variable: NEXT_PUBLIC_SITE_URL");
-  }
-
   if (requestOrigin) {
     return normalizeSiteUrl(requestOrigin);
   }
 
-  throw new Error("A request origin is required when NEXT_PUBLIC_SITE_URL is not configured.");
+  return DEFAULT_SITE_URL;
 }
 
 export function buildSiteUrl(pathname: string, requestOrigin?: string) {

@@ -15,8 +15,10 @@ import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import { useCart } from "@/lib/cart";
 import {
   formatProductTitle,
-  getSafeCatalogImageUrl
+  getSafeCatalogImageUrl,
+  productHref
 } from "@/lib/catalog";
+import { getPublicSiteUrl } from "@/lib/env";
 import { getProductDeliveryLine } from "@/lib/site-config";
 import { createWhatsAppLink } from "@/lib/utils";
 import type { Category, Product } from "@/lib/types";
@@ -70,15 +72,17 @@ export function ProductDetailClient({
 
   const effectiveWhatsAppNumber =
     whatsappNumber ?? process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
+  const effectiveProductUrl =
+    productUrl || `${getPublicSiteUrl()}${productHref(product)}`;
 
   const askMessage = [
     `Hello Auro Ardon, I have a question about ${displayTitle} (${formatKES(product.price)}).`,
-    ...(productUrl ? [`Link: ${productUrl}`] : [])
+    `Link: ${effectiveProductUrl}`
   ].join("\n");
 
   const notifyMessage = [
     `Hello Auro Ardon, please notify me when ${displayTitle} is back in stock.`,
-    ...(productUrl ? [`Link: ${productUrl}`] : [])
+    `Link: ${effectiveProductUrl}`
   ].join("\n");
 
   const askWhatsAppUrl = createWhatsAppLink(effectiveWhatsAppNumber, askMessage);

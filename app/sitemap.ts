@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 import { productHref } from "@/lib/catalog";
 import { listCategories, listPublicProducts } from "@/lib/data";
-import { getOptionalSiteUrl } from "@/lib/env";
+import { getPublicSiteUrl } from "@/lib/env";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = getOptionalSiteUrl() ?? "https://aura-ardon.vercel.app";
+  const siteUrl = getPublicSiteUrl();
   const [categories, products] = await Promise.all([
     listCategories(),
     listPublicProducts()

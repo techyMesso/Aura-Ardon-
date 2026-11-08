@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 import { formatKES } from "@/components/storefront/price-kes";
 import { formatProductTitle, getSafeCatalogImageUrl } from "@/lib/catalog";
 import { getProductBySlug } from "@/lib/data";
-import { getOptionalSiteUrl } from "@/lib/env";
+import { getPublicSiteUrl } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
@@ -16,7 +16,7 @@ export default async function ProductOpenGraphImage({
 }) {
   const { slug } = await params;
   const product = await getProductBySlug(decodeURIComponent(slug));
-  const siteUrl = getOptionalSiteUrl() ?? "https://aura-ardon.vercel.app";
+  const siteUrl = getPublicSiteUrl();
 
   const rawImage = getSafeCatalogImageUrl(product?.images[0]);
   const imageUrl = rawImage

@@ -192,8 +192,15 @@ export function CheckoutPageClient() {
   if (success) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 sm:px-6 lg:py-24">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 inline-block rounded-[2px] bg-stone px-3 py-1 font-sans text-[14px] text-text"
+        >
+          Order placed{orderId ? ` — #${orderId.slice(0, 8)}` : ""}
+        </div>
         <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
-          Order #{orderId ? orderId.slice(0, 8) : "saved"}
+          Order placed
         </h1>
 
         <div className="mt-5 space-y-1 font-sans text-[16px] leading-[1.5] text-text">
@@ -398,7 +405,7 @@ export function CheckoutPageClient() {
                   Placing order...
                 </>
               ) : (
-                "Checkout"
+                "Place order"
               )}
             </Button>
 

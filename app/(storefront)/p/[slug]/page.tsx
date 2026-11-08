@@ -15,7 +15,7 @@ import {
   listProductsByCategory,
   listPublicProducts
 } from "@/lib/data";
-import { getOptionalSiteUrl } from "@/lib/env";
+import { getPublicSiteUrl } from "@/lib/env";
 import { ProductDetailClient } from "@/app/(storefront)/shop/[category]/[product]/product-detail-client";
 
 interface ProductPageProps {
@@ -40,8 +40,8 @@ export async function generateMetadata({
 
   const displayTitle = formatProductTitle(product.title);
   const canonicalPath = productHref(product);
-  const siteUrl = getOptionalSiteUrl();
-  const canonicalUrl = siteUrl ? `${siteUrl}${canonicalPath}` : null;
+  const siteUrl = getPublicSiteUrl();
+  const canonicalUrl = `${siteUrl}${canonicalPath}`;
   const description =
     product.description.trim().slice(0, 160) ||
     `${displayTitle} from Auro Ardon in Nairobi.`;
@@ -49,12 +49,12 @@ export async function generateMetadata({
   return {
     title: displayTitle,
     description,
-    alternates: canonicalUrl ? { canonical: canonicalUrl } : undefined,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       type: "website",
       title: displayTitle,
       description,
-      url: canonicalUrl ?? undefined
+      url: canonicalUrl
     }
   };
 }
@@ -86,16 +86,14 @@ export default async function CanonicalProductPage({
     .filter(related => related.id !== product.id)
     .slice(0, 4);
 
-  const siteUrl = getOptionalSiteUrl();
-  const productUrl = siteUrl ? `${siteUrl}${canonicalPath}` : null;
+  const siteUrl = getPublicSiteUrl();
+  const productUrl = `${siteUrl}${canonicalPath}`;
   const safeProductImages = product.images
     .map(getSafeCatalogImageUrl)
     .filter((image): image is string => Boolean(image));
   const structuredImage = safeProductImages.length
     ? safeProductImages
-    : siteUrl
-      ? [`${siteUrl}/hero-jewelry.png`]
-      : [];
+    : [`${siteUrl}/hero-jewelry.png`];
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",

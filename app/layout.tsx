@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bodoni_Moda, Geist } from "next/font/google";
 
+import { getPublicSiteUrl } from "@/lib/env";
 import "./globals.css";
 
 const themeScript = `(() => { try { const saved = localStorage.getItem("auro-ardon-theme"); const theme = saved === "dark" || saved === "light" ? saved : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; document.documentElement.classList.remove("light", "dark"); document.documentElement.classList.add(theme); document.documentElement.style.colorScheme = theme; } catch {} })();`;
@@ -19,6 +20,7 @@ const bodyFont = Geist({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getPublicSiteUrl()),
   title: {
     default: "Auro Ardon | Nairobi Jewelry",
     template: "%s | Auro Ardon"
