@@ -9,27 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart, useCartValue } from "@/lib/cart";
+import { SITE_CONFIG } from "@/lib/site-config";
 import { normalizeWhatsAppNumber } from "@/lib/utils";
 
 type PaymentMethod = "CASH_ON_DELIVERY" | "WHATSAPP";
 
-const NAIROBI_AREAS = [
-  "Westlands",
-  "Kilimani",
-  "Lavington",
-  "Kileleshwa",
-  "Karen",
-  "Nairobi CBD",
-  "Parklands",
-  "Upper Hill",
-  "South B / South C",
-  "Lang'ata",
-  "Runda / Gigiri",
-  "Kasarani / Roysambu",
-  "Thika Road",
-  "Eastlands",
-  "Other"
-] as const;
+const NAIROBI_AREAS = SITE_CONFIG.deliveryAreas;
 
 function isValidKenyanPhone(input: string): boolean {
   const digits = input.replace(/[\s()-]/g, "");

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SITE_CONFIG } from "@/lib/site-config";
 import { formatWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils";
 import type { Category } from "@/lib/types";
 
@@ -34,7 +35,7 @@ export function Footer({ categories }: { categories: Category[] }) {
               href="/"
               className="font-serif text-[24px] font-normal leading-none tracking-[-0.01em] text-white"
             >
-              Auro Ardon
+              {SITE_CONFIG.brandName}
             </Link>
           </div>
 
@@ -86,8 +87,8 @@ export function Footer({ categories }: { categories: Category[] }) {
                 </a>
               </p>
             ) : null}
-            <p>Nairobi, Kenya</p>
-            <p>Mon–Sat, 9am–7pm EAT</p>
+            <p>{SITE_CONFIG.studioLocation}</p>
+            <p>{SITE_CONFIG.studioHours}</p>
           </div>
         </div>
 

@@ -14,13 +14,13 @@ import {
   listFeaturedProducts,
   listPublicProducts
 } from "@/lib/data";
+import { formatHeroSubline, SITE_CONFIG } from "@/lib/site-config";
 
 export const revalidate = 300;
 
 export const metadata = {
-  title: "Auro Ardon | Gold-tone jewelry in Nairobi",
-  description:
-    "Gold-tone jewelry, delivered in Nairobi today. Tarnish-free stainless pieces from KES 800. Pay on delivery or order on WhatsApp."
+  title: `${SITE_CONFIG.brandName} | ${SITE_CONFIG.heroHeadline}`,
+  description: `${SITE_CONFIG.heroHeadline} ${SITE_CONFIG.brandLine}`
 };
 
 export default async function HomePage() {
@@ -42,6 +42,7 @@ export default async function HomePage() {
   const heroProduct = featuredProducts[0] ?? allProducts[0];
   const heroImage =
     getSafeCatalogImageUrl(heroProduct?.images[0]) || "/hero-jewelry.png";
+  const heroSubline = formatHeroSubline(allProducts);
 
   const representativeMap = new Map(
     representatives.map(item => [item.category_id, item.image_url])
@@ -54,7 +55,7 @@ export default async function HomePage() {
         <div className="absolute inset-0 animate-hero-reveal">
           <Image
             src={heroImage}
-            alt="Auro Ardon gold-tone jewelry"
+            alt={SITE_CONFIG.brandName}
             fill
             priority
             placeholder="blur"
@@ -69,10 +70,10 @@ export default async function HomePage() {
 
         <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-10 sm:px-6 lg:px-10 lg:pb-14">
           <h1 className="max-w-4xl font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-white md:text-[72px] lg:text-[84px]">
-            Gold-tone jewelry, delivered in Nairobi today.
+            {SITE_CONFIG.heroHeadline}
           </h1>
           <p className="mt-4 max-w-xl font-sans text-[16px] leading-[1.5] text-white/90">
-            Tarnish-free stainless pieces from KES 800. Pay on delivery or order on WhatsApp.
+            {heroSubline}
           </p>
           <div className="mt-6">
             <Link href="/shop?sort=newest" className="btn-primary">
@@ -155,12 +156,12 @@ export default async function HomePage() {
       <section className="bg-ink text-white">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-10 lg:py-20">
           <p className="max-w-4xl font-serif text-[32px] font-normal leading-[1.15] tracking-[-0.01em] text-white md:text-[40px]">
-            Auro Ardon is a Nairobi jewelry house. We pick bold, giftable, tarnish-free pieces, deliver across Nairobi in a day, and you pay when it arrives.
+            {SITE_CONFIG.brandLine}
           </p>
           <div className="mt-6 flex flex-col gap-2 font-sans text-[14px] leading-[1.5] text-white/80 sm:flex-row sm:flex-wrap sm:gap-8">
-            <span>Same-day Nairobi delivery</span>
-            <span>Pay on delivery (cash or M-Pesa)</span>
-            <span>Order or ask on WhatsApp</span>
+            {SITE_CONFIG.statementFacts.map(fact => (
+              <span key={fact}>{fact}</span>
+            ))}
           </div>
         </div>
       </section>

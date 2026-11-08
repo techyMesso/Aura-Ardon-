@@ -14,6 +14,7 @@ import { ProductGallery } from "@/components/storefront/product-gallery";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import { useCart } from "@/lib/cart";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
+import { getProductDeliveryLine } from "@/lib/site-config";
 import { createWhatsAppLink } from "@/lib/utils";
 import type { Category, Product } from "@/lib/types";
 
@@ -360,7 +361,7 @@ export function ProductDetailClient({
             ) : null}
 
             <p className="pt-1 font-sans text-[14px] leading-[1.5] text-muted">
-              Order by 2pm for same-day delivery in Nairobi. 1–2 days elsewhere in Kenya.
+              {getProductDeliveryLine()}
             </p>
             <p className="sr-only" aria-live="polite" aria-atomic="true">
               {status}
