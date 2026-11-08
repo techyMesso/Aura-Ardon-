@@ -76,3 +76,7 @@ export function getServiceRoleKey() {
 export function getOrderStatusTokenSecret() {
   return getRequiredEnv("ORDER_STATUS_TOKEN_SECRET");
 }
+
+export function getRevalidateSecret() {
+  return process.env.REVALIDATE_SECRET?.trim() || null;
+}

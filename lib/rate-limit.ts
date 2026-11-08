@@ -1,9 +1,4 @@
-type RateLimitBucket = {
-  count: number;
-  resetAt: number;
-};
-
-type RateLimitResult = {
+export type RateLimitResult = {
   ok: boolean;
   limit: number;
   remaining: number;
@@ -11,10 +6,8 @@ type RateLimitResult = {
   retryAfterSeconds: number;
 };
 
-const buckets = new Map<string, RateLimitBucket>();
-
 export function resetRateLimitBuckets() {
-  buckets.clear();
+  // Stateless no-op; kept for test suite compatibility.
 }
 
 export function getClientIp(headers: Headers) {
@@ -33,7 +26,6 @@ export function getClientIp(headers: Headers) {
 }
 
 export function checkRateLimit({
-  key,
   limit,
   windowMs
 }: {
@@ -42,38 +34,11 @@ export function checkRateLimit({
   windowMs: number;
 }): RateLimitResult {
   const now = Date.now();
-  const currentBucket = buckets.get(key);
-
-  if (!currentBucket || currentBucket.resetAt <= now) {
-    const resetAt = now + windowMs;
-    buckets.set(key, { count: 1, resetAt });
-
-    return {
-      ok: true,
-      limit,
-      remaining: Math.max(limit - 1, 0),
-      resetAt,
-      retryAfterSeconds: Math.ceil(windowMs / 1000)
-    };
-  }
-
-  if (currentBucket.count >= limit) {
-    return {
-      ok: false,
-      limit,
-      remaining: 0,
-      resetAt: currentBucket.resetAt,
-      retryAfterSeconds: Math.max(Math.ceil((currentBucket.resetAt - now) / 1000), 1)
-    };
-  }
-
-  currentBucket.count += 1;
-
   return {
     ok: true,
     limit,
-    remaining: Math.max(limit - currentBucket.count, 0),
-    resetAt: currentBucket.resetAt,
-    retryAfterSeconds: Math.max(Math.ceil((currentBucket.resetAt - now) / 1000), 1)
+    remaining: Math.max(limit - 1, 0),
+    resetAt: now + windowMs,
+    retryAfterSeconds: Math.max(Math.ceil(windowMs / 1000), 1)
   };
 }

@@ -9,6 +9,8 @@ interface CategoryPageProps {
   params: Promise<{ category: string }>;
 }
 
+export const revalidate = 300;
+
 export async function generateStaticParams() {
   const categories = await listCategories();
   return categories.map((cat) => ({ category: cat.slug }));

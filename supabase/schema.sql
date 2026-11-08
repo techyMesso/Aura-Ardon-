@@ -78,10 +78,12 @@ create table if not exists public.products (
   created_at     timestamptz not null default timezone('utc', now())
 );
 
-create index if not exists products_created_at_idx   on public.products (created_at desc);
-create index if not exists products_category_id_idx  on public.products (category_id);
-create index if not exists products_featured_idx    on public.products (is_featured) where is_featured = true;
-create index if not exists products_active_idx      on public.products (active) where active = true;
+create index if not exists products_created_at_idx       on public.products (created_at desc);
+create index if not exists products_category_id_idx      on public.products (category_id);
+create index if not exists products_category_active_idx  on public.products (category_id, active);
+create unique index if not exists products_slug_unique_idx on public.products (slug) where slug is not null;
+create index if not exists products_featured_idx         on public.products (is_featured) where is_featured = true;
+create index if not exists products_active_idx           on public.products (active) where active = true;
 
 -- ─── TABLE: orders ───────────────────────────────────────
 create table if not exists public.orders (

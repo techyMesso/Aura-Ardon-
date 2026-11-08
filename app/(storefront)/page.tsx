@@ -193,6 +193,7 @@ export default async function HomePage() {
                       src={image}
                       alt={`${category.name} collection`}
                       fill
+                      loading="lazy"
                       sizes="(max-width: 767px) 50vw, 33vw"
                       className="object-cover transition duration-500 group-hover:scale-105"
                     />

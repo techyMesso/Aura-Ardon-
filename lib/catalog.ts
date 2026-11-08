@@ -13,9 +13,16 @@ export function toCatalogSlug(value: string) {
 export function isSupportedCatalogImageUrl(value: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && (
-      url.hostname === "supabase.co" || url.hostname.endsWith(".supabase.co")
-    );
+    if (url.protocol !== "https:") return false;
+    if (url.hostname === "supabase.co" || url.hostname.endsWith(".supabase.co")) {
+      return true;
+    }
+    const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (configuredUrl) {
+      const configuredHost = new URL(configuredUrl).hostname;
+      return url.hostname === configuredHost;
+    }
+    return false;
   } catch {
     return false;
   }

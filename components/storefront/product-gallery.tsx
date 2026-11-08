@@ -21,11 +21,13 @@ import type { Product } from "@/lib/types";
 interface ProductGalleryProps {
   products: Product[];
   mode?: "default" | "compact";
+  priorityCount?: number;
 }
 
 export function ProductGallery({
   products,
-  mode = "default"
+  mode = "default",
+  priorityCount = 0
 }: ProductGalleryProps) {
   const { addItem, categories, items } = useCart();
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
@@ -52,7 +54,8 @@ export function ProductGallery({
   return (
     <>
       <div className="grid grid-cols-2 gap-3 min-[440px]:gap-4 md:gap-5 lg:grid-cols-3 xl:grid-cols-4">
-        {products.map(product => {
+        {products.map((product, index) => {
+          const isPriority = index < priorityCount;
           const productPath = getCanonicalProductPath(product, categoryMap);
           const categoryLabel = getProductCategoryLabel(product, categoryMap);
           const safeImages = product.images
@@ -70,6 +73,8 @@ export function ProductGallery({
                 src={coverImage}
                 alt={`${product.title} jewelry`}
                 fill
+                priority={isPriority}
+                loading={isPriority ? undefined : "lazy"}
                 sizes="(max-width: 1023px) 50vw, (max-width: 1279px) 33vw, 25vw"
                 className="object-cover object-center transition-transform duration-500 motion-reduce:transition-none md:group-hover:scale-[1.025]"
               />
@@ -78,6 +83,7 @@ export function ProductGallery({
                   src={alternateImage}
                   alt=""
                   fill
+                  loading="lazy"
                   sizes="(max-width: 1023px) 50vw, (max-width: 1279px) 33vw, 25vw"
                   className="product-card-secondary object-cover object-center opacity-0 transition duration-500"
                   aria-hidden

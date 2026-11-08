@@ -21,6 +21,8 @@ interface ProductPageProps {
   params: Promise<{ category: string; product: string }>;
 }
 
+export const revalidate = 300;
+
 export async function generateStaticParams() {
   const [categories, products] = await Promise.all([
     listCategories(),

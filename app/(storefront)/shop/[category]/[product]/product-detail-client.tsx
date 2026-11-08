@@ -206,7 +206,7 @@ export function ProductDetailClient({
                     selectedIndex === index ? "border-bronze" : "border-transparent"
                   }`}
                 >
-                  <Image src={image} alt="" fill sizes="96px" className="object-cover" />
+                  <Image src={image} alt="" fill loading="lazy" sizes="96px" className="object-cover" />
                 </button>
               ))}
             </div>

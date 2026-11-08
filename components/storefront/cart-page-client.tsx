@@ -51,6 +51,7 @@ export function CartPageClient() {
                   src={getSafeCatalogImageUrl(item.product.images[0]) || "/hero-jewelry.png"}
                   alt={item.product.title}
                   fill
+                  loading="lazy"
                   sizes="(max-width: 639px) 96px, 144px"
                   className="object-cover"
                 />

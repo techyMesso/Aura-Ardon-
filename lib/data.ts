@@ -46,9 +46,9 @@ async function listPublicProductsInner(): Promise<Product[]> {
   }
 }
 
-export const listPublicProducts = unstable_cache(listPublicProductsInner, ['public-products'], {
-  tags: ['products'],
-  revalidate: 120, // 2 minutes
+export const listPublicProducts = unstable_cache(listPublicProductsInner, ["public-products"], {
+  tags: ["products"],
+  revalidate: 300,
 });
 
 /**
@@ -84,10 +84,16 @@ async function listFeaturedProductsInner(limit = 6): Promise<Product[]> {
   }
 }
 
-export const listFeaturedProducts = unstable_cache(listFeaturedProductsInner, ['featured-products'], {
-  tags: ['featured-products'],
-  revalidate: 300, // 5 minutes
-});
+export function listFeaturedProducts(limit = 6): Promise<Product[]> {
+  return unstable_cache(
+    () => listFeaturedProductsInner(limit),
+    ["featured-products", String(limit)],
+    {
+      tags: ["products", "featured-products"],
+      revalidate: 300,
+    }
+  )();
+}
 
 /**
  * List products filtered by category slug.
@@ -140,7 +146,7 @@ export function listProductsByCategory(categorySlug: string): Promise<Product[]>
   return unstable_cache(
     () => listProductsByCategoryInner(categorySlug),
     ["products-by-category", categorySlug],
-    { tags: ["products", "categories"], revalidate: 120 }
+    { tags: ["products", "categories"], revalidate: 300 }
   )();
 }
 
@@ -183,7 +189,7 @@ export function getProductBySlug(slug: string): Promise<Product | null> {
   return unstable_cache(
     () => getProductBySlugInner(slug),
     ["product-by-slug", slug],
-    { tags: ["products", "categories"], revalidate: 120 }
+    { tags: ["products", "categories"], revalidate: 300 }
   )();
 }
 

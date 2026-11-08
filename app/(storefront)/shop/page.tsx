@@ -4,6 +4,8 @@ import { CollectionShell } from "@/components/storefront/collection-shell";
 import { ShopPageClient } from "@/components/storefront/shop-page-client";
 import { listCategories, listPublicProducts } from "@/lib/data";
 
+export const revalidate = 300;
+
 export const metadata = {
   title: "Shop All Products | Auro Ardon",
   description: "Browse Auro Ardon jewelry, accessories, and giftable pieces from Nairobi.",

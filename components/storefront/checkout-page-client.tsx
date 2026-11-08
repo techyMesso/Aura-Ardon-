@@ -39,6 +39,7 @@ export function CheckoutPageClient() {
   const idempotencyKeyRef = useRef(
     typeof crypto !== "undefined" ? crypto.randomUUID() : `checkout-${Date.now()}`
   );
+  const submittingRef = useRef(false);
 
   if (items.length === 0 && !success) {
     return (
@@ -105,6 +106,8 @@ export function CheckoutPageClient() {
 
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault();
+    if (submittingRef.current || loading) return;
+    submittingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -153,6 +156,7 @@ export function CheckoutPageClient() {
         caughtError instanceof Error ? caughtError.message : "Failed to place order"
       );
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   }
