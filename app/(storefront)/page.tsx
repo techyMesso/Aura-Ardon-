@@ -1,305 +1,180 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Check,
-  CreditCard,
-  MapPin,
-  MessageCircle,
-  PackageCheck,
-  ShoppingBag,
-  Truck
-} from "lucide-react";
 
+import { DEFAULT_PRODUCT_BLUR_DATA_URL } from "@/components/storefront/price-kes";
 import { ProductGallery } from "@/components/storefront/product-gallery";
-import {
-  createCategoryMap,
-  getCanonicalProductPath,
-  getSafeCatalogImageUrl
-} from "@/lib/catalog";
+import { ProductTile } from "@/components/storefront/product-tile";
+import { getSafeCatalogImageUrl } from "@/lib/catalog";
 import {
   listCategories,
   listCategoryRepresentatives,
-  listFeaturedProducts
+  listFeaturedProducts,
+  listPublicProducts
 } from "@/lib/data";
-import { createWhatsAppLink, formatCurrency } from "@/lib/utils";
+
+export const revalidate = 300;
 
 export const metadata = {
-  title: "Auro Ardon | Jewelry for Bold Women",
+  title: "Auro Ardon | Gold-tone jewelry in Nairobi",
   description:
-    "Shop jewelry and accessories from Auro Ardon in Nairobi. Checkout online or order with WhatsApp support."
+    "Gold-tone jewelry, delivered in Nairobi today. Tarnish-free stainless pieces from KES 800. Pay on delivery or order on WhatsApp."
 };
 
 export default async function HomePage() {
-  const [featuredProducts, categories, representatives] = await Promise.all([
-    listFeaturedProducts(8),
-    listCategories(),
-    listCategoryRepresentatives()
-  ]);
-  const categoryMap = createCategoryMap(categories);
-  const heroProduct = featuredProducts.find(product =>
-    Boolean(getCanonicalProductPath(product, categoryMap))
-  );
-  const heroProductPath = heroProduct
-    ? getCanonicalProductPath(heroProduct, categoryMap)
-    : null;
-  const heroProductImage = getSafeCatalogImageUrl(heroProduct?.images[0]);
+  const [allProducts, featuredProducts, categories, representatives] =
+    await Promise.all([
+      listPublicProducts(),
+      listFeaturedProducts(6),
+      listCategories(),
+      listCategoryRepresentatives()
+    ]);
+
+  const newInProducts = allProducts.slice(0, 8);
+  const bestsellers =
+    featuredProducts.length > 0
+      ? featuredProducts.slice(0, 6)
+      : allProducts.slice(0, 6);
+
+  const heroProduct = featuredProducts[0] ?? allProducts[0];
+  const heroImage =
+    getSafeCatalogImageUrl(heroProduct?.images[0]) || "/hero-jewelry.png";
+
   const representativeMap = new Map(
     representatives.map(item => [item.category_id, item.image_url])
   );
-  const whatsappUrl = createWhatsAppLink(
-    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "",
-    "Hello Auro Ardon, I would like help choosing a piece."
-  );
+  const visibleCategories = categories.slice(0, 6);
 
   return (
-    <div className="overflow-x-hidden bg-cream">
-      <section className="relative isolate overflow-hidden bg-ink text-white">
-        <div className="pointer-events-none absolute -right-20 top-8 h-72 w-72 rounded-full border border-champagne/20" />
-        <div className="pointer-events-none absolute -right-6 top-24 h-44 w-44 rounded-full border border-champagne/15" />
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-5 py-12 md:px-6 lg:grid-cols-[0.88fr_1.12fr] lg:px-10 lg:py-20">
-          <div className="flex flex-col justify-center">
-            <p className="text-sm font-medium text-champagne">
-              Nairobi, Kenya
-            </p>
-            <h1 className="mt-5 max-w-2xl font-serif text-[clamp(3.1rem,12vw,4.5rem)] leading-[0.91] text-white lg:text-7xl">
-              Jewelry that holds the room.
-            </h1>
-            <p className="mt-6 max-w-lg text-base leading-7 text-white/68 sm:text-lg">
-              Singular pieces for the plan, the gift, and the entrance. Chosen in Nairobi for women who make their own occasion.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link href="/shop" className="btn-primary min-h-12 w-full bg-bronze px-7 text-white hover:bg-rose sm:w-auto">
-                Shop collection
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-              {whatsappUrl ? (
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-outline hidden min-h-12 w-full border-white/20 bg-white/5 px-7 text-white hover:bg-white/10 hover:text-white md:inline-flex md:w-auto"
-                >
-                  <MessageCircle className="h-4 w-4" aria-hidden />
-                  WhatsApp
-                </a>
-              ) : null}
-            </div>
-          </div>
+    <div className="bg-paper text-text">
+      <section className="relative h-[70vh] min-h-[440px] w-full overflow-hidden bg-ink text-white">
+        <div className="absolute inset-0 animate-hero-reveal">
+          <Image
+            src={heroImage}
+            alt="Auro Ardon gold-tone jewelry"
+            fill
+            priority
+            placeholder="blur"
+            blurDataURL={
+              heroProduct?.blur_data_url || DEFAULT_PRODUCT_BLUR_DATA_URL
+            }
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-ink/50" />
+        </div>
 
-          <div className="relative lg:min-h-[590px]">
-            <div className="absolute inset-3 border border-champagne/50 sm:inset-6 lg:inset-8" />
-            <div className="absolute bottom-3 right-0 h-24 w-24 border-b border-r border-champagne/35 sm:bottom-6 sm:h-32 sm:w-32" />
-            <div className="relative h-[390px] w-[88%] overflow-hidden bg-ink shadow-[0_40px_90px_rgba(43,20,37,0.38)] sm:h-[490px] lg:absolute lg:inset-y-0 lg:left-0 lg:h-auto lg:w-[78%]">
-              <Image
-                src={heroProductImage || "/hero-jewelry.png"}
-                alt={heroProduct ? `${heroProduct.title} by Auro Ardon` : "Auro Ardon jewelry styling"}
-                fill
-                priority
-                sizes="(max-width: 639px) 88vw, (max-width: 1024px) 76vw, 40vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-            </div>
-
-            {heroProduct && heroProductPath ? (
-              <Link
-                href={heroProductPath}
-                className="relative mt-4 block w-full border-l-2 border-champagne bg-[#38182f] p-5 text-white shadow-2xl transition hover:-translate-y-1 lg:absolute lg:bottom-12 lg:right-0 lg:mt-0 lg:w-[58%]"
-              >
-                <p className="text-sm font-medium text-champagne">Featured piece</p>
-                <h2 className="mt-2 font-serif text-2xl leading-tight sm:text-3xl">{heroProduct.title}</h2>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-white/88">{formatCurrency(heroProduct.price)}</p>
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-champagne/40 bg-bronze text-white">
-                    <ArrowRight className="h-4 w-4" aria-hidden />
-                  </span>
-                </div>
-              </Link>
-            ) : (
-              <div className="relative mt-4 w-full border-l-2 border-champagne bg-[#38182f] p-5 lg:absolute lg:bottom-12 lg:right-0 lg:mt-0 lg:w-[58%]">
-                <p className="text-sm font-medium text-champagne">The next collection</p>
-                <p className="mt-2 text-sm leading-6 text-white/72">Join us on WhatsApp for availability and the latest drops.</p>
-              </div>
-            )}
+        <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-10 sm:px-6 lg:px-10 lg:pb-14">
+          <h1 className="max-w-4xl font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-white md:text-[72px] lg:text-[84px]">
+            Gold-tone jewelry, delivered in Nairobi today.
+          </h1>
+          <p className="mt-4 max-w-xl font-sans text-[16px] leading-[1.5] text-white/90">
+            Tarnish-free stainless pieces from KES 800. Pay on delivery or order on WhatsApp.
+          </p>
+          <div className="mt-6">
+            <Link href="/shop?sort=newest" className="btn-primary">
+              Shop new in
+            </Link>
           </div>
         </div>
       </section>
 
-      <section className="theme-soft-surface border-b border-border/60" aria-label="Store services">
-        <div className="mx-auto grid max-w-7xl divide-y divide-border/60 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:px-6 lg:px-10">
-          <div className="flex min-h-20 items-center gap-3 py-4 sm:pr-5">
-            <CreditCard className="h-5 w-5 shrink-0 text-bronze" aria-hidden />
-            <p className="text-sm font-semibold text-ink">Pay on delivery</p>
-          </div>
-          <div className="flex min-h-20 items-center gap-3 py-4 sm:px-5">
-            <Truck className="h-5 w-5 shrink-0 text-bronze" aria-hidden />
-            <p className="text-sm font-semibold text-ink">Nairobi delivery</p>
-          </div>
-          <div className="flex min-h-20 items-center gap-3 py-4 sm:pl-5">
-            <MessageCircle className="h-5 w-5 shrink-0 text-bronze" aria-hidden />
-            <p className="text-sm font-semibold text-ink">WhatsApp ordering</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-16 md:px-6 lg:px-10 lg:py-20">
-        <div className="mb-8 flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-bronze">Featured products</p>
-            <h2 className="mt-2 font-serif text-3xl text-ink sm:text-4xl">The Auro edit</h2>
-          </div>
-          <Link href="/shop" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-ink transition hover:text-bronze sm:gap-2 sm:text-sm sm:tracking-[0.16em]">
-            Browse all
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        </div>
-
-        {featuredProducts.length ? (
-          <ProductGallery products={featuredProducts} />
-        ) : (
-          <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-ink p-8 text-white shadow-luxe sm:p-12">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-champagne">The edit is being prepared</p>
-            <h3 className="mt-3 max-w-xl font-serif text-3xl sm:text-4xl">New pieces are entering the spotlight soon.</h3>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-white/68">Browse the full catalog or ask us directly about current availability.</p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/shop" className="btn-primary min-h-11 bg-bronze text-white hover:bg-rose">Browse the shop</Link>
-              {whatsappUrl ? (
-                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-outline min-h-11 border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">WhatsApp us</a>
-              ) : null}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 pb-16 md:px-6 lg:px-10 lg:pb-20">
-        <div className="mb-8">
-          <p className="text-sm font-medium text-bronze">Shop by category</p>
-          <h2 className="mt-2 font-serif text-3xl text-ink sm:text-4xl">Find your next signature</h2>
-        </div>
-        {categories.length ? (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
-            {categories.map(category => {
-              const image = getSafeCatalogImageUrl(category.image_url)
-                || getSafeCatalogImageUrl(representativeMap.get(category.id));
+      {visibleCategories.length > 0 ? (
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+            Shop by category
+          </h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {visibleCategories.map(category => {
+              const image =
+                getSafeCatalogImageUrl(category.image_url) ||
+                getSafeCatalogImageUrl(representativeMap.get(category.id)) ||
+                "/hero-jewelry.png";
               return (
                 <Link
                   key={category.id}
                   href={`/shop/${category.slug}`}
-                  className="group relative aspect-[4/5] min-w-0 overflow-hidden rounded-[1.5rem] bg-ink shadow-card md:aspect-[5/4]"
+                  className="group block"
                 >
-                  {image ? (
+                  <div className="relative aspect-square w-full overflow-hidden rounded-none bg-paper">
                     <Image
                       src={image}
-                      alt={`${category.name} collection`}
+                      alt={category.name}
                       fill
                       loading="lazy"
-                      sizes="(max-width: 767px) 50vw, 33vw"
-                      className="object-cover transition duration-500 group-hover:scale-105"
+                      placeholder="blur"
+                      blurDataURL={DEFAULT_PRODUCT_BLUR_DATA_URL}
+                      sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 16vw"
+                      className="object-cover object-center"
                     />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_30%_25%,rgba(244,194,194,0.35),transparent_45%),linear-gradient(145deg,#7B2D5E,#2B1425)]">
-                      <span className="font-serif text-7xl text-champagne/30" aria-hidden>{category.name.charAt(0)}</span>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/12 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 p-4 text-white md:p-6">
-                    <div className="flex items-end justify-between gap-2">
-                      <div className="min-w-0">
-                        <h3 className="truncate font-serif text-2xl md:text-3xl">{category.name}</h3>
-                        {category.description ? (
-                          <p className="mt-1 hidden line-clamp-2 text-sm leading-6 text-white/68 md:block">{category.description}</p>
-                        ) : null}
-                      </div>
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/20 transition group-hover:bg-bronze group-hover:text-white">
-                        <ArrowRight className="h-4 w-4" aria-hidden />
-                      </span>
-                    </div>
                   </div>
+                  <p className="mt-2 font-sans text-[14px] leading-[1.5] text-text group-hover:text-brass">
+                    {category.name}
+                  </p>
                 </Link>
               );
             })}
           </div>
-        ) : (
-          <div className="rounded-[2rem] border border-dashed border-bronze/30 bg-white/60 px-6 py-12 text-center">
-            <p className="font-serif text-3xl text-ink">The collection is taking shape</p>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">Categories will appear here as soon as the next edit is ready.</p>
-          </div>
-        )}
-      </section>
+        </section>
+      ) : null}
 
-      <section className="theme-soft-surface border-y border-border/60 py-16 lg:py-20">
-        <div className="mx-auto max-w-7xl px-5 md:px-6 lg:px-10">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-bronze">How it works</p>
-              <h2 className="mt-2 font-serif text-3xl text-ink sm:text-4xl">From edit to doorstep</h2>
-            </div>
-            <Link href="/how-to-order" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink hover:text-bronze">
-              Full ordering guide <ArrowRight className="h-4 w-4" aria-hidden />
+      {newInProducts.length > 0 ? (
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+          <div className="mb-6 flex items-baseline justify-between gap-4">
+            <h2 className="font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+              New in
+            </h2>
+            <Link
+              href="/shop?sort=newest"
+              className="font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-brass"
+            >
+              See all
             </Link>
           </div>
-          <div className="mt-9 grid gap-4 md:grid-cols-3">
-            {[
-              { number: "01", title: "Pick a piece", copy: "Explore the catalog and choose the finish for your look.", Icon: ShoppingBag },
-              { number: "02", title: "Checkout in 30 seconds", copy: "Share your name, phone, and delivery location without creating an account.", Icon: PackageCheck },
-              { number: "03", title: "Pay on delivery or confirm on WhatsApp", copy: "Choose the ordering route that works for you at checkout.", Icon: Check }
-            ].map(step => (
-              <article key={step.number} className="rounded-[1.5rem] border border-border/60 bg-white/80 p-6 shadow-card">
-                <div className="flex items-center justify-between">
-                  <step.Icon className="h-5 w-5 text-bronze" aria-hidden />
-                  <span className="font-serif text-2xl text-champagne/70">{step.number}</span>
-                </div>
-                <h3 className="mt-6 font-serif text-2xl text-ink">{step.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-muted">{step.copy}</p>
-              </article>
+
+          <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
+            {newInProducts.map((product, index) => (
+              <div
+                key={product.id}
+                className="w-[210px] shrink-0 sm:w-[250px]"
+              >
+                <ProductTile
+                  product={product}
+                  priority={index < 4}
+                  sizes="250px"
+                />
+              </div>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      <section className="bg-ink text-white">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-10 lg:py-20">
+          <p className="max-w-4xl font-serif text-[32px] font-normal leading-[1.15] tracking-[-0.01em] text-white md:text-[40px]">
+            Auro Ardon is a Nairobi jewelry house. We pick bold, giftable, tarnish-free pieces, deliver across Nairobi in a day, and you pay when it arrives.
+          </p>
+          <p className="mt-6 font-sans text-[14px] leading-[1.5] text-white/80">
+            Same-day Nairobi delivery · Pay on delivery (cash or M-Pesa) · Order or ask on WhatsApp
+          </p>
         </div>
       </section>
 
-      <section className="bg-ink py-16 text-white">
-        <div className="mx-auto max-w-7xl px-5 md:px-6 lg:px-10">
-          <p className="text-sm font-medium text-champagne">Loved in Nairobi</p>
-          <h2 className="mt-2 max-w-2xl font-serif text-3xl sm:text-4xl">A boutique path built around real-life plans.</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-6">
-              <MapPin className="h-5 w-5 text-champagne" aria-hidden />
-              <h3 className="mt-4 font-serif text-2xl">Nairobi based</h3>
-              <p className="mt-2 text-sm leading-6 text-white/68">Local delivery details are confirmed during ordering.</p>
-            </div>
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-6">
-              <CreditCard className="h-5 w-5 text-champagne" aria-hidden />
-              <h3 className="mt-4 font-serif text-2xl">Cash on delivery</h3>
-              <p className="mt-2 text-sm leading-6 text-white/68">A supported checkout option for eligible orders.</p>
-            </div>
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-6">
-              <MessageCircle className="h-5 w-5 text-champagne" aria-hidden />
-              <h3 className="mt-4 font-serif text-2xl">Direct confirmation</h3>
-              <p className="mt-2 text-sm leading-6 text-white/68">WhatsApp ordering connects you directly to the store when configured.</p>
-            </div>
+      {bestsellers.length > 0 ? (
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+          <div className="mb-6 flex items-baseline justify-between gap-4">
+            <h2 className="font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+              Gift sets and bestsellers
+            </h2>
+            <Link
+              href="/shop"
+              className="font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-brass"
+            >
+              See all
+            </Link>
           </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-16 md:px-6 lg:px-10 lg:py-20">
-        <div className="overflow-hidden border border-border bg-sand px-6 py-10 text-ink shadow-luxe sm:px-10 sm:py-12">
-          <div className="flex flex-col items-start justify-between gap-7 md:flex-row md:items-center">
-            <div>
-              <p className="text-sm font-medium text-bronze">Auro Ardon</p>
-              <h2 className="mt-2 max-w-2xl font-serif text-4xl leading-tight sm:text-5xl">Make the next piece unmistakably yours.</h2>
-            </div>
-            <div className="flex w-full flex-wrap gap-3 md:w-auto md:justify-end">
-              <Link href="/shop" className="btn-primary min-h-12 flex-1 bg-bronze text-white hover:bg-rose md:flex-none">Shop the collection</Link>
-              {whatsappUrl ? (
-                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-ink/25 px-6 text-sm font-semibold uppercase tracking-[0.14em] transition hover:bg-white/30 md:flex-none">
-                  <MessageCircle className="h-4 w-4" aria-hidden /> WhatsApp us
-                </a>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
+          <ProductGallery products={bestsellers} columns={3} />
+        </section>
+      ) : null}
     </div>
   );
 }
