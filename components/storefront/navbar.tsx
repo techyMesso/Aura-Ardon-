@@ -18,17 +18,30 @@ const HELP_LINKS = [
   { label: "Returns", href: "/returns" }
 ];
 
+const DEFAULT_CATEGORY_LINKS = [
+  { label: "Necklaces", href: "/shop?q=necklace" },
+  { label: "Bracelets", href: "/shop?q=bracelet" },
+  { label: "Rings", href: "/shop?q=ring" },
+  { label: "Earrings", href: "/shop?q=earring" },
+  { label: "Sets", href: "/shop?q=set" }
+];
+
 export function Navbar({ categories }: { categories: Category[] }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { itemCount } = useCartValue();
   const { openCart, openSearch } = useStorefrontUI();
 
+  const categoryNavLinks =
+    categories.length > 0
+      ? categories.slice(0, 5).map(category => ({
+          label: category.name,
+          href: `/shop/${category.slug}`
+        }))
+      : DEFAULT_CATEGORY_LINKS;
+
   const centerLinks = [
-    ...categories.slice(0, 5).map(category => ({
-      label: category.name,
-      href: `/shop/${category.slug}`
-    })),
+    ...categoryNavLinks,
     { label: "New in", href: "/shop?sort=newest" }
   ];
 
@@ -139,18 +152,18 @@ export function Navbar({ categories }: { categories: Category[] }) {
                   Shop all
                 </Link>
               </li>
-              {categories.map(category => (
-                <li key={category.id}>
+              {categoryNavLinks.map(link => (
+                <li key={`${link.href}-${link.label}`}>
                   <Link
-                    href={`/shop/${category.slug}`}
+                    href={link.href}
                     onClick={() => setMobileOpen(false)}
                     className={`flex min-h-11 items-center font-sans text-[16px] ${
-                      isActive(`/shop/${category.slug}`)
+                      isActive(link.href)
                         ? "text-brass"
                         : "text-text hover:text-brass"
                     }`}
                   >
-                    {category.name}
+                    {link.label}
                   </Link>
                 </li>
               ))}

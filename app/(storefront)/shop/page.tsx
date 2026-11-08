@@ -19,7 +19,13 @@ export default async function ShopPage() {
 
   return (
     <CollectionShell categories={categories}>
-      <Suspense fallback={<div className="h-40 bg-stone" />}>
+      <Suspense
+        fallback={
+          <div className="bg-stone p-8 font-sans text-[16px] leading-[1.5] text-text">
+            {products.length} {products.length === 1 ? "piece" : "pieces"}
+          </div>
+        }
+      >
         <ShopPageClient products={products} />
       </Suspense>
     </CollectionShell>
