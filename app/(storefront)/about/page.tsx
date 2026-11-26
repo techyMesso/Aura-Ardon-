@@ -5,7 +5,7 @@ import { DEFAULT_PRODUCT_BLUR_DATA_URL } from "@/components/storefront/price-kes
 export const metadata = {
   title: "About",
   description:
-    "Auro Ardon is a Nairobi jewelry house offering tarnish-free gold-tone stainless necklaces, bracelets, rings, earrings, watches, and gift sets."
+    "Auro Ardon is a Nairobi boutique offering bold, giftable jewelry, watches, and beauty essentials with same-day Nairobi delivery."
 };
 
 export default function AboutPage() {
@@ -18,7 +18,7 @@ export default function AboutPage() {
       <div className="relative mt-8 aspect-[16/10] w-full overflow-hidden rounded-none bg-paper">
         <Image
           src="/hero-jewelry.png"
-          alt="Auro Ardon gold-tone jewelry collection"
+          alt="Auro Ardon Nairobi collection"
           fill
           priority
           placeholder="blur"
@@ -29,7 +29,7 @@ export default function AboutPage() {
       </div>
 
       <p className="mt-8 max-w-2xl font-sans text-[16px] leading-[1.5] text-text">
-        Auro Ardon is a Nairobi jewelry house stocking tarnish-free gold-tone stainless necklaces, bracelets, rings, earrings, watches, and gift sets. We inspect and pack every order at our Nairobi studio, dispatch across the city the same day when ordered before 2pm, and collect payment on delivery by cash or M-Pesa.
+        Auro Ardon is a Nairobi boutique stocking bold, giftable jewelry, watches, and beauty essentials. We inspect and pack every order at our Nairobi studio, dispatch across the city the same day when ordered before 2pm, and collect payment on delivery by cash or M-Pesa.
       </p>
     </section>
   );

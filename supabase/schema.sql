@@ -77,6 +77,7 @@ create table if not exists public.products (
   in_the_box     text,
   care           text,
   images         text[]      not null default '{}',
+  blur_data_url  text,
   is_featured    boolean     not null default false, -- EXISTING
   active         boolean     not null default true,  -- NEW
   created_at     timestamptz not null default timezone('utc', now())
@@ -109,6 +110,7 @@ create table if not exists public.orders (
 
 create index if not exists orders_created_at_idx on public.orders (created_at desc);
 create index if not exists orders_status_idx     on public.orders (order_status);
+create index if not exists orders_status_created_at_idx on public.orders (order_status, created_at desc);
 create index if not exists orders_phone_idx      on public.orders (customer_phone);
 
 -- ─── TABLE: order_items ──────────────────────────────────
@@ -124,6 +126,7 @@ create table if not exists public.order_items (
 );
 
 create index if not exists order_items_order_id_idx on public.order_items (order_id);
+create index if not exists order_items_product_id_idx on public.order_items (product_id);
 
 -- ─── CHECKOUT TRANSACTION ────────────────────────────────
 -- This function owns the full checkout write path so stock reservation,
@@ -247,7 +250,8 @@ begin
       gi.quantity
     from public.products p
     join grouped_items gi on gi.product_id = p.id
-    for update
+    order by p.id asc
+    for update of p
   )
   select
     count(*)::integer,
@@ -399,6 +403,95 @@ begin
 end;
 $$;
 
+revoke all on function public.create_checkout_order(
+  text, text, text, text, text, public.payment_method, text, jsonb
+) from public, anon, authenticated;
+
+grant execute on function public.create_checkout_order(
+  text, text, text, text, text, public.payment_method, text, jsonb
+) to service_role;
+
+-- ─── ADMIN ORDER UPDATE TRANSACTION ──────────────────────
+create or replace function public.update_admin_order(
+  target_order_id uuid,
+  next_order_status public.order_status default null,
+  next_payment_status public.payment_status default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_order public.orders%rowtype;
+  updated_order public.orders%rowtype;
+  resolved_order_status public.order_status;
+  resolved_payment_status public.payment_status;
+begin
+  select *
+  into current_order
+  from public.orders
+  where id = target_order_id
+  for update;
+
+  if not found then
+    raise exception 'Order not found.';
+  end if;
+
+  resolved_order_status := coalesce(next_order_status, current_order.order_status);
+  resolved_payment_status := coalesce(next_payment_status, current_order.payment_status);
+
+  if resolved_order_status <> current_order.order_status then
+    if not (
+      (current_order.order_status = 'PENDING_CONFIRMATION' and resolved_order_status in ('CONFIRMED', 'CANCELLED')) or
+      (current_order.order_status = 'CONFIRMED' and resolved_order_status in ('OUT_FOR_DELIVERY', 'CANCELLED')) or
+      (current_order.order_status = 'OUT_FOR_DELIVERY' and resolved_order_status in ('DELIVERED', 'CANCELLED'))
+    ) then
+      raise exception 'Invalid status transition.';
+    end if;
+  end if;
+
+  if current_order.order_status <> 'CANCELLED' and resolved_order_status = 'CANCELLED' then
+    with grouped_restores as (
+      select product_id, sum(quantity)::integer as quantity
+      from public.order_items
+      where order_id = target_order_id
+        and product_id is not null
+      group by product_id
+    ),
+    locked_products as (
+      select p.id, gr.quantity
+      from public.products p
+      join grouped_restores gr on gr.product_id = p.id
+      order by p.id asc
+      for update of p
+    )
+    update public.products p
+    set stock_quantity = p.stock_quantity + lp.quantity
+    from locked_products lp
+    where p.id = lp.id;
+  end if;
+
+  update public.orders
+  set
+    order_status = resolved_order_status,
+    payment_status = resolved_payment_status
+  where id = target_order_id
+  returning *
+  into updated_order;
+
+  return updated_order;
+end;
+$$;
+
+revoke all on function public.update_admin_order(
+  uuid, public.order_status, public.payment_status
+) from public, anon, authenticated;
+
+grant execute on function public.update_admin_order(
+  uuid, public.order_status, public.payment_status
+) to service_role;
+
 -- ─── ROW LEVEL SECURITY ──────────────────────────────────
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
@@ -415,15 +508,11 @@ drop policy if exists "Public can view active products" on public.products;
 create policy "Public can view active products"
   on public.products for select using (active = true);
 
--- ORDERS
+-- ORDERS & ORDER ITEMS: Server-only via service_role RPC (no anonymous writes)
 drop policy if exists "Anyone can create orders" on public.orders;
-create policy "Anyone can create orders"
-  on public.orders for insert with check (true);
-
--- ORDER ITEMS
 drop policy if exists "Anyone can insert order items" on public.order_items;
-create policy "Anyone can insert order items"
-  on public.order_items for insert with check (true);
+revoke insert, update, delete on public.orders from anon, authenticated;
+revoke insert, update, delete on public.order_items from anon, authenticated;
 
 -- ─── STORAGE ──────────────────────────────────────────────
 insert into storage.buckets (id, name, public)
@@ -437,7 +526,8 @@ create policy "Public can read product images"
 
 -- ─── SEED: default categories ────────────────────────────
 insert into public.categories (name, slug, description, display_order) values
-  ('Jewelry',          'jewelry',          'Handcrafted stainless steel and African beaded jewelry', 1),
-  ('Lip Care',         'lip-care',         'Nourishing lip glosses, oils and balms',               2),
-  ('Hair Accessories', 'hair-accessories', 'Stylish pushbacks, hair bands, clips and flower clips', 3)
+  ('Watches',     'watches',     'Classic and fashion watches for men and women',          1),
+  ('Lip Care',    'lip-care',    'Nourishing lip glosses, oils and balms',                 2),
+  ('Jewelry',     'jewelry',     'Handcrafted stainless steel and African beaded jewelry', 3),
+  ('Accessories', 'accessories', 'Hair accessories and everyday style accents',            4)
 on conflict (slug) do nothing;

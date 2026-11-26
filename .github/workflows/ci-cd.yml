@@ -34,8 +34,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Test
+        run: npm run test
 
       - name: Build
         run: npm run build
@@ -48,12 +54,8 @@ jobs:
           NEXT_PUBLIC_WHATSAPP_NUMBER: 254700000000
           ADMIN_EMAIL: admin@example.com
           SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
-          MPESA_ENVIRONMENT: sandbox
-          MPESA_CONSUMER_KEY: test-key
-          MPESA_CONSUMER_SECRET: test-secret
-          MPESA_SHORTCODE: 174379
-          MPESA_PASSKEY: test-passkey
-          MPESA_CALLBACK_URL: https://example.com/api/mpesa/callback
+          ORDER_STATUS_TOKEN_SECRET: test-order-status-token-secret-for-ci
+          REVALIDATE_SECRET: test-revalidate-secret-for-ci
 
   container:
     name: Build and publish image
@@ -129,4 +131,3 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"image\":\"${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}\",\"sha\":\"${{ github.sha }}\"}" \
             "${{ secrets.DEPLOY_WEBHOOK_URL }}"
-

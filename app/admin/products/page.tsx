@@ -4,8 +4,8 @@ import { ProductList } from "@/components/admin/product-list";
 import type { Product } from "@/lib/types";
 
 export const metadata = {
-  title: "Products Admin | Auro Ardon",
-  robots: { index: false, follow: false },
+  title: "Products Admin",
+  robots: { index: false, follow: false }
 };
 
 export default async function AdminProductsPage() {

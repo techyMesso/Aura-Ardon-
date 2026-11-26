@@ -9,9 +9,8 @@ import {
   selectHomepageBestsellers
 } from "@/lib/catalog";
 import {
+  deriveCategoryRepresentatives,
   listCategories,
-  listCategoryRepresentatives,
-  listFeaturedProducts,
   listPublicProducts
 } from "@/lib/data";
 import { formatHeroSubline, SITE_CONFIG } from "@/lib/site-config";
@@ -19,19 +18,22 @@ import { formatHeroSubline, SITE_CONFIG } from "@/lib/site-config";
 export const revalidate = 300;
 
 export const metadata = {
-  title: `${SITE_CONFIG.brandName} | ${SITE_CONFIG.heroHeadline}`,
+  title: {
+    absolute: `${SITE_CONFIG.brandName} | ${SITE_CONFIG.heroHeadline}`
+  },
   description: `${SITE_CONFIG.heroHeadline} ${SITE_CONFIG.brandLine}`
 };
 
 export default async function HomePage() {
-  const [allProducts, featuredProducts, categories, representatives] =
-    await Promise.all([
-      listPublicProducts(),
-      listFeaturedProducts(6),
-      listCategories(),
-      listCategoryRepresentatives()
-    ]);
+  const [allProducts, categories] = await Promise.all([
+    listPublicProducts(),
+    listCategories()
+  ]);
 
+  const featuredProducts = allProducts
+    .filter(product => product.is_featured)
+    .slice(0, 6);
+  const representatives = deriveCategoryRepresentatives(allProducts);
   const newInProducts = allProducts.slice(0, 8);
   const bestsellers = selectHomepageBestsellers(
     allProducts,

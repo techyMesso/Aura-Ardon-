@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2, X } from "lucide-react";
 
 import {
   DEFAULT_PRODUCT_BLUR_DATA_URL,
@@ -12,28 +11,26 @@ import {
 } from "@/components/storefront/price-kes";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
+import { useCart, useCartValue } from "@/lib/cart";
 import {
+  formatProductTitle,
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
-import { useCart, useCartValue } from "@/lib/cart";
 import { createWhatsAppLink } from "@/lib/utils";
 
 export function CartPageClient() {
-  const { items, updateQuantity, removeItem } = useCart();
+  const { items, updateQuantity, removeItem, cartNotice, dismissCartNotice } =
+    useCart();
   const { total, itemCount } = useCartValue();
-  const { openCart, recentlyViewedProducts } = useStorefrontUI();
-
-  useEffect(() => {
-    openCart();
-  }, [openCart]);
+  const { recentlyViewedProducts } = useStorefrontUI();
 
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
   const cartWhatsAppMessage = [
     "Hello Auro Ardon, I would like to order these pieces:",
     ...items.map(
       item =>
-        `- ${item.product.title} x${item.quantity} (${formatKES(Number(item.product.price) * item.quantity)})`
+        `- ${formatProductTitle(item.product.title)} x${item.quantity} (${formatKES(Number(item.product.price) * item.quantity)})`
     ),
     `Subtotal: ${formatKES(total)}`
   ].join("\n");
@@ -46,6 +43,23 @@ export function CartPageClient() {
       <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
         Bag ({itemCount})
       </h1>
+
+      {cartNotice ? (
+        <div
+          role="status"
+          className="mt-6 flex items-start justify-between gap-3 border border-brass/40 bg-stone px-4 py-3 font-sans text-[14px] text-text"
+        >
+          <span>{cartNotice}</span>
+          <button
+            type="button"
+            onClick={dismissCartNotice}
+            aria-label="Dismiss bag notice"
+            className="shrink-0 text-muted hover:text-text"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ) : null}
 
       {items.length === 0 ? (
         <div className="mt-8 bg-stone p-8 font-sans text-[16px] leading-[1.5] text-text">
@@ -60,6 +74,7 @@ export function CartPageClient() {
         <div className="mt-8 space-y-8">
           <ul className="divide-y divide-text/12 border-y border-text/12">
             {items.map(item => {
+              const displayTitle = formatProductTitle(item.product.title);
               const productPath = productHref(item.product);
               const image =
                 getSafeCatalogImageUrl(item.product.images[0]) ||
@@ -71,7 +86,7 @@ export function CartPageClient() {
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-none bg-paper">
                     <Image
                       src={image}
-                      alt={item.product.title}
+                      alt={displayTitle}
                       fill
                       loading="lazy"
                       placeholder="blur"
@@ -90,12 +105,12 @@ export function CartPageClient() {
                         href={productPath}
                         className="font-sans text-[16px] text-text hover:text-brass"
                       >
-                        {item.product.title}
+                        {displayTitle}
                       </Link>
                       <button
                         type="button"
                         onClick={() => removeItem(item.product.id)}
-                        aria-label={`Remove ${item.product.title}`}
+                        aria-label={`Remove ${displayTitle}`}
                         className="text-muted hover:text-text"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
@@ -109,7 +124,7 @@ export function CartPageClient() {
                           onClick={() =>
                             updateQuantity(item.product.id, item.quantity - 1)
                           }
-                          aria-label={`Decrease quantity of ${item.product.title}`}
+                          aria-label={`Decrease quantity of ${displayTitle}`}
                           className="flex h-9 w-9 items-center justify-center text-text hover:text-brass"
                         >
                           <Minus className="h-3.5 w-3.5" aria-hidden />
@@ -126,7 +141,7 @@ export function CartPageClient() {
                             updateQuantity(item.product.id, item.quantity + 1)
                           }
                           disabled={atLimit}
-                          aria-label={`Increase quantity of ${item.product.title}`}
+                          aria-label={`Increase quantity of ${displayTitle}`}
                           className="flex h-9 w-9 items-center justify-center text-text hover:text-brass disabled:opacity-40"
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden />

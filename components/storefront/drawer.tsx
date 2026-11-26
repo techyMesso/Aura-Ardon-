@@ -15,6 +15,9 @@ interface DrawerProps {
   className?: string;
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function Drawer({
   open,
   onClose,
@@ -25,16 +28,36 @@ export function Drawer({
   className
 }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
 
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        event.preventDefault();
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const focusables = panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      if (!focusables?.length) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
@@ -42,49 +65,36 @@ export function Drawer({
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus?.();
     };
   }, [open, onClose]);
 
+  if (!open) return null;
+
   const panelPosition =
     side === "bottom"
-      ? cn(
-          "inset-x-0 bottom-0 max-h-[85dvh] w-full border-t border-text/15",
-          open ? "translate-y-0" : "translate-y-full"
-        )
+      ? "inset-x-0 bottom-0 max-h-[85dvh] w-full border-t border-text/15"
       : side === "left"
-        ? cn(
-            "inset-y-0 left-0 h-full w-[min(22rem,calc(100%-2.5rem))] border-r border-text/15",
-            open ? "translate-x-0" : "-translate-x-full"
-          )
-        : cn(
-            "inset-y-0 right-0 h-full w-[min(26rem,100%)] border-l border-text/15",
-            open ? "translate-x-0" : "translate-x-full"
-          );
+        ? "inset-y-0 left-0 h-full w-[min(22rem,calc(100%-2.5rem))] border-r border-text/15"
+        : "inset-y-0 right-0 h-full w-[min(26rem,100%)] border-l border-text/15";
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className={cn(
-        "fixed inset-0 z-[70]",
-        open ? "visible" : "invisible pointer-events-none"
-      )}
+      className="fixed inset-0 z-[70]"
     >
       <button
         type="button"
-        tabIndex={open ? 0 : -1}
         aria-label={`Close ${title}`}
         onClick={onClose}
-        className={cn(
-          "absolute inset-0 bg-ink/60 transition-opacity duration-200",
-          open ? "opacity-100" : "opacity-0"
-        )}
+        className="absolute inset-0 bg-ink/60"
       />
       <div
         ref={panelRef}
         className={cn(
-          "absolute flex flex-col bg-paper text-text transition-transform duration-200",
+          "absolute flex flex-col bg-paper text-text",
           panelPosition,
           className
         )}
@@ -92,6 +102,7 @@ export function Drawer({
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-text/12 px-5">
           <h2 className="font-sans text-[14px] font-medium text-text">{title}</h2>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label={`Close ${title}`}

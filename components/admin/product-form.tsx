@@ -32,9 +32,9 @@ function FormLabel({
   required?: boolean;
 }) {
   return (
-    <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-semibold text-ink">
+    <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-semibold text-text">
       {children}
-      {required ? <span className="ml-1 text-rose">*</span> : null}
+      {required ? <span className="ml-1 text-brass">*</span> : null}
     </label>
   );
 }
@@ -60,15 +60,23 @@ function Toggle({
       aria-checked={checked}
       aria-describedby={`${id}-description`}
       onClick={() => onChange(!checked)}
-       className={`flex w-full items-start gap-3 border p-4 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-champagne ${
-        checked ? "border-bronze/50 bg-champagne/15" : "border-border bg-white/60"
+      className={`flex w-full items-start gap-3 border p-4 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brass ${
+        checked ? "border-brass/60 bg-stone" : "border-border bg-paper"
       }`}
     >
-      <span className={`mt-0.5 flex h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${checked ? "bg-bronze" : "bg-muted/45"}`}>
-        <span className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`} />
+      <span
+        className={`mt-0.5 flex h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${
+          checked ? "bg-brass" : "bg-muted/45"
+        }`}
+      >
+        <span
+          className={`h-5 w-5 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
       </span>
       <span>
-        <span className="block text-sm font-semibold text-ink">{label}</span>
+        <span className="block text-sm font-semibold text-text">{label}</span>
         <span id={`${id}-description`} className="mt-0.5 block text-sm leading-5 text-muted">
           {description}
         </span>
@@ -163,7 +171,9 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
 
     try {
       const response = await fetch(
-        initialProduct ? `/api/admin/products/${initialProduct.id}` : "/api/admin/products",
+        initialProduct
+          ? `/api/admin/products/${initialProduct.id}`
+          : "/api/admin/products",
         {
           method: initialProduct ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -173,140 +183,342 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error || "Failed to save product.");
 
-      setSuccess(isEdit ? "Product updated. Returning to products..." : "Product created. Returning to products...");
-      window.setTimeout(() => router.push("/admin/products"), 700);
+      setSuccess(
+        isEdit
+          ? "Product updated. Returning to products..."
+          : "Product created. Returning to products..."
+      );
+      router.push("/admin/products");
+      router.refresh();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Error saving product.");
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Error saving product."
+      );
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-0" noValidate>
-      <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6" aria-labelledby="product-details-heading">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-0"
+      noValidate
+    >
+      <section
+        className="border border-border bg-paper p-4 sm:p-6"
+        aria-labelledby="product-details-heading"
+      >
         <div className="mb-5">
-          <p className="text-sm font-medium text-bronze">Product details</p>
-          <h3 id="product-details-heading" className="mt-1 font-serif text-2xl text-ink">The essentials</h3>
+          <p className="text-sm font-medium text-brass">Product details</p>
+          <h3 id="product-details-heading" className="mt-1 font-serif text-2xl text-text">
+            The essentials
+          </h3>
         </div>
         <div className="space-y-4">
           <div>
-            <FormLabel htmlFor="product-title" required>Product title</FormLabel>
-            <Input id="product-title" placeholder="Signature gold cuff" value={title} onChange={event => setTitle(event.target.value)} required className="min-h-12 text-base" />
+            <FormLabel htmlFor="product-title" required>
+              Product title
+            </FormLabel>
+            <Input
+              id="product-title"
+              placeholder="Signature gold cuff"
+              value={title}
+              onChange={event => setTitle(event.target.value)}
+              required
+              className="min-h-12 text-base"
+            />
           </div>
           <div>
-            <FormLabel htmlFor="product-description" required>Description</FormLabel>
-            <Textarea id="product-description" placeholder="Describe craftsmanship, gemstone profile, fit, and care instructions..." value={description} onChange={event => setDescription(event.target.value)} required rows={5} className="min-h-32 resize-none text-base" />
-            <p className="mt-1.5 text-xs leading-5 text-muted">Help customers picture the piece: include finish, size or fit, and care details.</p>
+            <FormLabel htmlFor="product-description" required>
+              Description
+            </FormLabel>
+            <Textarea
+              id="product-description"
+              placeholder="Describe the finish, fit, ingredients, or packaging..."
+              value={description}
+              onChange={event => setDescription(event.target.value)}
+              required
+              rows={5}
+              className="min-h-32 resize-none text-base"
+            />
+            <p className="mt-1.5 text-xs leading-5 text-muted">
+              Help customers picture the piece: include finish, size or fit, and care details.
+            </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <FormLabel htmlFor="product-category" required>Category</FormLabel>
+              <FormLabel htmlFor="product-category" required>
+                Category
+              </FormLabel>
               {categoryMessage ? (
-                <div className="rounded-xl border border-dashed border-bronze/45 bg-champagne/10 p-4 text-sm text-ink">
+                <div className="rounded-[2px] border border-dashed border-brass/50 bg-stone p-4 text-sm text-text">
                   <p>{categoryMessage}.</p>
-                  <Link href="/admin/categories" className="mt-2 inline-flex font-semibold text-bronze underline underline-offset-4 hover:text-rose">
+                  <Link
+                    href="/admin/categories"
+                    className="mt-2 inline-flex font-semibold text-brass underline underline-offset-4 hover:opacity-80"
+                  >
                     Manage categories
                   </Link>
                 </div>
               ) : (
-                <select id="product-category" value={categoryId} onChange={event => setCategoryId(event.target.value)} required className="min-h-12 w-full rounded-2xl border border-border bg-white/80 px-4 text-base text-ink outline-none transition focus:border-bronze focus:ring-2 focus:ring-champagne/50">
+                <select
+                  id="product-category"
+                  value={categoryId}
+                  onChange={event => setCategoryId(event.target.value)}
+                  required
+                  className="min-h-12 w-full rounded-[2px] border border-text/20 bg-paper px-4 text-base text-text outline-none transition focus:border-brass"
+                >
                   <option value="">Select a category</option>
-                  {orderedCategories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                  {orderedCategories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
                 </select>
               )}
             </div>
             <div>
-              <FormLabel htmlFor="product-material" required>Material</FormLabel>
-              <Input id="product-material" placeholder="Stainless steel" value={material} onChange={event => setMaterial(event.target.value)} required className="min-h-12 text-base" />
+              <FormLabel htmlFor="product-material" required>
+                Material
+              </FormLabel>
+              <Input
+                id="product-material"
+                placeholder="Stainless steel"
+                value={material}
+                onChange={event => setMaterial(event.target.value)}
+                required
+                className="min-h-12 text-base"
+              />
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <FormLabel htmlFor="product-finish">Finish</FormLabel>
-              <Input id="product-finish" placeholder="18k gold PVD mirror polish" value={finish} onChange={event => setFinish(event.target.value)} className="min-h-12 text-base" />
+              <Input
+                id="product-finish"
+                placeholder="18k gold PVD mirror polish"
+                value={finish}
+                onChange={event => setFinish(event.target.value)}
+                className="min-h-12 text-base"
+              />
             </div>
             <div>
               <FormLabel htmlFor="product-size-label">Length / size</FormLabel>
-              <Input id="product-size-label" placeholder="45 cm + 5 cm extender" value={sizeLabel} onChange={event => setSizeLabel(event.target.value)} className="min-h-12 text-base" />
+              <Input
+                id="product-size-label"
+                placeholder="45 cm + 5 cm extender"
+                value={sizeLabel}
+                onChange={event => setSizeLabel(event.target.value)}
+                className="min-h-12 text-base"
+              />
             </div>
             <div>
               <FormLabel htmlFor="product-in-the-box">In the box</FormLabel>
-              <Input id="product-in-the-box" placeholder="Auro Ardon pouch and polishing cloth" value={inTheBox} onChange={event => setInTheBox(event.target.value)} className="min-h-12 text-base" />
+              <Input
+                id="product-in-the-box"
+                placeholder="Auro Ardon pouch and polishing cloth"
+                value={inTheBox}
+                onChange={event => setInTheBox(event.target.value)}
+                className="min-h-12 text-base"
+              />
             </div>
             <div>
               <FormLabel htmlFor="product-care">Care</FormLabel>
-              <Input id="product-care" placeholder="Wipe dry after wear; store in pouch" value={care} onChange={event => setCare(event.target.value)} className="min-h-12 text-base" />
+              <Input
+                id="product-care"
+                placeholder="Wipe dry after wear; store in pouch"
+                value={care}
+                onChange={event => setCare(event.target.value)}
+                className="min-h-12 text-base"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6" aria-labelledby="pricing-inventory-heading">
+      <section
+        className="border border-border bg-paper p-4 sm:p-6"
+        aria-labelledby="pricing-inventory-heading"
+      >
         <div className="mb-5">
-          <p className="text-sm font-medium text-bronze">Pricing and inventory</p>
-          <h3 id="pricing-inventory-heading" className="mt-1 font-serif text-2xl text-ink">Set availability</h3>
+          <p className="text-sm font-medium text-brass">Pricing and inventory</p>
+          <h3 id="pricing-inventory-heading" className="mt-1 font-serif text-2xl text-text">
+            Set availability
+          </h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <FormLabel htmlFor="product-price" required>Price (KSh)</FormLabel>
-            <Input id="product-price" type="number" min="0.01" step="0.01" inputMode="decimal" placeholder="2500" value={price} onChange={event => setPrice(event.target.value)} required className="min-h-12 text-base" aria-describedby="product-price-help" />
-            <p id="product-price-help" className="mt-1.5 text-xs text-muted">Price must be above zero.</p>
+            <FormLabel htmlFor="product-price" required>
+              Price (KES)
+            </FormLabel>
+            <Input
+              id="product-price"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="2500"
+              value={price}
+              onChange={event => setPrice(event.target.value)}
+              required
+              className="min-h-12 text-base"
+              aria-describedby="product-price-help"
+            />
+            <p id="product-price-help" className="mt-1.5 text-xs text-muted">
+              Price must be above zero.
+            </p>
           </div>
           <div>
-            <FormLabel htmlFor="product-stock" required>Stock quantity</FormLabel>
-            <Input id="product-stock" type="number" min="0" step="1" inputMode="numeric" placeholder="10" value={stockQuantity} onChange={event => setStockQuantity(event.target.value)} required className="min-h-12 text-base" aria-describedby="product-stock-help" />
-            <p id="product-stock-help" className="mt-1.5 text-xs text-muted">Stock cannot be negative.</p>
+            <FormLabel htmlFor="product-stock" required>
+              Stock quantity
+            </FormLabel>
+            <Input
+              id="product-stock"
+              type="number"
+              min="0"
+              step="1"
+              inputMode="numeric"
+              placeholder="10"
+              value={stockQuantity}
+              onChange={event => setStockQuantity(event.target.value)}
+              required
+              className="min-h-12 text-base"
+              aria-describedby="product-stock-help"
+            />
+            <p id="product-stock-help" className="mt-1.5 text-xs text-muted">
+              Stock cannot be negative.
+            </p>
           </div>
         </div>
       </section>
 
-      <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6" aria-labelledby="product-images-heading">
+      <section
+        className="border border-border bg-paper p-4 sm:p-6"
+        aria-labelledby="product-images-heading"
+      >
         <div className="mb-5">
-          <p className="text-sm font-medium text-bronze">Product images</p>
-          <h3 id="product-images-heading" className="mt-1 font-serif text-2xl text-ink">Show the details</h3>
-          <p className="mt-1 text-sm text-muted">The first uploaded image is used as the cover image.</p>
+          <p className="text-sm font-medium text-brass">Product images</p>
+          <h3 id="product-images-heading" className="mt-1 font-serif text-2xl text-text">
+            Show the details
+          </h3>
+          <p className="mt-1 text-sm text-muted">
+            The first image is used as the cover image. Use Cover or arrow controls to reorder.
+          </p>
         </div>
         <ImageDropzone value={images} onChange={setImages} />
       </section>
 
-      <section className="border border-border/70 bg-card p-4 shadow-card sm:p-6" aria-labelledby="publishing-heading">
+      <section
+        className="border border-border bg-paper p-4 sm:p-6"
+        aria-labelledby="publishing-heading"
+      >
         <div className="mb-5">
-          <p className="text-sm font-medium text-bronze">Publishing</p>
-          <h3 id="publishing-heading" className="mt-1 font-serif text-2xl text-ink">Choose visibility</h3>
+          <p className="text-sm font-medium text-brass">Publishing</p>
+          <h3 id="publishing-heading" className="mt-1 font-serif text-2xl text-text">
+            Choose visibility
+          </h3>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <Toggle id="product-active" checked={active} onChange={setActive} label="Active" description="Visible in the storefront." />
-          <Toggle id="product-featured" checked={isFeatured} onChange={setIsFeatured} label="Featured" description="Appears in featured collections." />
+          <Toggle
+            id="product-active"
+            checked={active}
+            onChange={setActive}
+            label="Active"
+            description="Visible in the storefront."
+          />
+          <Toggle
+            id="product-featured"
+            checked={isFeatured}
+            onChange={setIsFeatured}
+            label="Featured"
+            description="Appears in featured collections."
+          />
         </div>
       </section>
 
-      <section className="overflow-hidden border border-champagne/50 bg-sand/60" aria-labelledby="product-preview-heading">
-        <div className="border-b border-champagne/35 px-4 py-3 sm:px-6">
-          <p className="text-sm font-medium text-bronze">Product preview</p>
-          <h3 id="product-preview-heading" className="mt-1 font-serif text-2xl text-ink">Before you save</h3>
+      <section
+        className="overflow-hidden border border-border bg-stone"
+        aria-labelledby="product-preview-heading"
+      >
+        <div className="border-b border-border px-4 py-3 sm:px-6">
+          <p className="text-sm font-medium text-brass">Product preview</p>
+          <h3 id="product-preview-heading" className="mt-1 font-serif text-2xl text-text">
+            Before you save
+          </h3>
         </div>
         <div className="flex gap-4 p-4 sm:p-6">
-          <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-cream">
-            {images[0] ? <Image src={images[0]} alt="Product cover preview" fill sizes="80px" className="object-cover" /> : <span className="flex h-full items-center justify-center px-2 text-center text-xs text-muted">Cover image</span>}
+          <div className="relative h-24 w-20 shrink-0 overflow-hidden bg-paper">
+            {images[0] ? (
+              <Image
+                src={images[0]}
+                alt="Product cover preview"
+                fill
+                sizes="80px"
+                className="object-cover"
+              />
+            ) : (
+              <span className="flex h-full items-center justify-center px-2 text-center text-xs text-muted">
+                Cover image
+              </span>
+            )}
           </div>
           <div className="min-w-0">
-            <p className="truncate font-serif text-xl text-ink">{title.trim() || "Untitled product"}</p>
-            <p className="mt-1 text-sm text-bronze">{selectedCategory?.name || "No category selected"}</p>
-            <p className="mt-2 font-semibold text-ink">{Number.isFinite(numericPrice) && numericPrice > 0 ? formatCurrency(numericPrice) : "Price not set"}</p>
-            <p className="mt-1 text-sm text-muted">{Number.isInteger(numericStock) && numericStock >= 0 ? `${numericStock} in stock` : "Stock not set"}</p>
-            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">{active ? "Active" : "Inactive"} — {isFeatured ? "Featured" : "Standard"}</p>
+            <p className="truncate font-serif text-xl text-text">
+              {title.trim() || "Untitled product"}
+            </p>
+            <p className="mt-1 text-sm text-brass">
+              {selectedCategory?.name || "No category selected"}
+            </p>
+            <p className="mt-2 font-semibold text-text">
+              {Number.isFinite(numericPrice) && numericPrice > 0
+                ? formatCurrency(numericPrice)
+                : "Price not set"}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {Number.isInteger(numericStock) && numericStock >= 0
+                ? `${numericStock} in stock`
+                : "Stock not set"}
+            </p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+              {active ? "Active" : "Inactive"} — {isFeatured ? "Featured" : "Standard"}
+            </p>
           </div>
         </div>
       </section>
 
-      {error ? <div role="alert" className="rounded-xl border border-rose/35 bg-rose/10 p-4 text-sm font-medium text-ink">{error}</div> : null}
-      {success ? <div role="status" className="rounded-xl border border-bronze/35 bg-champagne/20 p-4 text-sm font-medium text-ink">{success}</div> : null}
+      {error ? (
+        <div
+          role="alert"
+          className="rounded-[2px] border border-red-400/50 bg-red-500/10 p-4 text-sm font-medium text-red-600 dark:text-red-400"
+        >
+          {error}
+        </div>
+      ) : null}
+      {success ? (
+        <div
+          role="status"
+          className="rounded-[2px] border border-brass/50 bg-stone p-4 text-sm font-medium text-text"
+        >
+          {success}
+        </div>
+      ) : null}
 
-      <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex gap-3 border-t border-champagne/30 bg-cream/95 px-4 py-3 shadow-[0_-10px_30px_rgba(43,20,37,0.12)] backdrop-blur md:static md:pt-2 md:shadow-none">
-        <Button type="submit" disabled={saving || Boolean(categoryMessage)} aria-busy={saving} className="min-h-12 min-w-0 flex-1 text-sm md:flex-none md:text-base">
+      <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex gap-3 border-t border-border bg-paper/95 px-4 py-3 backdrop-blur md:static md:border-t-0 md:bg-transparent md:px-0 md:pt-2">
+        <Button
+          type="submit"
+          disabled={saving || Boolean(categoryMessage)}
+          aria-busy={saving}
+          className="min-h-12 min-w-0 flex-1 text-sm md:flex-none md:text-base"
+        >
           {saving ? "Saving product..." : "Save Product"}
         </Button>
-        <Button type="button" variant="ghost" onClick={() => router.back()} disabled={saving} className="min-h-12 min-w-0 flex-1 text-sm md:flex-none md:text-base">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => router.back()}
+          disabled={saving}
+          className="min-h-12 min-w-0 flex-1 text-sm md:flex-none md:text-base"
+        >
           Cancel
         </Button>
       </div>

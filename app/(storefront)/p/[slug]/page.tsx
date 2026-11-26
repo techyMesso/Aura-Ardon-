@@ -16,7 +16,7 @@ import {
   listPublicProducts
 } from "@/lib/data";
 import { getPublicSiteUrl } from "@/lib/env";
-import { ProductDetailClient } from "@/app/(storefront)/shop/[category]/[product]/product-detail-client";
+import { ProductDetailClient } from "@/components/storefront/product-detail-client";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;

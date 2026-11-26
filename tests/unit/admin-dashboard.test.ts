@@ -101,6 +101,22 @@ describe("admin dashboard inventory", () => {
     expect(getProductStockStatus(5)).toBe("low-stock");
     expect(getProductStockStatus(6)).toBe("in-stock");
   });
+
+  it("excludes cancelled orders from revenue and active order counts", () => {
+    const cancelledOrder: Order = {
+      ...orders[0],
+      id: "order-cancelled",
+      order_status: "CANCELLED",
+      total: "9999"
+    };
+    const dashboard = buildAdminDashboardOverview(products, [
+      ...orders,
+      cancelledOrder
+    ]);
+
+    expect(dashboard.revenue).toBe(5700);
+    expect(dashboard.totalOrders).toBe(2);
+  });
 });
 
 describe("admin product filters", () => {

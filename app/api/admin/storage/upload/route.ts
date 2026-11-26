@@ -23,6 +23,57 @@ function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9.\-_]/g, "-").toLowerCase();
 }
 
+function detectImageMimeType(buffer: Buffer): string | null {
+  if (buffer.length < 12) return null;
+
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+
+  // GIF: GIF87a / GIF89a
+  if (
+    buffer[0] === 0x47 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x38
+  ) {
+    return "image/gif";
+  }
+
+  // WebP: RIFF....WEBP
+  if (
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+
+  // AVIF / HEIF ISO BMFF: ....ftypavif or ....ftypavis
+  if (buffer.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brand = buffer.subarray(8, 12).toString("ascii");
+    if (brand === "avif" || brand === "avis" || brand === "mif1") {
+      return "image/avif";
+    }
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     await assertAdminRequest();
@@ -41,7 +92,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate every file before touching storage
+    const preparedFiles: Array<{
+      name: string;
+      buffer: Buffer;
+      contentType: string;
+    }> = [];
+
     for (const value of files) {
       if (!(value instanceof File)) {
         return NextResponse.json(
@@ -65,55 +121,68 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+
+      const buffer = Buffer.from(await value.arrayBuffer());
+      const detectedMime = detectImageMimeType(buffer);
+      if (!detectedMime) {
+        return NextResponse.json(
+          {
+            error: `"${value.name}" does not appear to be a valid image file.`
+          },
+          { status: 400 }
+        );
+      }
+
+      preparedFiles.push({
+        name: value.name,
+        buffer,
+        contentType: detectedMime
+      });
     }
 
-    // Use the service-role client so RLS on storage.objects doesn't block us.
-    // Admin privileges were already verified above via assertAdminRequest().
     const supabase = createAdminSupabaseClient();
 
-    // Make sure the bucket exists (safe to call repeatedly).
     const { data: existingBucket } = await supabase.storage.getBucket(BUCKET_NAME);
     if (!existingBucket) {
-      const { error: createBucketError } = await supabase.storage.createBucket(BUCKET_NAME, {
-        public: true,
-        allowedMimeTypes: Array.from(ALLOWED_MIME_TYPES),
-        fileSizeLimit: MAX_FILE_SIZE
-      });
+      const { error: createBucketError } = await supabase.storage.createBucket(
+        BUCKET_NAME,
+        {
+          public: true,
+          allowedMimeTypes: Array.from(ALLOWED_MIME_TYPES),
+          fileSizeLimit: MAX_FILE_SIZE
+        }
+      );
       if (createBucketError) {
         throw new Error(`Could not create storage bucket: ${createBucketError.message}`);
       }
     }
 
-    const uploadedUrls: string[] = [];
+    const uploadedUrls = await Promise.all(
+      preparedFiles.map(async file => {
+        const path = `products/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+        const { error: uploadError } = await supabase.storage
+          .from(BUCKET_NAME)
+          .upload(path, file.buffer, {
+            contentType: file.contentType,
+            upsert: false,
+            cacheControl: "31536000"
+          });
 
-    for (const value of files) {
-      if (!(value instanceof File)) continue;
+        if (uploadError) {
+          throw new Error(`Upload failed for "${file.name}": ${uploadError.message}`);
+        }
 
-      const path = `products/${crypto.randomUUID()}-${sanitizeFileName(value.name)}`;
-      const buffer = Buffer.from(await value.arrayBuffer());
+        const { data: publicUrlData } = supabase.storage
+          .from(BUCKET_NAME)
+          .getPublicUrl(path);
 
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(path, buffer, {
-          contentType: value.type,
-          upsert: false,
-          cacheControl: "3600"
-        });
+        if (!publicUrlData?.publicUrl) {
+          throw new Error(`Could not resolve public URL for "${file.name}".`);
+        }
 
-      if (uploadError) {
-        throw new Error(`Upload failed for "${value.name}": ${uploadError.message}`);
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(path);
-
-      if (!publicUrlData?.publicUrl) {
-        throw new Error(`Could not resolve public URL for "${value.name}".`);
-      }
-
-      uploadedUrls.push(publicUrlData.publicUrl);
-    }
+        return publicUrlData.publicUrl;
+      })
+    );
 
     return NextResponse.json({ urls: uploadedUrls });
   } catch (caughtError) {

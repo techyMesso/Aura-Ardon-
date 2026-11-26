@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
@@ -9,38 +9,51 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart, useCartValue } from "@/lib/cart";
+import { formatProductTitle } from "@/lib/catalog";
 import { SITE_CONFIG } from "@/lib/site-config";
 import { normalizeWhatsAppNumber } from "@/lib/utils";
 
 type PaymentMethod = "CASH_ON_DELIVERY" | "WHATSAPP";
 
+interface SavedOrderReceipt {
+  orderId: string;
+  whatsappUrl: string | null;
+  orderStatusToken: string | null;
+  trackingUrl: string | null;
+  totals: {
+    subtotal: string | number;
+    shippingFee: string | number;
+    total: string | number;
+  };
+  placedAt: string;
+}
+
 const NAIROBI_AREAS = SITE_CONFIG.deliveryAreas;
+const LAST_ORDER_STORAGE_KEY = "auro-ardon-last-order";
 
 function isValidKenyanPhone(input: string): boolean {
   const digits = input.replace(/[\s()-]/g, "");
-  return /^(?:\+?254|0)(?:7|1)\d{8}$/.test(digits);
+  return /^(?:\+?254|0)?(?:7|1)\d{8}$/.test(digits);
+}
+
+function generateIdempotencyKey() {
+  return typeof crypto !== "undefined"
+    ? crypto.randomUUID()
+    : `checkout-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function CheckoutPageClient() {
-  const { items, clearCart } = useCart();
+  const { items, clearCart, cartNotice } = useCart();
   const { total, itemCount } = useCartValue();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
-  const [orderStatusToken, setOrderStatusToken] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<SavedOrderReceipt | null>(null);
   const [trackedStatus, setTrackedStatus] = useState<{
     orderStatus: string;
     paymentStatus: string;
   } | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
-  const [orderTotals, setOrderTotals] = useState<{
-    subtotal: string | number;
-    shippingFee: string | number;
-    total: string | number;
-  } | null>(null);
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("+254 ");
@@ -55,19 +68,46 @@ export function CheckoutPageClient() {
   const whatsappConfigured = Boolean(
     normalizeWhatsAppNumber(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER)
   );
-  const idempotencyKeyRef = useRef(
-    typeof crypto !== "undefined"
-      ? crypto.randomUUID()
-      : `checkout-${Date.now()}`
+  const cartSignature = useMemo(
+    () => items.map(item => `${item.product.id}:${item.quantity}`).join("|"),
+    [items]
   );
+  const idempotencyKeyRef = useRef(generateIdempotencyKey());
+  const lastSignatureRef = useRef(cartSignature);
   const submittingRef = useRef(false);
 
+  // Regenerate idempotency key if cart contents change after a failed attempt.
+  useEffect(() => {
+    if (lastSignatureRef.current !== cartSignature) {
+      lastSignatureRef.current = cartSignature;
+      idempotencyKeyRef.current = generateIdempotencyKey();
+    }
+  }, [cartSignature]);
+
+  // Restore last placed order receipt if the customer refreshed or returned from WhatsApp.
+  useEffect(() => {
+    if (items.length > 0) return;
+    try {
+      const saved = localStorage.getItem(LAST_ORDER_STORAGE_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as SavedOrderReceipt;
+      const ageMs = Date.now() - Date.parse(parsed.placedAt ?? "");
+      // Keep recent receipt visible for 24 hours when cart is empty.
+      if (parsed.orderId && Number.isFinite(ageMs) && ageMs < 24 * 60 * 60 * 1000) {
+        setReceipt(parsed);
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+  }, [items.length]);
+
   async function handleCheckOrderStatus() {
-    if (!orderStatusToken || checkingStatus) return;
+    if (!receipt?.orderStatusToken || checkingStatus) return;
     setCheckingStatus(true);
     try {
       const response = await fetch(
-        `/api/orders/status/${encodeURIComponent(orderStatusToken)}`
+        `/api/orders/status/${encodeURIComponent(receipt.orderStatusToken)}`,
+        { cache: "no-store" }
       );
       if (response.ok) {
         const data = await response.json();
@@ -87,7 +127,12 @@ export function CheckoutPageClient() {
     }
 
     if (!isValidKenyanPhone(customerPhone)) {
-      setError("Enter a valid Kenyan mobile number, e.g. +254 712 345 678.");
+      setError("Enter a valid Kenyan mobile number, e.g. +254 712 345 678 or 0112 345 678.");
+      return;
+    }
+
+    if (deliveryArea === "Outside Nairobi" && !locationDetail.trim()) {
+      setError("Enter your town and delivery landmark or courier point.");
       return;
     }
 
@@ -145,25 +190,38 @@ export function CheckoutPageClient() {
         throw new Error(data.error || "Unable to place order.");
       }
 
+      const nextReceipt: SavedOrderReceipt = {
+        orderId: data.orderId,
+        whatsappUrl: data.whatsappUrl ?? null,
+        orderStatusToken: data.orderStatusToken ?? null,
+        trackingUrl:
+          data.orderStatusToken
+            ? `/orders/${encodeURIComponent(data.orderStatusToken)}`
+            : null,
+        totals: {
+          subtotal: data.subtotal,
+          shippingFee: data.shippingFee,
+          total: data.total
+        },
+        placedAt: new Date().toISOString()
+      };
+
+      try {
+        localStorage.setItem(LAST_ORDER_STORAGE_KEY, JSON.stringify(nextReceipt));
+      } catch {
+        // Ignore storage write errors
+      }
+
       clearCart();
-      setOrderId(data.orderId);
-      setWhatsappUrl(data.whatsappUrl ?? null);
-      setOrderStatusToken(data.orderStatusToken ?? null);
-      setOrderTotals({
-        subtotal: data.subtotal,
-        shippingFee: data.shippingFee,
-        total: data.total
-      });
-      setSuccess(true);
+      idempotencyKeyRef.current = generateIdempotencyKey();
+      setReceipt(nextReceipt);
 
       if (data.whatsappUrl && method === "WHATSAPP") {
         window.location.href = data.whatsappUrl;
       }
     } catch (caughtError) {
       setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Unable to place order."
+        caughtError instanceof Error ? caughtError.message : "Unable to place order."
       );
     } finally {
       submittingRef.current = false;
@@ -171,7 +229,92 @@ export function CheckoutPageClient() {
     }
   }
 
-  if (items.length === 0 && !success) {
+  if (receipt && items.length === 0) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 sm:px-6 lg:py-24">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 inline-block rounded-[2px] bg-stone px-3 py-1 font-sans text-[14px] text-text"
+        >
+          Order placed — #{receipt.orderId.slice(0, 8).toUpperCase()}
+        </div>
+        <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+          Order placed
+        </h1>
+
+        <div className="mt-5 space-y-1 font-sans text-[16px] leading-[1.5] text-text">
+          <p>We have reserved your pieces in our Nairobi studio.</p>
+          <p className="text-muted">
+            Our dispatch desk will call or message you shortly to confirm rider arrival; you pay on delivery by cash or M-Pesa.
+          </p>
+        </div>
+
+        <div className="mt-8 divide-y divide-text/12 border-y border-text/12 font-sans text-[14px]">
+          <div className="flex justify-between py-3">
+            <span className="text-muted">Subtotal</span>
+            <span className="text-text">{formatKES(receipt.totals.subtotal)}</span>
+          </div>
+          <div className="flex justify-between py-3">
+            <span className="text-muted">Delivery</span>
+            <span className="text-text">
+              {Number(receipt.totals.shippingFee) > 0
+                ? formatKES(receipt.totals.shippingFee)
+                : "Confirmed on dispatch"}
+            </span>
+          </div>
+          <div className="flex justify-between py-3 font-medium">
+            <span className="text-text">Total</span>
+            <PriceKES amount={receipt.totals.total} />
+          </div>
+        </div>
+
+        {trackedStatus ? (
+          <div className="mt-6 bg-stone p-4 font-sans text-[14px] text-text">
+            <p>
+              Order status:{" "}
+              {trackedStatus.orderStatus.replace(/_/g, " ").toLowerCase()}
+            </p>
+            <p className="text-muted">
+              Payment: {trackedStatus.paymentStatus.toLowerCase()}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          {receipt.whatsappUrl ? (
+            <a
+              href={receipt.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary"
+            >
+              Message us on WhatsApp
+            </a>
+          ) : null}
+
+          {receipt.trackingUrl ? (
+            <Link href={receipt.trackingUrl} className="btn-outline">
+              Open order tracking page
+            </Link>
+          ) : null}
+
+          {receipt.orderStatusToken ? (
+            <button
+              type="button"
+              onClick={() => void handleCheckOrderStatus()}
+              disabled={checkingStatus}
+              className="cursor-pointer font-sans text-[14px] text-text underline underline-offset-4 hover:text-brass"
+            >
+              {checkingStatus ? "Checking order..." : "Check status now"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 sm:px-6">
         <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
@@ -189,85 +332,20 @@ export function CheckoutPageClient() {
     );
   }
 
-  if (success) {
-    return (
-      <div className="mx-auto max-w-xl px-4 py-16 sm:px-6 lg:py-24">
-        <div
-          role="status"
-          aria-live="polite"
-          className="mb-4 inline-block rounded-[2px] bg-stone px-3 py-1 font-sans text-[14px] text-text"
-        >
-          Order placed{orderId ? ` — #${orderId.slice(0, 8)}` : ""}
-        </div>
-        <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
-          Order placed
-        </h1>
-
-        <div className="mt-5 space-y-1 font-sans text-[16px] leading-[1.5] text-text">
-          <p>We have reserved your pieces in our Nairobi studio.</p>
-          <p className="text-muted">
-            Our dispatch desk will call or message you shortly to confirm rider arrival; you pay on delivery by cash or M-Pesa.
-          </p>
-        </div>
-
-        {orderTotals ? (
-          <div className="mt-8 divide-y divide-text/12 border-y border-text/12 font-sans text-[14px]">
-            <div className="flex justify-between py-3">
-              <span className="text-muted">Subtotal</span>
-              <span className="text-text">{formatKES(orderTotals.subtotal)}</span>
-            </div>
-            <div className="flex justify-between py-3">
-              <span className="text-muted">Delivery</span>
-              <span className="text-text">{formatKES(orderTotals.shippingFee)}</span>
-            </div>
-            <div className="flex justify-between py-3 font-medium">
-              <span className="text-text">Total</span>
-              <PriceKES amount={orderTotals.total} />
-            </div>
-          </div>
-        ) : null}
-
-        {trackedStatus ? (
-          <div className="mt-6 bg-stone p-4 font-sans text-[14px] text-text">
-            <p>Order status: {trackedStatus.orderStatus.replace(/_/g, " ").toLowerCase()}</p>
-            <p className="text-muted">
-              Payment: {trackedStatus.paymentStatus.toLowerCase()}
-            </p>
-          </div>
-        ) : null}
-
-        <div className="mt-8 flex flex-wrap items-center gap-4">
-          {whatsappUrl ? (
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary"
-            >
-              Message us on WhatsApp
-            </a>
-          ) : null}
-
-          {orderStatusToken ? (
-            <button
-              type="button"
-              onClick={() => void handleCheckOrderStatus()}
-              disabled={checkingStatus}
-              className="cursor-pointer font-sans text-[14px] text-text underline underline-offset-4 hover:text-brass"
-            >
-              {checkingStatus ? "Checking order..." : "Track your order"}
-            </button>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-10 lg:py-14">
       <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
         Checkout
       </h1>
+
+      {cartNotice ? (
+        <div
+          role="status"
+          className="mt-6 border border-brass/40 bg-stone px-4 py-3 font-sans text-[14px] text-text"
+        >
+          {cartNotice}
+        </div>
+      ) : null}
 
       <div className="mt-8 grid gap-12 lg:grid-cols-[minmax(0,1fr)_320px]">
         <form
@@ -320,12 +398,18 @@ export function CheckoutPageClient() {
 
               <label className="block font-sans text-[14px]">
                 <span className="mb-1.5 block text-text">
-                  Building, road, or landmark
+                  {deliveryArea === "Outside Nairobi"
+                    ? "Town and pickup point (required)"
+                    : "Building, road, or landmark"}
                 </span>
                 <Input
-                  required={deliveryArea === "Other"}
+                  required={deliveryArea === "Outside Nairobi"}
                   autoComplete="street-address"
-                  placeholder="Apartment, office, or gate"
+                  placeholder={
+                    deliveryArea === "Outside Nairobi"
+                      ? "e.g. Nakuru CBD — Wells Fargo / EasyCoach"
+                      : "Apartment, office, or gate"
+                  }
                   value={locationDetail}
                   onChange={event => setLocationDetail(event.target.value)}
                 />
@@ -391,7 +475,7 @@ export function CheckoutPageClient() {
           {error ? (
             <div
               role="alert"
-              className="rounded-[2px] border border-red-700/40 bg-stone px-4 py-3 font-sans text-[14px] text-red-700"
+              className="rounded-[2px] border border-red-400/50 bg-red-500/10 px-4 py-3 font-sans text-[14px] text-red-600 dark:text-red-400"
             >
               {error}
             </div>
@@ -436,7 +520,7 @@ export function CheckoutPageClient() {
                   className="flex items-baseline justify-between gap-4 py-2.5"
                 >
                   <span className="truncate text-text">
-                    {item.product.title} × {item.quantity}
+                    {formatProductTitle(item.product.title)} × {item.quantity}
                   </span>
                   <PriceKES
                     amount={Number(item.product.price) * item.quantity}

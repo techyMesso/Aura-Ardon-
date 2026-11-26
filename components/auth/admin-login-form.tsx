@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function AdminLoginForm({ adminEmail }: { adminEmail: string }) {
+export function AdminLoginForm({ configured }: { configured: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
@@ -50,39 +50,43 @@ export function AdminLoginForm({ adminEmail }: { adminEmail: string }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-5 rounded-[2rem] border border-white/60 bg-white/70 p-8 shadow-luxe backdrop-blur"
+      className="space-y-5 rounded-[2px] border border-text/15 bg-paper p-8 text-text"
     >
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bronze">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brass">
           Admin Access
         </p>
-        <h1 className="font-serif text-3xl text-ink">Secure your atelier</h1>
+        <h1 className="font-serif text-3xl text-text">Auro Ardon Studio</h1>
         <p className="text-sm text-muted">
-          Sign in with the Aura Ardon admin password.
+          Enter the configured Auro Ardon admin password to open store operations.
         </p>
       </div>
-      <input type="hidden" name="email" autoComplete="username" value={adminEmail} readOnly />
-      <Input
-        type="email"
-        value={adminEmail}
-        readOnly
-        autoComplete="username"
-        aria-label="Admin email"
-      />
-      <Input
-        type="password"
-        name="password"
-        autoComplete="current-password"
-        placeholder="Password"
-        value={password}
-        onChange={event => setPassword(event.target.value)}
-        minLength={8}
-        required
-      />
-      <Button type="submit" className="w-full" disabled={submitting || !adminEmail}>
+      <label className="block space-y-1.5 text-sm">
+        <span className="block text-text">Admin password</span>
+        <Input
+          type="password"
+          name="password"
+          autoComplete="current-password"
+          placeholder="Enter password"
+          value={password}
+          onChange={event => setPassword(event.target.value)}
+          minLength={8}
+          required
+        />
+      </label>
+      <Button type="submit" className="w-full" disabled={submitting || !configured}>
         {submitting ? "Signing in..." : "Sign in"}
       </Button>
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {!configured ? (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          Admin access is not configured in this environment.
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

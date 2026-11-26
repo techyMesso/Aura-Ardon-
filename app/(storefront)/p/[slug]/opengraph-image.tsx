@@ -1,13 +1,49 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 
 import { formatKES } from "@/components/storefront/price-kes";
 import { formatProductTitle, getSafeCatalogImageUrl } from "@/lib/catalog";
 import { getProductBySlug } from "@/lib/data";
-import { getPublicSiteUrl } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+
+const SATORI_SUPPORTED_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif"]);
+
+let cachedFallbackDataUrl: string | null = null;
+
+async function getLocalFallbackImage(): Promise<string | null> {
+  if (cachedFallbackDataUrl) return cachedFallbackDataUrl;
+  try {
+    const fileBuffer = await readFile(path.join(process.cwd(), "public", "hero-jewelry.png"));
+    cachedFallbackDataUrl = `data:image/png;base64,${fileBuffer.toString("base64")}`;
+    return cachedFallbackDataUrl;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveOgImageSrc(rawUrl: string | null | undefined): Promise<string | null> {
+  const safeUrl = getSafeCatalogImageUrl(rawUrl);
+  if (safeUrl) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      const response = await fetch(safeUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      const contentTypeHeader = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+      if (response.ok && contentTypeHeader && SATORI_SUPPORTED_TYPES.has(contentTypeHeader)) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        return `data:${contentTypeHeader};base64,${buffer.toString("base64")}`;
+      }
+    } catch {
+      // Fall back cleanly when remote image is WebP/AVIF or unreachable.
+    }
+  }
+  return getLocalFallbackImage();
+}
 
 export default async function ProductOpenGraphImage({
   params
@@ -16,14 +52,7 @@ export default async function ProductOpenGraphImage({
 }) {
   const { slug } = await params;
   const product = await getProductBySlug(decodeURIComponent(slug));
-  const siteUrl = getPublicSiteUrl();
-
-  const rawImage = getSafeCatalogImageUrl(product?.images[0]);
-  const imageUrl = rawImage
-    ? rawImage.startsWith("http")
-      ? rawImage
-      : `${siteUrl}${rawImage}`
-    : `${siteUrl}/hero-jewelry.png`;
+  const imageSrc = await resolveOgImageSrc(product?.images[0]);
 
   const title = product ? formatProductTitle(product.title) : "Auro Ardon";
   const price = product ? formatKES(product.price) : "";
@@ -47,17 +76,24 @@ export default async function ProductOpenGraphImage({
             display: "flex",
             width: "500px",
             height: "500px",
-            backgroundColor: "#FFFFFF",
-            overflow: "hidden"
+            backgroundColor: "#EFEBE7",
+            overflow: "hidden",
+            alignItems: "center",
+            justifyContent: "center"
           }}
         >
-          <img
-            src={imageUrl}
-            alt={title}
-            width={500}
-            height={500}
-            style={{ width: "500px", height: "500px", objectFit: "cover" }}
-          />
+          {imageSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageSrc}
+              alt={title}
+              width={500}
+              height={500}
+              style={{ width: "500px", height: "500px", objectFit: "cover" }}
+            />
+          ) : (
+            <div style={{ fontSize: 64, color: "#B8923E" }}>AA</div>
+          )}
         </div>
 
         <div

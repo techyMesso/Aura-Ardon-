@@ -4,8 +4,8 @@ import { CategoryManager } from "@/components/admin/category-manager";
 import type { Category } from "@/lib/types";
 
 export const metadata = {
-  title: "Categories Admin | Auro Ardon",
-  robots: { index: false, follow: false },
+  title: "Categories Admin",
+  robots: { index: false, follow: false }
 };
 
 export default async function AdminCategoriesPage() {

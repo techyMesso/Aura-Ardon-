@@ -2,10 +2,10 @@
 
 ## Runtime
 
-- Container image: multi-stage `Dockerfile` using Next.js standalone output
+- Container image: multi-stage `Dockerfile` using Next.js `output: "standalone"`
 - Default port: `3000`
-- Health probe: `GET /api/health`
-- Readiness probe: `GET /api/ready`
+- Health probe: `GET /api/health` (process liveness)
+- Readiness probe: `GET /api/ready` (required env config + Supabase database connectivity check)
 
 ## Required GitHub Secrets
 
@@ -14,12 +14,12 @@
 ## Recommended Platform Configuration
 
 - Run at least 2 replicas behind a load balancer
-- Enable HTTPS termination at the edge
+- Enable HTTPS termination at the edge (forwarding `X-Forwarded-Proto: https`)
 - Set container restart policy to `always`
 - Configure readiness checks against `/api/ready`
 - Configure liveness checks against `/api/health`
 - Ship stdout/stderr to a centralized log sink
-- Alert on 5xx rate, failed readiness probes, and payment callback failures
+- Alert on 5xx rate, failed readiness probes, and checkout failures
 
 ## Logging
 
@@ -27,10 +27,13 @@
 - Set `LOG_LEVEL=info` in production
 - Sensitive fields containing `secret`, `token`, `key`, `authorization`, `cookie`, or `pass` are redacted
 
+## Cache Revalidation
+
+- `POST /api/revalidate` accepts authentication exclusively via `x-revalidate-secret` or `Authorization: Bearer <secret>` headers (never query parameters).
+
 ## Monitoring
 
-- Track request error rate
-- Track container restarts
-- Track checkout failures
-- Track M-Pesa callback failures
-- Track median and p95 response time for `/api/checkout` and `/api/mpesa/callback`
+- Track request error rate and 429 rate-limit triggers
+- Track container restarts and `/api/ready` failures
+- Track checkout failures (`409` stock conflicts vs `5xx` errors)
+- Track median and p95 response time for `/api/checkout` and `/api/orders/status/[token]`

@@ -24,7 +24,13 @@ create index if not exists orders_created_at_idx
 create index if not exists orders_phone_idx
   on public.orders (customer_phone);
 
--- 3. Verify Row Level Security (public SELECT on catalog, INSERT-only on anonymous orders)
+create index if not exists orders_status_created_at_idx
+  on public.orders (order_status, created_at desc);
+
+create index if not exists order_items_product_id_idx
+  on public.order_items (product_id);
+
+-- 3. Verify Row Level Security (public SELECT on catalog; orders/order_items server-only via service_role)
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
 alter table public.orders enable row level security;
@@ -39,9 +45,6 @@ create policy "Public can view active products"
   on public.products for select using (active = true);
 
 drop policy if exists "Anyone can create orders" on public.orders;
-create policy "Anyone can create orders"
-  on public.orders for insert with check (true);
-
 drop policy if exists "Anyone can insert order items" on public.order_items;
-create policy "Anyone can insert order items"
-  on public.order_items for insert with check (true);
+revoke insert, update, delete on public.orders from anon, authenticated;
+revoke insert, update, delete on public.order_items from anon, authenticated;

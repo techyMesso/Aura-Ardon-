@@ -22,11 +22,11 @@ const bodyFont = Geist({
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicSiteUrl()),
   title: {
-    default: "Auro Ardon | Nairobi Jewelry",
+    default: "Auro Ardon | Nairobi Jewelry & Boutique",
     template: "%s | Auro Ardon"
   },
   description:
-    "Gold-tone stainless necklaces, bracelets, rings, earrings, watches, and gift sets delivered in Nairobi. Pay on delivery or order on WhatsApp.",
+    "Bold, giftable jewelry, watches, and beauty picks delivered across Nairobi the same day. Pay on delivery or order on WhatsApp.",
   manifest: "/manifest.webmanifest",
   openGraph: {
     type: "website",

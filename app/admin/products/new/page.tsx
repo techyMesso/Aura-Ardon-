@@ -2,13 +2,13 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { ProductForm } from "@/components/admin/product-form";
-import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import type { Category } from "@/lib/types";
 
 export const metadata = {
-  title: "Add New Product | Auro Ardon Admin",
-  robots: { index: false, follow: false },
+  title: "Add New Product",
+  robots: { index: false, follow: false }
 };
 
 export default async function NewProductPage() {
@@ -29,22 +29,19 @@ export default async function NewProductPage() {
   }
 
   return (
-    <section className="min-w-0 border border-border/70 bg-card p-4 shadow-card sm:p-6">
-      {/* Back + header */}
+    <section className="min-w-0 border border-border bg-paper p-4 sm:p-6">
       <Link
         href="/admin/products"
-        className="inline-flex items-center gap-2 text-sm text-muted hover:text-bronze mb-4 sm:mb-6 transition"
+        className="mb-4 inline-flex items-center gap-2 text-sm text-muted transition hover:text-brass sm:mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Products
       </Link>
 
       <div className="mb-6">
-        <p className="text-sm font-medium text-bronze">
-          Inventory
-        </p>
-        <h2 className="font-serif text-2xl sm:text-3xl text-ink">Add new jewelry piece</h2>
-        <p className="mt-1 sm:mt-2 text-sm text-muted">
+        <p className="text-sm font-medium text-brass">Inventory</p>
+        <h2 className="font-serif text-2xl text-text sm:text-3xl">Add new product</h2>
+        <p className="mt-1 text-sm text-muted sm:mt-2">
           Fill in the details, upload images, and publish your listing.
         </p>
       </div>

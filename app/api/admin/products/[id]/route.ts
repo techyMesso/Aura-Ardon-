@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { assertAdminRequest } from "@/lib/auth";
 import { getSelectedProductCategory, productUpdateSchema } from "@/lib/admin-product-input";
 import { revalidateProductCatalog } from "@/lib/cache";
+import { toCatalogSlug } from "@/lib/catalog";
+import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import type { ProductUpdate } from "@/lib/types";
 import { toMoneyString } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
-function createProductSlug(title: string) {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+const STORAGE_PUBLIC_PREFIX = "/storage/v1/object/public/product-images/";
+
+function extractStoragePath(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const index = parsed.pathname.indexOf(STORAGE_PUBLIC_PREFIX);
+    if (index === -1) return null;
+    return decodeURIComponent(parsed.pathname.slice(index + STORAGE_PUBLIC_PREFIX.length));
+  } catch {
+    return null;
+  }
 }
 
 export async function PATCH(
@@ -30,7 +38,19 @@ export async function PATCH(
     const updates: ProductUpdate = {};
     if (payload.title !== undefined) {
       updates.title = payload.title;
-      updates.slug = createProductSlug(payload.title);
+      // Only backfill slug if the existing product does not have one yet so live /p/[slug] URLs stay stable.
+      const { data: existing } = await supabase
+        .from("products")
+        .select("slug")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (!existing || !(existing as { slug: string | null }).slug) {
+        const candidateSlug = toCatalogSlug(payload.title);
+        if (candidateSlug) {
+          updates.slug = candidateSlug;
+        }
+      }
     }
     if (payload.description !== undefined) updates.description = payload.description;
     if (payload.price !== undefined) updates.price = toMoneyString(payload.price);
@@ -57,6 +77,12 @@ export async function PATCH(
       .single();
 
     if (error) {
+      if (error.code === "23505" || error.message.toLowerCase().includes("duplicate")) {
+        return NextResponse.json(
+          { error: "Another product already uses this slug." },
+          { status: 409 }
+        );
+      }
       throw new Error(error.message);
     }
 
@@ -65,7 +91,11 @@ export async function PATCH(
     return NextResponse.json({ product: data });
   } catch (caughtError) {
     const message =
-      caughtError instanceof Error ? caughtError.message : "Unable to update product.";
+      caughtError instanceof z.ZodError
+        ? caughtError.issues[0]?.message ?? "Invalid product update."
+        : caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to update product.";
     const status = message === "UNAUTHORIZED" ? 401 : 400;
     return NextResponse.json({ error: message }, { status });
   }
@@ -79,10 +109,48 @@ export async function DELETE(
     await assertAdminRequest();
     const { id } = z.object({ id: z.string().uuid() }).parse(await context.params);
     const supabase = createAdminSupabaseClient();
+
+    const { data: existing } = await supabase
+      .from("products")
+      .select("images")
+      .eq("id", id)
+      .maybeSingle();
+
     const { error } = await supabase.from("products").delete().eq("id", id);
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    // Best-effort cleanup of orphaned product images in Supabase Storage.
+    const candidateImages = ((existing as { images?: string[] } | null)?.images ?? []).filter(
+      Boolean
+    );
+    if (candidateImages.length > 0 && supabase.storage) {
+      try {
+        const { data: remainingProducts } = await supabase
+          .from("products")
+          .select("images");
+        const referencedUrls = new Set<string>();
+        for (const row of (remainingProducts ?? []) as Array<{ images?: string[] | null }>) {
+          for (const imageUrl of row.images ?? []) {
+            referencedUrls.add(imageUrl);
+          }
+        }
+        const storagePaths = candidateImages
+          .filter(url => !referencedUrls.has(url))
+          .map(extractStoragePath)
+          .filter((path): path is string => Boolean(path));
+
+        if (storagePaths.length > 0) {
+          await supabase.storage.from("product-images").remove(storagePaths);
+        }
+      } catch (storageError) {
+        logger.warn("Unable to clean up deleted product images", {
+          productId: id,
+          error: storageError instanceof Error ? storageError.message : String(storageError)
+        });
+      }
     }
 
     revalidateProductCatalog();
@@ -90,7 +158,11 @@ export async function DELETE(
     return NextResponse.json({ ok: true });
   } catch (caughtError) {
     const message =
-      caughtError instanceof Error ? caughtError.message : "Unable to delete product.";
+      caughtError instanceof z.ZodError
+        ? caughtError.issues[0]?.message ?? "Invalid product ID."
+        : caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to delete product.";
     const status = message === "UNAUTHORIZED" ? 401 : 400;
     return NextResponse.json({ error: message }, { status });
   }

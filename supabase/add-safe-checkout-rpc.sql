@@ -117,7 +117,8 @@ begin
       gi.quantity
     from public.products p
     join grouped_items gi on gi.product_id = p.id
-    for update
+    order by p.id asc
+    for update of p
   )
   select
     count(*)::integer,
@@ -268,3 +269,11 @@ begin
     computed_item_summary;
 end;
 $$;
+
+revoke all on function public.create_checkout_order(
+  text, text, text, text, text, public.payment_method, text, jsonb
+) from public, anon, authenticated;
+
+grant execute on function public.create_checkout_order(
+  text, text, text, text, text, public.payment_method, text, jsonb
+) to service_role;

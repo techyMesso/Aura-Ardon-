@@ -115,12 +115,15 @@ This app depends on both schema and policy configuration in Supabase.
 
 ### Recommended setup path
 
-Apply these SQL files in Supabase SQL Editor:
+Apply these SQL files in Supabase SQL Editor (in order):
 
 1. `supabase/normalize-order-schema.sql`
 2. `supabase/add-safe-checkout-rpc.sql`
+3. `supabase/add-scale-indexes.sql`
+4. `supabase/add-product-detail-columns.sql`
+5. `supabase/harden-rls-and-order-ops.sql`
 
-For fresh environments, you can instead use:
+For fresh environments, you can instead run:
 
 1. `supabase/schema.sql`
 
@@ -130,8 +133,8 @@ The schema is designed so that:
 
 - Public users can read categories
 - Public users can read active products
-- Order creation is handled through the transactional checkout path
-- Privileged admin operations run through the service-role client on the server
+- Anonymous direct writes to `orders` and `order_items` are revoked
+- Checkout (`create_checkout_order`) and admin order updates (`update_admin_order`) execute strictly server-side through the `service_role` client
 
 ## Local Development
 
@@ -238,8 +241,10 @@ Admin APIs are protected through `assertAdminRequest()` in [lib/auth.ts](./lib/a
 
 - `POST /api/checkout`
 - `GET /api/orders/status/[token]`
+- `GET /orders/[token]` (customer order tracking page)
 - `GET /api/health`
 - `GET /api/ready`
+- `POST /api/revalidate` (header-authenticated cache revalidation webhook)
 
 ### Admin
 

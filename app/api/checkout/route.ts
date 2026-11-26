@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { revalidateProductCatalog } from "@/lib/cache";
+import { buildSiteUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { createOrderStatusToken } from "@/lib/order-status-token";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -217,6 +218,8 @@ export async function POST(request: Request) {
     const order = data as CheckoutOrderResult;
     revalidateProductCatalog();
 
+    const orderStatusToken = createOrderStatusToken(order.order_id);
+    const trackingUrl = buildSiteUrl(`/orders/${encodeURIComponent(orderStatusToken)}`);
     const whatsappUrl = whatsappNumber
       ? createWhatsAppOrderUrl({
           phoneNumber: whatsappNumber,
@@ -224,10 +227,10 @@ export async function POST(request: Request) {
           customerName: payload.customerName,
           deliveryLocation: payload.customerLocation,
           total: order.total,
-          items: order.item_summary
+          items: order.item_summary,
+          trackingUrl
         })
       : null;
-    const orderStatusToken = createOrderStatusToken(order.order_id);
 
     const successMessage =
       payload.paymentMethod === "CASH_ON_DELIVERY"
@@ -242,6 +245,7 @@ export async function POST(request: Request) {
       total: order.total,
       whatsappUrl,
       orderStatusToken,
+      trackingUrl,
       replayed: order.replayed,
       message: successMessage
     }, { status: order.replayed ? 200 : 201 });

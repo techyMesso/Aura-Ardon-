@@ -1,3 +1,4 @@
+import { formatProductTitle } from "@/lib/catalog";
 import type {
   Order,
   OrderItem,
@@ -8,7 +9,8 @@ import type {
 import {
   createWhatsAppLink,
   generateWhatsAppMessage,
-  normalizeKenyanPhoneNumber
+  normalizeKenyanPhoneNumber,
+  normalizeWhatsAppNumber
 } from "@/lib/utils";
 
 export const ORDER_STATUSES: OrderStatus[] = [
@@ -55,15 +57,15 @@ export function isValidOrderStatusTransition(
 export function getOrderStatusBadgeClassName(status: OrderStatus) {
   switch (status) {
     case "PENDING_CONFIRMATION":
-      return "border-yellow-200 bg-yellow-100 text-yellow-900";
+      return "border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-200";
     case "CONFIRMED":
-      return "border-blue-200 bg-blue-100 text-blue-900";
+      return "border-blue-300 bg-blue-100 text-blue-950 dark:border-blue-500/40 dark:bg-blue-950/60 dark:text-blue-200";
     case "OUT_FOR_DELIVERY":
-      return "border-indigo-200 bg-indigo-100 text-indigo-900";
+      return "border-indigo-300 bg-indigo-100 text-indigo-950 dark:border-indigo-500/40 dark:bg-indigo-950/60 dark:text-indigo-200";
     case "DELIVERED":
-      return "border-green-200 bg-green-100 text-green-900";
+      return "border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/60 dark:text-emerald-200";
     case "CANCELLED":
-      return "border-red-200 bg-red-100 text-red-900";
+      return "border-red-300 bg-red-100 text-red-950 dark:border-red-500/40 dark:bg-red-950/60 dark:text-red-200";
     default:
       return "";
   }
@@ -71,8 +73,8 @@ export function getOrderStatusBadgeClassName(status: OrderStatus) {
 
 export function getPaymentStatusBadgeClassName(status: PaymentStatus) {
   return status === "PAID"
-    ? "border-green-200 bg-green-100 text-green-900"
-    : "border-yellow-200 bg-yellow-100 text-yellow-900";
+    ? "border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/60 dark:text-emerald-200"
+    : "border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-200";
 }
 
 function isUuid(value: string) {
@@ -105,21 +107,30 @@ export function buildAdminOrderSearchFilter(search: string) {
   return filters.join(",");
 }
 
+export function isGiftOrderWithHiddenPrices(notes: string | null | undefined): boolean {
+  return Boolean(notes && /\[Gift order\s*[—-]\s*hide prices on slip\]/i.test(notes));
+}
+
 export function buildAdminOrderWhatsAppUrl(order: Order, items: OrderItem[]) {
+  let phone: string | null = null;
+  try {
+    phone = normalizeKenyanPhoneNumber(order.customer_phone);
+  } catch {
+    phone = normalizeWhatsAppNumber(order.customer_phone);
+  }
+  if (!phone) return null;
+
   const message = generateWhatsAppMessage({
     orderId: order.id.slice(0, 8).toUpperCase(),
     customerName: order.customer_name,
     total: order.total,
     items: items.map(item => ({
-      title: item.product_title,
+      title: formatProductTitle(item.product_title),
       quantity: item.quantity
     })),
     confirmationMessage: `This is Auro Ardon confirming your order. Current status: ${getOrderStatusLabel(order.order_status)}.`,
     deliveryLocation: order.customer_location
   });
 
-  return createWhatsAppLink(
-    normalizeKenyanPhoneNumber(order.customer_phone),
-    message
-  );
+  return createWhatsAppLink(phone, message);
 }

@@ -25,14 +25,23 @@ function isLocalHostname(hostname: string) {
 
 export function normalizeSupabaseCookieOptions(
   options: CookieOptions,
-  requestUrl?: string
+  requestUrl?: string,
+  forwardedProto?: string | null
 ): CookieOptions {
   const configuredHostname = parseConfiguredHostname();
-  const requestHostname = requestUrl ? new URL(requestUrl).hostname : null;
-  const requestProtocol = requestUrl ? new URL(requestUrl).protocol : null;
+  const parsedRequest = requestUrl ? new URL(requestUrl) : null;
+  const requestHostname = parsedRequest?.hostname ?? null;
+  const requestProtocol = parsedRequest?.protocol ?? null;
   const activeHostname = requestHostname ?? configuredHostname;
+  const normalizedForwardedProto = forwardedProto
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase();
+  const isLocal = Boolean(activeHostname && isLocalHostname(activeHostname));
   const isSecureRequest =
-    requestProtocol === "https:" || (requestProtocol === null && process.env.NODE_ENV === "production");
+    normalizedForwardedProto === "https" ||
+    requestProtocol === "https:" ||
+    (!isLocal && process.env.NODE_ENV === "production");
 
   const normalizedOptions: CookieOptions = {
     ...options,
@@ -40,7 +49,7 @@ export function normalizeSupabaseCookieOptions(
     secure: isSecureRequest
   };
 
-  if (!activeHostname || isLocalHostname(activeHostname)) {
+  if (!activeHostname || isLocal) {
     delete normalizedOptions.domain;
     return normalizedOptions;
   }

@@ -25,8 +25,10 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   }
 
   return {
-    title: `${category.name} | Auro Ardon Shop`,
-    description: category.description || `Shop our ${category.name} collection - handcrafted ${category.name.toLowerCase()} from Nairobi.`,
+    title: category.name,
+    description:
+      category.description ||
+      `Shop our ${category.name} collection from Auro Ardon in Nairobi.`
   };
 }
 

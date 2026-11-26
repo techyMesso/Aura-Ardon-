@@ -5,8 +5,8 @@ import { listCategories, listPublicProducts } from "@/lib/data";
 export const revalidate = 300;
 
 export const metadata = {
-  title: "Shop All Products | Auro Ardon",
-  description: "Browse Auro Ardon jewelry, accessories, and giftable pieces from Nairobi.",
+  title: "Shop All Products",
+  description: "Browse Auro Ardon jewelry, watches, beauty picks, and giftable pieces from Nairobi."
 };
 
 export default async function ShopPage() {

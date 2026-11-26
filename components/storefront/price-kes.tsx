@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 export const DEFAULT_PRODUCT_BLUR_DATA_URL =
-  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNGRkZGRkYiLz48L3N2Zz4=";
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNFRkVCRTciIGZpbGwtb3BhY2l0eT0iMC4zNSIvPjwvc3ZnPg==";
 
 export function formatKES(amount: string | number): string {
   const num = typeof amount === "string" ? Number(amount) : amount;

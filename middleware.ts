@@ -10,6 +10,16 @@ export async function middleware(request: NextRequest) {
     }
   });
 
+  // Redirect legacy /admin/login to canonical /login outside AdminLayout
+  if (request.nextUrl.pathname === "/admin/login") {
+    const loginUrl = new URL("/login", request.url);
+    const redirectedFrom = request.nextUrl.searchParams.get("redirectedFrom");
+    if (redirectedFrom) {
+      loginUrl.searchParams.set("redirectedFrom", redirectedFrom);
+    }
+    return NextResponse.redirect(loginUrl);
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
@@ -18,11 +28,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Allow unauthenticated access to admin login page
-  if (request.nextUrl.pathname === "/admin/login") {
-    return response;
-  }
-
+  const forwardedProto = request.headers.get("x-forwarded-proto");
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -30,7 +36,11 @@ export async function middleware(request: NextRequest) {
       },
       setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          const normalizedOptions = normalizeSupabaseCookieOptions(options, request.url);
+          const normalizedOptions = normalizeSupabaseCookieOptions(
+            options,
+            request.url,
+            forwardedProto
+          );
 
           request.cookies.set({ name, value, ...normalizedOptions });
         });
@@ -45,7 +55,7 @@ export async function middleware(request: NextRequest) {
           response.cookies.set(
             name,
             value,
-            normalizeSupabaseCookieOptions(options, request.url)
+            normalizeSupabaseCookieOptions(options, request.url, forwardedProto)
           );
         });
       }

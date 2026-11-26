@@ -5,7 +5,6 @@ node_modules
 .env.local
 .env.production
 .env.*.local
-.env.local.example
 *.log
 coverage
 dist

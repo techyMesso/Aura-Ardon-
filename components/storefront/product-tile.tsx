@@ -11,12 +11,12 @@ import {
   PriceKES
 } from "@/components/storefront/price-kes";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
+import { useCart } from "@/lib/cart";
 import {
   formatProductTitle,
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
-import { useCart } from "@/lib/cart";
 import { getProductCardAvailability } from "@/lib/product-card";
 import type { Product } from "@/lib/types";
 
@@ -36,7 +36,6 @@ export function ProductTile({
   const router = useRouter();
   const { addItem, items } = useCart();
   const { isWishlisted, toggleWishlist, openCart } = useStorefrontUI();
-  const [swappedOnTouch, setSwappedOnTouch] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
 
   const href = productHref(product);
@@ -65,15 +64,13 @@ export function ProductTile({
   }
 
   function handleNavigate(event: React.MouseEvent<HTMLAnchorElement>) {
-    // On touch devices with a second image, first tap reveals the second photo
     if (
-      secondImage &&
-      !swappedOnTouch &&
-      typeof window !== "undefined" &&
-      window.matchMedia("(hover: none)").matches
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
     ) {
-      event.preventDefault();
-      setSwappedOnTouch(true);
       return;
     }
 
@@ -120,9 +117,7 @@ export function ProductTile({
               fill
               loading="lazy"
               sizes={sizes}
-              className={`product-card-secondary object-cover object-center transition-opacity duration-200 ${
-                swappedOnTouch ? "opacity-100" : "opacity-0"
-              }`}
+              className="product-card-secondary object-cover object-center opacity-0 transition-opacity duration-200"
               aria-hidden
             />
           ) : null}

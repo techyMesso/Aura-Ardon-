@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Shop All | Auro Ardon",
+  title: "Shop All",
   description: "Browse premium jewelry and accessories from Auro Ardon.",
 };
 

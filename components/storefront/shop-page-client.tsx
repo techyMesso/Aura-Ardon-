@@ -7,22 +7,26 @@ import { SlidersHorizontal } from "lucide-react";
 
 import { Drawer } from "@/components/storefront/drawer";
 import { ProductGallery } from "@/components/storefront/product-gallery";
+import { useCart } from "@/lib/cart";
 import {
   computeCatalogPriceRanges,
   computeMaterialChips,
   normalizeMaterialKey
 } from "@/lib/catalog";
-import { useCart } from "@/lib/cart";
 import type { Product } from "@/lib/types";
 
 const SORT_OPTIONS = ["newest", "price-asc", "price-desc"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
-function ShopUrlSync({
-  onSync
-}: {
-  onSync: (next: { sort: SortOption; inStock: boolean; queryText: string }) => void;
-}) {
+interface ShopUrlState {
+  sort: SortOption;
+  inStock: boolean;
+  queryText: string;
+  priceRangeId: string;
+  selectedMaterial: string;
+}
+
+function ShopUrlSync({ onSync }: { onSync: (next: ShopUrlState) => void }) {
   const searchParams = useSearchParams();
   const requestedSort = searchParams.get("sort");
   const sort: SortOption = SORT_OPTIONS.includes(requestedSort as SortOption)
@@ -30,10 +34,12 @@ function ShopUrlSync({
     : "newest";
   const inStock = searchParams.get("inStock") === "1";
   const queryText = (searchParams.get("q") ?? "").trim().toLowerCase();
+  const priceRangeId = searchParams.get("price") ?? "all";
+  const selectedMaterial = searchParams.get("material") ?? "all";
 
   useEffect(() => {
-    onSync({ sort, inStock, queryText });
-  }, [inStock, onSync, queryText, sort]);
+    onSync({ sort, inStock, queryText, priceRangeId, selectedMaterial });
+  }, [inStock, onSync, priceRangeId, queryText, selectedMaterial, sort]);
 
   return null;
 }
@@ -50,14 +56,13 @@ export function ShopPageClient({ products }: { products: Product[] }) {
   const [inStock, setInStock] = useState(false);
   const [queryText, setQueryText] = useState("");
 
-  const handleUrlSync = useCallback(
-    (next: { sort: SortOption; inStock: boolean; queryText: string }) => {
-      setSort(next.sort);
-      setInStock(next.inStock);
-      setQueryText(next.queryText);
-    },
-    []
-  );
+  const handleUrlSync = useCallback((next: ShopUrlState) => {
+    setSort(next.sort);
+    setInStock(next.inStock);
+    setQueryText(next.queryText);
+    setPriceRangeId(next.priceRangeId);
+    setSelectedMaterial(next.selectedMaterial);
+  }, []);
 
   const priceRanges = useMemo(
     () => computeCatalogPriceRanges(products),
@@ -77,11 +82,16 @@ export function ShopPageClient({ products }: { products: Product[] }) {
       setSort(nextSort);
     } else if (key === "inStock") {
       setInStock(value === "1");
+    } else if (key === "price") {
+      setPriceRangeId(value ?? "all");
+    } else if (key === "material") {
+      setSelectedMaterial(value ?? "all");
     }
+
     const currentSearch =
       typeof window !== "undefined" ? window.location.search : "";
     const next = new URLSearchParams(currentSearch);
-    if (value) next.set(key, value);
+    if (value && value !== "all") next.set(key, value);
     else next.delete(key);
     const query = next.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
@@ -97,12 +107,19 @@ export function ShopPageClient({ products }: { products: Product[] }) {
     const next = new URLSearchParams(currentSearch);
     next.delete("inStock");
     next.delete("q");
+    next.delete("price");
+    next.delete("material");
     const query = next.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
   const activePriceRange =
     priceRanges.find(range => range.id === priceRangeId) ?? priceRanges[0];
+  const hasActiveFilters =
+    priceRangeId !== "all" ||
+    selectedMaterial !== "all" ||
+    inStock ||
+    Boolean(queryText);
 
   const filtered = useMemo(() => {
     return products
@@ -136,15 +153,6 @@ export function ShopPageClient({ products }: { products: Product[] }) {
         );
       });
   }, [activePriceRange, inStock, products, queryText, selectedMaterial, sort]);
-
-  const necklacesHref =
-    categories.find(cat => cat.slug.includes("necklace"))
-      ? `/shop/${categories.find(cat => cat.slug.includes("necklace"))!.slug}`
-      : "/shop";
-  const setsHref =
-    categories.find(cat => cat.slug.includes("set"))
-      ? `/shop/${categories.find(cat => cat.slug.includes("set"))!.slug}`
-      : "/shop";
 
   const filterControls = (
     <div className="space-y-7 font-sans text-[14px] leading-[1.5]">
@@ -186,12 +194,15 @@ export function ShopPageClient({ products }: { products: Product[] }) {
         <h2 className="font-medium text-text">Price (KES)</h2>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {priceRanges.map(range => {
-            const active = priceRangeId === range.id;
+            const active = activePriceRange.id === range.id;
             return (
               <button
                 key={range.id}
                 type="button"
-                onClick={() => setPriceRangeId(range.id)}
+                onClick={() =>
+                  updateParam("price", range.id === "all" ? null : range.id)
+                }
+                aria-pressed={active}
                 className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
                   active
                     ? "bg-ink text-white"
@@ -211,7 +222,8 @@ export function ShopPageClient({ products }: { products: Product[] }) {
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             <button
               type="button"
-              onClick={() => setSelectedMaterial("all")}
+              onClick={() => updateParam("material", null)}
+              aria-pressed={selectedMaterial === "all"}
               className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
                 selectedMaterial === "all"
                   ? "bg-ink text-white"
@@ -226,7 +238,8 @@ export function ShopPageClient({ products }: { products: Product[] }) {
                 <button
                   key={chip.key}
                   type="button"
-                  onClick={() => setSelectedMaterial(chip.key)}
+                  onClick={() => updateParam("material", chip.key)}
+                  aria-pressed={active}
                   className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
                     active
                       ? "bg-ink text-white"
@@ -254,6 +267,18 @@ export function ShopPageClient({ products }: { products: Product[] }) {
           <span>In stock only</span>
         </label>
       </div>
+
+      {hasActiveFilters ? (
+        <div>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="cursor-pointer font-sans text-[13px] text-brass underline underline-offset-4 hover:opacity-80"
+          >
+            Reset all filters
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 
@@ -304,24 +329,26 @@ export function ShopPageClient({ products }: { products: Product[] }) {
           ) : (
             <div className="bg-stone p-8 font-sans text-[16px] leading-[1.5] text-text">
               <p>
-                Nothing here yet — try{" "}
-                <Link
-                  href={necklacesHref}
-                  onClick={clearFilters}
-                  className="text-brass underline underline-offset-4"
-                >
-                  Necklaces
-                </Link>{" "}
-                or{" "}
-                <Link
-                  href={setsHref}
-                  onClick={clearFilters}
-                  className="text-brass underline underline-offset-4"
-                >
-                  Sets
-                </Link>
-                .
+                {hasActiveFilters
+                  ? "No pieces match the active filters."
+                  : "Nothing in this collection yet."}
               </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="btn-primary"
+                  >
+                    Clear filters
+                  </button>
+                ) : null}
+                {pathname !== "/shop" ? (
+                  <Link href="/shop" className="btn-outline">
+                    Browse all pieces
+                  </Link>
+                ) : null}
+              </div>
             </div>
           )}
         </div>

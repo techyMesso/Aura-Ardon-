@@ -18,19 +18,19 @@ export function formatCurrency(value: string | number) {
 export function normalizeKenyanPhoneNumber(phone: string) {
   const digits = phone.replace(/[^\d]/g, "");
 
-  if (digits.startsWith("254") && digits.length === 12) {
+  if (/^254[17]\d{8}$/.test(digits)) {
     return digits;
   }
 
-  if (digits.startsWith("0") && digits.length === 10) {
+  if (/^0[17]\d{8}$/.test(digits)) {
     return `254${digits.slice(1)}`;
   }
 
-  if (digits.startsWith("7") && digits.length === 9) {
+  if (/^[17]\d{8}$/.test(digits)) {
     return `254${digits}`;
   }
 
-  throw new Error("Enter a valid Safaricom phone number in 07xx or 2547xx format.");
+  throw new Error("Enter a valid Kenyan mobile number in 07xx, 01xx, or 2547xx format.");
 }
 
 export function toMoneyString(amount: number) {
@@ -49,6 +49,7 @@ export interface WhatsAppMessageOrder {
   items: WhatsAppOrderItem[];
   confirmationMessage?: string;
   deliveryLocation?: string | null;
+  trackingUrl?: string | null;
 }
 
 interface WhatsAppOrderLinkInput extends WhatsAppMessageOrder {
@@ -61,7 +62,8 @@ export function generateWhatsAppMessage({
   total,
   items,
   confirmationMessage = "Your order has been received. We will contact you shortly.",
-  deliveryLocation
+  deliveryLocation,
+  trackingUrl
 }: WhatsAppMessageOrder) {
   const itemSummary = items.map(item => `${item.title} x${item.quantity}`).join(", ");
   const formattedTotal = typeof total === "number" ? toMoneyString(total) : total;
@@ -74,6 +76,10 @@ export function generateWhatsAppMessage({
 
   if (deliveryLocation) {
     messageParts.push(`Delivery location: ${deliveryLocation}`);
+  }
+
+  if (trackingUrl) {
+    messageParts.push(`Track order: ${trackingUrl}`);
   }
 
   return messageParts.join("\n");
@@ -92,11 +98,11 @@ export function createWhatsAppLink(phoneNumber: string, message: string) {
 export function normalizeWhatsAppNumber(phoneNumber: string | null | undefined) {
   const digits = phoneNumber?.replace(/[^\d]/g, "") ?? "";
 
-  if (digits.startsWith("0") && digits.length === 10) {
+  if (/^0[17]\d{8}$/.test(digits)) {
     return `254${digits.slice(1)}`;
   }
 
-  if (digits.startsWith("7") && digits.length === 9) {
+  if (/^[17]\d{8}$/.test(digits)) {
     return `254${digits}`;
   }
 
@@ -124,7 +130,8 @@ export function createWhatsAppOrderUrl({
   customerName,
   deliveryLocation,
   total,
-  items
+  items,
+  trackingUrl
 }: WhatsAppOrderLinkInput) {
   const itemSummary = items.map(item => `${item.title} x${item.quantity}`).join(", ");
   const formattedTotal = typeof total === "number" ? toMoneyString(total) : total;
@@ -137,6 +144,10 @@ export function createWhatsAppOrderUrl({
 
   if (deliveryLocation) {
     messageParts.push(`Delivery location: ${deliveryLocation}`);
+  }
+
+  if (trackingUrl) {
+    messageParts.push(`Track order: ${trackingUrl}`);
   }
 
   return createWhatsAppLink(phoneNumber, messageParts.join("\n"));

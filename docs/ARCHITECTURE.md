@@ -19,7 +19,7 @@
 │    - `/`                                │  │  • `POST /api/admin/*`        │
 │    - `/shop`                            │  └───────┬───────────────┬───────┘
 │    - `/shop/[category]`                 │          │               │
-│    - `/shop/[category]/[product]`       │          │               │
+│    - `/p/[slug]` (canonical PDP)        │          │               │
 └───────────────┬─────────────────────────┘          │               │
                 │                                    │               │
                 │ Cache Miss / Revalidate            │ Rate Limit    │ PostgREST / RPC
@@ -50,14 +50,14 @@
    - Static bundles under `/_next/static/*` use Next.js default `public, max-age=31536000, immutable` caching.
 
 2. **Multi-Layer Catalog Caching (ISR + Next.js Data Cache)**
-   - Storefront catalog pages (`/`, `/shop`, `/shop/[category]`, `/shop/[category]/[product]`) export `revalidate = 300` (5-minute ISR) and pre-generate known category/product slugs via `generateStaticParams()`.
-   - Catalog queries in `lib/data.ts` (`listCategories`, `listPublicProducts`, `listFeaturedProducts`, `listProductsByCategory`, `getProductBySlug`) are wrapped in `unstable_cache` keyed by query parameters and tagged with `"products"`, `"categories"`, and `"featured-products"`.
-   - Transactional routes (`/cart`, `/checkout`, `/admin/*`, and `/api/*`) remain strictly dynamic (`force-dynamic` / uncached).
+   - Storefront catalog pages (`/`, `/shop`, `/shop/[category]`, `/p/[slug]`) export `revalidate = 300` (5-minute ISR) and pre-generate known category/product slugs via `generateStaticParams()`. Legacy `/shop/[category]/[product]` URLs permanently redirect to `/p/[slug]`.
+   - Catalog queries in `lib/data.ts` (`listCategories`, `listPublicProducts`, `listPublicProductIndex`, `listFeaturedProducts`, `listProductsByCategory`, `getProductBySlug`) are wrapped in `unstable_cache` with tag-based invalidation (`"products"`, `"categories"`, `"featured-products"`). Upstream Supabase errors throw inside the cached loader so transient failures are never cached as empty arrays.
+   - Transactional routes (`/cart`, `/checkout`, `/orders/[token]`, `/admin/*`, and `/api/*`) remain strictly dynamic (`force-dynamic` / uncached).
 
-3. **Connection Pooling & Stateless Backend**
-   - All database traffic uses `@supabase/supabase-js` and `@supabase/ssr` over HTTPS (PostgREST + RPC), which routes through Supabase's managed Supavisor connection pooler automatically.
-   - Server and service-role Supabase clients (`lib/supabase/server.ts`, `lib/supabase/admin.ts`) are instantiated per request with `persistSession: false` and hold no module-level state or persistent TCP connections.
-   - Order creation (`POST /api/checkout`) is end-to-end idempotent: the client generates a UUID `Idempotency-Key` per checkout draft (guarded by a synchronous `submittingRef` to block double-taps), and `public.create_checkout_order` acquires `pg_advisory_xact_lock(hashtextextended(checkout_idempotency_key, 0))` alongside a unique index on `orders(idempotency_key)`.
+3. **Connection Pooling, Stateless Backend & RLS Security**
+   - All database traffic uses `@supabase/supabase-js` and `@supabase/ssr` over HTTPS (PostgREST + RPC), routing through Supabase's managed Supavisor connection pooler.
+   - Server and service-role Supabase clients (`lib/supabase/server.ts`, `lib/supabase/admin.ts`) are instantiated per request with `persistSession: false`.
+   - Direct anonymous `INSERT`/`UPDATE`/`DELETE` on `orders` and `order_items` is revoked; both `public.create_checkout_order` and `public.update_admin_order` are `SECURITY DEFINER` RPCs restricted exclusively to `service_role` with deterministic `ORDER BY p.id ASC FOR UPDATE` row locking (preventing `40P01` deadlocks) and automatic stock restoration on cancellation.
 
 4. **Distributed Rate Limiting (Upstash Redis)**
    - `lib/rate-limit.ts` uses `@upstash/ratelimit` (`Ratelimit.slidingWindow` with `ephemeralCache: false`) backed by `@upstash/redis`.

@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
     const { url, anonKey } = getSupabaseEnv();
     const successResponse = NextResponse.json({ ok: true });
 
+    const forwardedProto = request.headers.get("x-forwarded-proto");
     const supabase = createServerClient(url, anonKey, {
       cookies: {
         getAll() {
@@ -70,7 +71,11 @@ export async function POST(request: NextRequest) {
         },
         setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            const normalizedOptions = normalizeSupabaseCookieOptions(options, request.url);
+            const normalizedOptions = normalizeSupabaseCookieOptions(
+              options,
+              request.url,
+              forwardedProto
+            );
 
             request.cookies.set({ name, value, ...normalizedOptions });
             successResponse.cookies.set(name, value, normalizedOptions);

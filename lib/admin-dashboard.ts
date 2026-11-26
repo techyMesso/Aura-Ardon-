@@ -24,6 +24,7 @@ export function buildAdminDashboardOverview(
   products: Product[],
   orders: Order[]
 ): AdminDashboardOverview {
+  const activeOrders = orders.filter(order => order.order_status !== "CANCELLED");
   const recentOrders = [...orders]
     .sort((left, right) => toTimestamp(right.created_at) - toTimestamp(left.created_at))
     .slice(0, 6);
@@ -35,8 +36,8 @@ export function buildAdminDashboardOverview(
     );
 
   return {
-    revenue: orders.reduce((total, order) => total + toAmount(order.total), 0),
-    totalOrders: orders.length,
+    revenue: activeOrders.reduce((total, order) => total + toAmount(order.total), 0),
+    totalOrders: activeOrders.length,
     pendingConfirmationOrders: orders.filter(
       order => order.order_status === "PENDING_CONFIRMATION"
     ).length,

@@ -1,19 +1,25 @@
 import type { MetadataRoute } from "next";
 
+import { SITE_CONFIG } from "@/lib/site-config";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Auro Ardon Nairobi",
-    short_name: "Auro Ardon",
-    description:
-      "Gold-tone stainless necklaces, bracelets, rings, earrings, watches, and gift sets delivered in Nairobi.",
+    name: `${SITE_CONFIG.brandName} Nairobi`,
+    short_name: SITE_CONFIG.brandName,
+    description: SITE_CONFIG.brandLine,
     start_url: "/",
     display: "standalone",
     background_color: "#FFFFFF",
     theme_color: "#1A1216",
     icons: [
       {
-        src: "/hero-jewelry.png",
-        sizes: "512x512",
+        src: "/icon",
+        sizes: "32x32",
+        type: "image/png"
+      },
+      {
+        src: "/apple-icon",
+        sizes: "180x180",
         type: "image/png"
       }
     ]

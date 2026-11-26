@@ -33,9 +33,6 @@ function extractSecret(request: NextRequest) {
     return authHeader.slice(7).trim();
   }
 
-  const querySecret = request.nextUrl.searchParams.get("secret")?.trim();
-  if (querySecret) return querySecret;
-
   return null;
 }
 

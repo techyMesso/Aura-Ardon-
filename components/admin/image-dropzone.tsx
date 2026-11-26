@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Upload, X, ImageIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, ImageIcon, Star, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -20,6 +20,14 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
   const imageCount = value.length;
   const availableSlots = maxImages - imageCount;
 
+  function moveImage(fromIndex: number, toIndex: number) {
+    if (toIndex < 0 || toIndex >= value.length || fromIndex === toIndex) return;
+    const next = [...value];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    onChange(next);
+  }
+
   async function uploadFiles(files: FileList | File[]) {
     setUploading(true);
     setError(null);
@@ -28,22 +36,23 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
       const fileList = Array.from(files);
 
       if (fileList.length > availableSlots) {
-        throw new Error(`You can add ${availableSlots} more image${availableSlots === 1 ? "" : "s"}.`);
+        throw new Error(
+          `You can add ${availableSlots} more image${availableSlots === 1 ? "" : "s"}.`
+        );
       }
 
-      // Validation
       for (const file of fileList) {
         if (!file.type.startsWith("image/")) {
           throw new Error(`"${file.name}" is not an image.`);
         }
-        const maxSize = 5 * 1024 * 1024; // 5 MB
+        const maxSize = 5 * 1024 * 1024;
         if (file.size > maxSize) {
           throw new Error(`"${file.name}" is too large (max 5 MB).`);
         }
       }
 
       const formData = new FormData();
-      fileList.forEach((file) => formData.append("files", file));
+      fileList.forEach(file => formData.append("files", file));
 
       const response = await fetch("/api/admin/storage/upload", {
         method: "POST",
@@ -66,14 +75,13 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
 
   return (
     <div className="space-y-4">
-      {/* Drop zone */}
       <div
-        onDragOver={(e) => {
+        onDragOver={e => {
           e.preventDefault();
           setIsDragging(true);
         }}
         onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => {
+        onDrop={e => {
           e.preventDefault();
           setIsDragging(false);
           if (!uploading && e.dataTransfer.files?.length && availableSlots > 0) {
@@ -82,10 +90,10 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
         }}
         onClick={() => !uploading && availableSlots > 0 && inputRef.current?.click()}
         className={cn(
-          "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all min-h-[160px]",
+          "flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-3 rounded-[2px] border-2 border-dashed p-8 text-center transition-all",
           isDragging
-            ? "border-bronze bg-bronze/5 scale-[1.01]"
-            : "border-bronze/40 bg-white/40 hover:border-bronze hover:bg-white/60",
+            ? "border-brass bg-brass/10"
+            : "border-text/25 bg-stone/50 hover:border-brass hover:bg-stone",
           (uploading || availableSlots === 0) && "cursor-not-allowed opacity-60"
         )}
       >
@@ -95,31 +103,31 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
           className="hidden"
           multiple
           accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/avif"
-          onChange={(e) => {
+          onChange={e => {
             if (e.target.files?.length && availableSlots > 0) {
               void uploadFiles(e.target.files);
-              e.target.value = ""; // allow re-selecting same files
+              e.target.value = "";
             }
           }}
         />
 
         {uploading ? (
           <>
-            <div className="h-10 w-10 rounded-full border-2 border-bronze border-t-transparent animate-spin" />
-            <p className="text-sm text-ink font-medium">Uploading...</p>
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-brass border-t-transparent" />
+            <p className="text-sm font-medium text-text">Uploading...</p>
           </>
         ) : (
           <>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-bronze/10">
-              <Upload className="h-6 w-6 text-bronze" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brass/15">
+              <Upload className="h-6 w-6 text-brass" />
             </div>
             <div>
-              <p className="text-sm font-medium text-ink">
+              <p className="text-sm font-medium text-text">
                 {imageCount > 0
-                    ? availableSlots > 0
-                      ? `Add ${availableSlots} more image${availableSlots !== 1 ? "s" : ""}`
-                      : "Image limit reached"
-                    : "Tap to upload product images"}
+                  ? availableSlots > 0
+                    ? `Add ${availableSlots} more image${availableSlots !== 1 ? "s" : ""}`
+                    : "Image limit reached"
+                  : "Tap or drop product images"}
               </p>
               <p className="mt-1 text-xs text-muted">
                 JPG, PNG, WEBP, GIF, AVIF • max 5 MB each • up to {maxImages} images
@@ -129,24 +137,26 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
         )}
       </div>
 
-      {error && (
-        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+      {error ? (
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-[2px] border border-red-400/50 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400"
+        >
           <X className="h-4 w-4 shrink-0" />
           {error}
         </div>
-      )}
+      ) : null}
 
-      {/* Image previews — 2-column grid on mobile */}
-      {value.length > 0 && (
+      {value.length > 0 ? (
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-            {value.length} image{value.length !== 1 ? "s" : ""} uploaded
+            {value.length} image{value.length !== 1 ? "s" : ""} uploaded (first image is cover)
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {value.map((url, index) => (
               <div
-                key={url}
-                className="relative group rounded-2xl overflow-hidden border border-border bg-white aspect-square"
+                key={`${url}-${index}`}
+                className="group relative aspect-square overflow-hidden rounded-[2px] border border-border bg-stone"
               >
                 <Image
                   src={url}
@@ -155,34 +165,69 @@ export function ImageDropzone({ value, onChange }: ImageDropzoneProps) {
                   sizes="(max-width: 640px) 50vw, 200px"
                   className="object-cover"
                 />
-                <button
-                  type="button"
-                  onClick={() => onChange(value.filter((_, i) => i !== index))}
-                  className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink shadow transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-champagne"
-                  aria-label={`Remove image ${index + 1}`}
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Remove
-                </button>
-                {/* Primary badge */}
-                {index === 0 && (
-                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-bronze text-white text-[10px] font-bold uppercase tracking-wide">
+
+                {index === 0 ? (
+                  <span className="absolute left-2 top-2 rounded-[2px] bg-brass px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
                     Cover
                   </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => moveImage(index, 0)}
+                    className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-[2px] bg-paper/90 px-2 py-1 text-[11px] font-medium text-text hover:text-brass"
+                    aria-label={`Set image ${index + 1} as cover`}
+                  >
+                    <Star className="h-3 w-3" aria-hidden />
+                    Cover
+                  </button>
                 )}
+
+                <div className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-1">
+                  <div className="flex gap-1">
+                    {index > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => moveImage(index, index - 1)}
+                        className="flex h-7 w-7 items-center justify-center rounded-[2px] bg-paper/90 text-text hover:text-brass"
+                        aria-label={`Move image ${index + 1} left`}
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    ) : null}
+                    {index < value.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => moveImage(index, index + 1)}
+                        className="flex h-7 w-7 items-center justify-center rounded-[2px] bg-paper/90 text-text hover:text-brass"
+                        aria-label={`Move image ${index + 1} right`}
+                      >
+                        <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onChange(value.filter((_, i) => i !== index))}
+                    className="flex items-center gap-1 rounded-[2px] bg-paper/90 px-2.5 py-1 text-xs font-medium text-text transition hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-brass"
+                    aria-label={`Remove image ${index + 1}`}
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Empty state hint */}
-      {value.length === 0 && (
-        <p className="text-xs text-center text-muted">
-          <ImageIcon className="inline h-3.5 w-3.5 mr-1" />
+      {value.length === 0 ? (
+        <p className="text-center text-xs text-muted">
+          <ImageIcon className="mr-1 inline h-3.5 w-3.5" />
           No images yet — upload at least one to display on the storefront
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

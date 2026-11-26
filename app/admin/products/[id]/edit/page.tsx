@@ -1,16 +1,19 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { logger } from "@/lib/logger";
-import type { Category, Product } from "@/lib/types";
+import { ArrowLeft } from "lucide-react";
+
 import { ProductForm } from "@/components/admin/product-form";
+import { logger } from "@/lib/logger";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import type { Category, Product } from "@/lib/types";
 
 export const metadata = {
-  title: "Edit Product | Auro Ardon Admin",
-  robots: { index: false, follow: false },
+  title: "Edit Product",
+  robots: { index: false, follow: false }
 };
 
 export default async function EditProductPage({
-  params,
+  params
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -20,18 +23,16 @@ export default async function EditProductPage({
 
   try {
     const supabase = createAdminSupabaseClient();
-    const { data: productData, error: productError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const [{ data: productData, error: productError }, { data: categoryData, error: categoryError }] =
+      await Promise.all([
+        supabase.from("products").select("*").eq("id", id).single(),
+        supabase
+          .from("categories")
+          .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+          .order("display_order", { ascending: true })
+          .order("name", { ascending: true })
+      ]);
     if (!productError && productData) product = productData as Product;
-
-    const { data: categoryData, error: categoryError } = await supabase
-      .from("categories")
-      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
-      .order("display_order", { ascending: true })
-      .order("name", { ascending: true });
     if (categoryError) throw new Error(categoryError.message);
     categories = categoryData ?? [];
   } catch (error) {
@@ -44,12 +45,18 @@ export default async function EditProductPage({
   if (!product) notFound();
 
   return (
-    <section className="min-w-0 border border-border/70 bg-card p-4 shadow-card sm:p-6">
+    <section className="min-w-0 border border-border bg-paper p-4 sm:p-6">
+      <Link
+        href="/admin/products"
+        className="mb-4 inline-flex items-center gap-2 text-sm text-muted transition hover:text-brass sm:mb-6"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Products
+      </Link>
+
       <div className="mb-6">
-        <p className="text-sm font-medium text-bronze">
-          Inventory
-        </p>
-        <h2 className="font-serif text-3xl text-ink">Edit jewelry piece</h2>
+        <p className="text-sm font-medium text-brass">Inventory</p>
+        <h2 className="font-serif text-3xl text-text">Edit product</h2>
         <p className="mt-2 text-sm text-muted">
           Update details, images, and availability.
         </p>

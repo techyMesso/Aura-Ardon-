@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2, X } from "lucide-react";
 
 import { Drawer } from "@/components/storefront/drawer";
 import {
@@ -11,15 +11,17 @@ import {
   PriceKES
 } from "@/components/storefront/price-kes";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
+import { useCart, useCartValue } from "@/lib/cart";
 import {
+  formatProductTitle,
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
-import { useCart, useCartValue } from "@/lib/cart";
 import { createWhatsAppLink } from "@/lib/utils";
 
 export function CartDrawer() {
-  const { items, updateQuantity, removeItem } = useCart();
+  const { items, updateQuantity, removeItem, cartNotice, dismissCartNotice } =
+    useCart();
   const { total, itemCount } = useCartValue();
   const {
     cartOpen,
@@ -35,7 +37,7 @@ export function CartDrawer() {
     "Hello Auro Ardon, I would like to order these pieces:",
     ...items.map(
       item =>
-        `- ${item.product.title} x${item.quantity} (${formatKES(Number(item.product.price) * item.quantity)})`
+        `- ${formatProductTitle(item.product.title)} x${item.quantity} (${formatKES(Number(item.product.price) * item.quantity)})`
     ),
     `Subtotal: ${formatKES(total)}`
   ].join("\n");
@@ -47,7 +49,7 @@ export function CartDrawer() {
   const wishlistWhatsAppMessage = [
     "Hello Auro Ardon, here is my saved wishlist:",
     ...wishlistProducts.map(
-      product => `- ${product.title} (${formatKES(product.price)})`
+      product => `- ${formatProductTitle(product.title)} (${formatKES(product.price)})`
     )
   ].join("\n");
 
@@ -92,6 +94,23 @@ export function CartDrawer() {
       }
     >
       <div className="space-y-8">
+        {cartNotice ? (
+          <div
+            role="status"
+            className="flex items-start justify-between gap-2 border border-brass/40 bg-stone p-3 font-sans text-[13px] text-text"
+          >
+            <span>{cartNotice}</span>
+            <button
+              type="button"
+              onClick={dismissCartNotice}
+              aria-label="Dismiss bag notice"
+              className="shrink-0 text-muted hover:text-text"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+
         {items.length === 0 ? (
           <div className="bg-stone p-5 font-sans text-[14px] text-text">
             <p>Your bag is empty.</p>
@@ -106,6 +125,7 @@ export function CartDrawer() {
         ) : (
           <ul className="divide-y divide-text/12">
             {items.map(item => {
+              const displayTitle = formatProductTitle(item.product.title);
               const productPath = productHref(item.product);
               const image =
                 getSafeCatalogImageUrl(item.product.images[0]) ||
@@ -117,7 +137,7 @@ export function CartDrawer() {
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-none bg-paper">
                     <Image
                       src={image}
-                      alt={item.product.title}
+                      alt={displayTitle}
                       fill
                       placeholder="blur"
                       blurDataURL={
@@ -136,12 +156,12 @@ export function CartDrawer() {
                         onClick={closeCart}
                         className="truncate font-sans text-[14px] text-text hover:text-brass"
                       >
-                        {item.product.title}
+                        {displayTitle}
                       </Link>
                       <button
                         type="button"
                         onClick={() => removeItem(item.product.id)}
-                        aria-label={`Remove ${item.product.title}`}
+                        aria-label={`Remove ${displayTitle}`}
                         className="text-muted hover:text-text"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
@@ -151,13 +171,13 @@ export function CartDrawer() {
                     <PriceKES amount={item.product.price} />
 
                     <div className="mt-2 flex items-center justify-between">
-                      <div className="inline-flex items-center border border-text/20 rounded-[2px]">
+                      <div className="inline-flex items-center rounded-[2px] border border-text/20">
                         <button
                           type="button"
                           onClick={() =>
                             updateQuantity(item.product.id, item.quantity - 1)
                           }
-                          aria-label={`Decrease quantity of ${item.product.title}`}
+                          aria-label={`Decrease quantity of ${displayTitle}`}
                           className="flex h-8 w-8 items-center justify-center text-text hover:text-brass"
                         >
                           <Minus className="h-3.5 w-3.5" aria-hidden />
@@ -174,7 +194,7 @@ export function CartDrawer() {
                             updateQuantity(item.product.id, item.quantity + 1)
                           }
                           disabled={atLimit}
-                          aria-label={`Increase quantity of ${item.product.title}`}
+                          aria-label={`Increase quantity of ${displayTitle}`}
                           className="flex h-8 w-8 items-center justify-center text-text hover:text-brass disabled:opacity-40"
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden />
@@ -211,6 +231,7 @@ export function CartDrawer() {
             </div>
             <ul className="mt-3 divide-y divide-text/10">
               {wishlistProducts.map(product => {
+                const displayTitle = formatProductTitle(product.title);
                 const path = productHref(product);
                 return (
                   <li
@@ -222,7 +243,7 @@ export function CartDrawer() {
                       onClick={closeCart}
                       className="truncate text-text hover:text-brass"
                     >
-                      {product.title}
+                      {displayTitle}
                     </Link>
                     <div className="flex shrink-0 items-center gap-3">
                       <PriceKES amount={product.price} />
@@ -248,6 +269,7 @@ export function CartDrawer() {
             </h3>
             <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-2">
               {recentlyViewedProducts.slice(0, 6).map(product => {
+                const displayTitle = formatProductTitle(product.title);
                 const path = productHref(product);
                 const image =
                   getSafeCatalogImageUrl(product.images[0]) ||
@@ -262,14 +284,14 @@ export function CartDrawer() {
                     <div className="relative aspect-square w-24 overflow-hidden rounded-none bg-paper">
                       <Image
                         src={image}
-                        alt={product.title}
+                        alt={displayTitle}
                         fill
                         sizes="96px"
                         className="object-cover"
                       />
                     </div>
                     <p className="mt-1.5 truncate font-sans text-[12px] text-text">
-                      {product.title}
+                      {displayTitle}
                     </p>
                     <PriceKES
                       amount={product.price}

@@ -7,9 +7,12 @@ interface ProductStockStatusProps {
 }
 
 const statusStyles = {
-  "in-stock": "border-green-200 bg-green-50 text-green-800",
-  "low-stock": "border-amber-300 bg-amber-50 text-amber-900",
-  "out-of-stock": "border-red-200 bg-red-50 text-red-800"
+  "in-stock":
+    "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-950/60 dark:text-emerald-200",
+  "low-stock":
+    "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-200",
+  "out-of-stock":
+    "border-red-300 bg-red-50 text-red-900 dark:border-red-500/40 dark:bg-red-950/60 dark:text-red-200"
 };
 
 export function ProductStockStatus({ quantity }: ProductStockStatusProps) {
@@ -27,7 +30,9 @@ export function ProductStockStatus({ quantity }: ProductStockStatusProps) {
       aria-label={`${details.label}: ${quantity} available`}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-      <span>{quantity} - {details.label}</span>
+      <span>
+        {quantity} - {details.label}
+      </span>
     </span>
   );
 }

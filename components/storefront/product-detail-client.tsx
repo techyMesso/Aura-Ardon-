@@ -20,8 +20,8 @@ import {
 } from "@/lib/catalog";
 import { getPublicSiteUrl } from "@/lib/env";
 import { getProductDeliveryLine } from "@/lib/site-config";
-import { createWhatsAppLink } from "@/lib/utils";
 import type { Category, Product } from "@/lib/types";
+import { createWhatsAppLink } from "@/lib/utils";
 
 interface ProductDetailClientProps {
   product: Product;
@@ -90,6 +90,14 @@ export function ProductDetailClient({
     effectiveWhatsAppNumber,
     notifyMessage
   );
+
+  const specRows = [
+    { label: "Material", value: product.material?.trim() },
+    { label: "Finish", value: product.finish?.trim() },
+    { label: "Length / size", value: product.size_label?.trim() },
+    { label: "Care", value: product.care?.trim() },
+    { label: "In the box", value: product.in_the_box?.trim() }
+  ].filter((row): row is { label: string; value: string } => Boolean(row.value));
 
   useEffect(() => {
     recordRecentlyViewed(product.id);
@@ -376,38 +384,16 @@ export function ProductDetailClient({
             </p>
           </div>
 
-          <dl className="mt-8 divide-y divide-text/12 border-y border-text/12 font-sans text-[14px] leading-[1.5]">
-            <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-              <dt className="text-muted">Material</dt>
-              <dd className="text-text">
-                {product.material || "Gold-tone stainless steel"}
-              </dd>
-            </div>
-            {product.finish?.trim() ? (
-              <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-                <dt className="text-muted">Finish</dt>
-                <dd className="text-text">{product.finish.trim()}</dd>
-              </div>
-            ) : null}
-            {product.size_label?.trim() ? (
-              <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-                <dt className="text-muted">Length / size</dt>
-                <dd className="text-text">{product.size_label.trim()}</dd>
-              </div>
-            ) : null}
-            {product.care?.trim() ? (
-              <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-                <dt className="text-muted">Care</dt>
-                <dd className="text-text">{product.care.trim()}</dd>
-              </div>
-            ) : null}
-            {product.in_the_box?.trim() ? (
-              <div className="grid grid-cols-[130px_1fr] gap-4 py-3">
-                <dt className="text-muted">In the box</dt>
-                <dd className="text-text">{product.in_the_box.trim()}</dd>
-              </div>
-            ) : null}
-          </dl>
+          {specRows.length > 0 ? (
+            <dl className="mt-8 divide-y divide-text/12 border-y border-text/12 font-sans text-[14px] leading-[1.5]">
+              {specRows.map(row => (
+                <div key={row.label} className="grid grid-cols-[130px_1fr] gap-4 py-3">
+                  <dt className="text-muted">{row.label}</dt>
+                  <dd className="text-text">{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
         </section>
       </div>
 
@@ -425,7 +411,7 @@ export function ProductDetailClient({
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
-          aria-label={`${product.title} zoom viewer`}
+          aria-label={`${displayTitle} zoom viewer`}
           onWheel={event => {
             event.preventDefault();
             setZoomScale(current =>
@@ -462,7 +448,7 @@ export function ProductDetailClient({
           >
             <Image
               src={images[selectedIndex]}
-              alt={`${product.title}, enlarged photo ${selectedIndex + 1}`}
+              alt={`${displayTitle}, enlarged photo ${selectedIndex + 1}`}
               fill
               sizes="100vw"
               className="object-contain"

@@ -3,8 +3,8 @@ import { buildAdminDashboardOverview } from "@/lib/admin-dashboard";
 import { getAdminAnalytics, listAdminDashboardData } from "@/lib/data";
 
 export const metadata = {
-  title: "Admin Dashboard | Auro Ardon",
-  robots: { index: false, follow: false },
+  title: "Admin Dashboard",
+  robots: { index: false, follow: false }
 };
 
 export default async function AdminDashboardPage() {
