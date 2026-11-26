@@ -833,6 +833,12 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                           Pending &gt;24h
                         </span>
                       ) : null}
+                      {order.needs_review ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-900 dark:bg-red-950/70 dark:text-red-200">
+                          <AlertTriangle className="h-3 w-3" aria-hidden />
+                          Review flagged
+                        </span>
+                      ) : null}
                     </div>
                     <p className="mt-1 text-sm text-muted">{order.customer_name}</p>
                     <p className="text-sm text-muted">{order.customer_phone}</p>
@@ -903,6 +909,12 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                               Pending &gt;24h
                             </span>
                           ) : null}
+                          {order.needs_review ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-900 dark:bg-red-950/80 dark:text-red-200">
+                              <AlertTriangle className="h-3 w-3" aria-hidden />
+                              Review flagged
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-text">{order.customer_name}</td>
@@ -960,6 +972,20 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
               </div>
               <OrderStatusBadge status={selectedCanonicalStatus} />
             </div>
+
+            {selectedOrder.needs_review ? (
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-[2px] border border-red-400/60 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300"
+              >
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <p>
+                  <strong>Flagged customer — needs review:</strong>{" "}
+                  {selectedOrder.review_reason ||
+                    "Verify customer details on WhatsApp before confirming."}
+                </p>
+              </div>
+            ) : null}
 
             {selectedOverdue24h ? (
               <div
@@ -1077,7 +1103,16 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                   Customer & delivery
                 </p>
                 <p className="mt-3 break-words font-medium text-text">
-                  {selectedOrder.customer_name}
+                  {selectedOrder.customer_id ? (
+                    <Link
+                      href={`/admin/customers/${selectedOrder.customer_id}`}
+                      className="underline decoration-brass/60 underline-offset-4 hover:text-brass"
+                    >
+                      {selectedOrder.customer_name}
+                    </Link>
+                  ) : (
+                    selectedOrder.customer_name
+                  )}
                 </p>
                 <p className="mt-1 break-words text-sm text-muted">
                   {selectedOrder.customer_phone}

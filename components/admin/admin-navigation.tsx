@@ -17,6 +17,7 @@ import {
   Store,
   Tag,
   UserRound,
+  Users,
   X
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const PRIMARY_ITEMS = [
   { href: "/admin/products", label: "Products", Icon: Package },
   { href: "/admin/categories", label: "Categories", Icon: FolderTree },
   { href: "/admin/orders", label: "Orders", Icon: ClipboardList },
+  { href: "/admin/customers", label: "Customers", Icon: Users },
   { href: "/admin/discounts", label: "Discounts", Icon: Tag }
 ];
 
@@ -40,6 +42,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/products": "Products",
   "/admin/categories": "Categories",
   "/admin/orders": "Orders",
+  "/admin/customers": "Customers",
   "/admin/discounts": "Discounts",
   "/admin/invoices": "Invoices"
 };
@@ -56,6 +59,7 @@ function getPageTitle(pathname: string) {
     return pathname.endsWith("/edit") ? "Edit product" : "Add product";
   }
   if (pathname.startsWith("/admin/invoices/")) return "Invoice";
+  if (pathname.startsWith("/admin/customers/")) return "Customer";
   return PAGE_TITLES[pathname] ?? "Admin";
 }
 
@@ -333,7 +337,10 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
         aria-label="Admin quick navigation"
       >
         {PRIMARY_ITEMS.filter(
-          item => item.label !== "Categories" && item.label !== "Discounts"
+          item =>
+            item.label !== "Categories" &&
+            item.label !== "Discounts" &&
+            item.label !== "Customers"
         ).map(
           ({ href, label, Icon }) => {
             const active = matchesRoute(pathname, href);

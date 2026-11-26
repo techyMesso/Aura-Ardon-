@@ -123,6 +123,8 @@ export interface Order {
   cancelled_at?: string | null;
   restocked_at?: string | null;
   returned_at?: string | null;
+  needs_review?: boolean;
+  review_reason?: string | null;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   order_status: OrderStatus;
@@ -365,6 +367,39 @@ export type DiscountCodeInsert = Omit<
 export type DiscountCodeUpdate = Partial<
   Omit<DiscountCode, "id" | "used_count" | "created_at" | "updated_at">
 >;
+
+// ─── Customers CRM (Phase 7) ─────────────────────────────
+
+export interface Customer {
+  id: string;
+  phone: string;
+  full_name: string;
+  names_used: string[];
+  last_zone: string | null;
+  last_address: string | null;
+  zones_used: string[];
+  addresses_used: string[];
+  order_count: number;
+  lifetime_value: string;
+  cancelled_count: number;
+  is_flagged: boolean;
+  is_blocked: boolean;
+  marketing_opt_in: boolean;
+  marketing_opt_in_at: string | null;
+  notes: string | null;
+  tags: string[];
+  first_order_at: string | null;
+  last_order_at: string | null;
+  anonymized_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerDetailBundle {
+  customer: Customer;
+  orders: Order[];
+  invoices: Invoice[];
+}
 
 // ─── OrderItem ───────────────────────────────────────────
 // Fields: id, order_id, product_id, product_title, quantity, unit_price, created_at

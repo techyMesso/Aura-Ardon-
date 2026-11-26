@@ -26,6 +26,8 @@ import type {
   CanonicalOrderStatus,
   Category,
   CreditNote,
+  Customer,
+  CustomerDetailBundle,
   DailyCashupReport,
   DeliveryZone,
   Invoice,
@@ -565,7 +567,7 @@ export async function listAllDeliveryZones(): Promise<DeliveryZone[]> {
 // ─── ADMIN ────────────────────────────────────────────────
 
 const ADMIN_ORDER_SELECT =
-  "id, order_number, channel, status, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, cancel_reason, cancel_note, cancelled_at, restocked_at, returned_at, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at";
+  "id, order_number, channel, status, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, cancel_reason, cancel_note, cancelled_at, restocked_at, returned_at, needs_review, review_reason, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at";
 
 export async function listAdminDashboardData() {
   const supabase = createAdminSupabaseClient();
@@ -1283,4 +1285,109 @@ export async function getMonthlySummaryReportData(monthIso: string): Promise<{
     payments: typedPayments,
     creditNotes: typedCreditNotes
   };
+}
+
+// ─── CUSTOMERS CRM (Phase 7) ─────────────────────────────
+
+export type CustomerListFilter =
+  | "all"
+  | "opted_in"
+  | "flagged"
+  | "blocked"
+  | "vip";
+
+export async function listAdminCustomers(params?: {
+  search?: string;
+  filter?: CustomerListFilter;
+}): Promise<Customer[]> {
+  const supabase = createAdminSupabaseClient();
+  let query = supabase
+    .from("customers")
+    .select("*")
+    .order("last_order_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+
+  if (params?.filter === "opted_in") {
+    query = query
+      .eq("marketing_opt_in", true)
+      .eq("is_blocked", false)
+      .is("anonymized_at", null);
+  } else if (params?.filter === "flagged") {
+    query = query.eq("is_flagged", true);
+  } else if (params?.filter === "blocked") {
+    query = query.eq("is_blocked", true);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  let customers = (data ?? []) as Customer[];
+
+  if (params?.filter === "vip") {
+    customers = customers.filter(customer =>
+      (customer.tags ?? []).some(tag => tag.toLowerCase() === "vip")
+    );
+  }
+
+  const search = params?.search?.trim().toLowerCase();
+  if (search) {
+    customers = customers.filter(customer => {
+      const haystack = [
+        customer.full_name,
+        customer.phone,
+        customer.last_zone,
+        customer.last_address,
+        ...(customer.names_used ?? []),
+        ...(customer.tags ?? [])
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(search);
+    });
+  }
+
+  return customers;
+}
+
+export async function getCustomerDetailBundle(
+  customerId: string
+): Promise<CustomerDetailBundle | null> {
+  const supabase = createAdminSupabaseClient();
+  const { data: customer, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", customerId)
+    .maybeSingle();
+
+  if (error || !customer) return null;
+
+  const { data: orders } = await supabase
+    .from("orders")
+    .select(ADMIN_ORDER_SELECT)
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+
+  const typedOrders = (orders ?? []) as Order[];
+  const orderIds = typedOrders.map(order => order.id);
+
+  let invoices: Invoice[] = [];
+  if (orderIds.length > 0) {
+    const { data: invoiceRows } = await supabase
+      .from("invoices")
+      .select("*")
+      .in("order_id", orderIds)
+      .order("issued_at", { ascending: false });
+    invoices = (invoiceRows ?? []) as Invoice[];
+  }
+
+  return {
+    customer: customer as Customer,
+    orders: typedOrders,
+    invoices
+  };
+}
+
+export async function listOptedInCustomers(): Promise<Customer[]> {
+  return listAdminCustomers({ filter: "opted_in" });
 }
