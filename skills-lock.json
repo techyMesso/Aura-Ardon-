@@ -1,11 +1,46 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
+    "gemini-api-cli": {
+      "source": "google-gemini/gemini-skills",
+      "commit": "c4d0c62c1240e08a90546186bf320600ab6a039a",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-api-cli/SKILL.md",
+      "computedHash": "14863670f4e9406da5403e619d37abb230ce097fa76666481dff0bf69eb56b6b"
+    },
+    "gemini-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "commit": "c4d0c62c1240e08a90546186bf320600ab6a039a",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-api-dev/SKILL.md",
+      "computedHash": "b3823bd7210e46d4528ca85ebc03326842a6df47ced9a856a1729639f9756c12"
+    },
+    "gemini-frontend-design": {
+      "source": "google-gemini/demolab",
+      "commit": "cd0c1f8540c0186ec9592af972a0700fa20909d4",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-frontend-design/SKILL.md",
+      "computedHash": "9a0cfd9094b4e4c762c4a218b0da34178453004bbf350baef81f3f31800dfd36"
+    },
     "ui-ux-pro-max": {
       "source": "davila7/claude-code-templates",
       "sourceType": "github",
       "skillPath": "cli-tool/components/skills/creative-design/ui-ux-pro-max/SKILL.md",
-      "computedHash": "adab776dc60f4f3466185318575abe670981c64b3584368dbb09f985d2ac0965"
+      "computedHash": ""
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "commit": "5a37a6329fbad3666c3207392a6a7c0110e92efb",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "7991ed4fbecdac23f47c1a40c243e00a212a9e7f3604db93959b3ae11dffe299"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "commit": "e4bb5d960d87126ff3b3a8af1a104b7db67560ba",
+      "sourceType": "github",
+      "skillPath": "skills/webapp-testing/SKILL.md",
+      "computedHash": "48cd9a742a59250edec6db89cf081ef5465f365e2133f6d6c5e29c380b754b7d"
     }
   }
 }
