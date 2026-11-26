@@ -1,6 +1,7 @@
 import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard";
-import { buildAdminDashboardOverview } from "@/lib/admin-dashboard";
-import { getAdminAnalytics, listAdminDashboardData } from "@/lib/data";
+import { resolveAnalyticsDateRange } from "@/lib/analytics";
+import { isOwnerUser, requireAdminPage } from "@/lib/auth";
+import { getAnalyticsDashboardData } from "@/lib/data";
 
 export const metadata = {
   title: "Admin Dashboard",
@@ -8,11 +9,20 @@ export const metadata = {
 };
 
 export default async function AdminDashboardPage() {
-  const [{ products, orders, returns }, analytics] = await Promise.all([
-    listAdminDashboardData(),
-    getAdminAnalytics()
-  ]);
-  const dashboard = buildAdminDashboardOverview(products, orders, returns);
+  const adminUser = await requireAdminPage();
+  const includeOwnerMetrics = isOwnerUser(adminUser);
+  const initialRange = resolveAnalyticsDateRange("30d");
 
-  return <AnalyticsDashboard dashboard={dashboard} analytics={analytics} products={products} />;
+  const initialReport = await getAnalyticsDashboardData({
+    from: initialRange.from,
+    to: initialRange.to,
+    includeOwnerMetrics
+  });
+
+  return (
+    <AnalyticsDashboard
+      initialPreset="30d"
+      initialReport={initialReport}
+    />
+  );
 }

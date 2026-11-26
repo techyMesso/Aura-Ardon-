@@ -32,6 +32,7 @@ import {
   productHref
 } from "@/lib/catalog";
 import { resolveProductImageAlt } from "@/lib/image-processing";
+import { trackStorefrontEvent } from "@/lib/events-client";
 import { resolveSiteUrl } from "@/lib/site";
 import type { Category, Product, ProductVariant } from "@/lib/types";
 import { createWhatsAppLink } from "@/lib/utils";
@@ -223,7 +224,11 @@ export function ProductDetailClient({
 
   useEffect(() => {
     recordRecentlyViewed(product.id);
-  }, [product.id, recordRecentlyViewed]);
+    trackStorefrontEvent("product_view", {
+      productId: product.id,
+      path: productHref(product)
+    });
+  }, [product, recordRecentlyViewed]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -287,6 +292,10 @@ export function ProductDetailClient({
     if (remaining < 1) return;
     const amount = Math.min(quantity, remaining);
     addItem(product, amount, selectedVariant);
+    trackStorefrontEvent("add_to_bag", {
+      productId: product.id,
+      path: productHref(product)
+    });
     setStatus(`${askLabel} added to bag.`);
     openCart();
   }
@@ -739,6 +748,12 @@ export function ProductDetailClient({
                   href={askWhatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() =>
+                    trackStorefrontEvent("whatsapp_product_question", {
+                      productId: product.id,
+                      path: productHref(product)
+                    })
+                  }
                   className="inline-block font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-brass"
                 >
                   Ask about this piece on WhatsApp

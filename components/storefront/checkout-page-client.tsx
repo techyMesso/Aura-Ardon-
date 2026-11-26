@@ -17,6 +17,7 @@ import {
   useCartValue
 } from "@/lib/cart";
 import { formatProductTitle } from "@/lib/catalog";
+import { trackStorefrontEvent } from "@/lib/events-client";
 import type { DeliveryZone } from "@/lib/types";
 import { normalizeKenyanPhoneNumber } from "@/lib/utils";
 import { calculateCheckoutTotals } from "@/lib/whatsapp-order";
@@ -109,6 +110,14 @@ export function CheckoutPageClient({
   const idempotencyKeyRef = useRef(generateIdempotencyKey());
   const lastSignatureRef = useRef(cartSignature);
   const submittingRef = useRef(false);
+  const trackedBeginCheckoutRef = useRef(false);
+
+  useEffect(() => {
+    if (items.length > 0 && !trackedBeginCheckoutRef.current) {
+      trackedBeginCheckoutRef.current = true;
+      trackStorefrontEvent("begin_checkout", { path: "/checkout" });
+    }
+  }, [items.length]);
 
   useEffect(() => {
     if (lastSignatureRef.current !== cartSignature) {
@@ -272,6 +281,10 @@ export function CheckoutPageClient({
       }
 
       // Clear cart ONLY after the order has been saved in Postgres
+      trackStorefrontEvent("whatsapp_order_sent", {
+        productId: items[0]?.product.id ?? null,
+        path: "/checkout"
+      });
       clearCart();
       idempotencyKeyRef.current = generateIdempotencyKey();
 

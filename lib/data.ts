@@ -5,6 +5,7 @@ import {
   mapLegacyStatusToCanonical,
   resolveCanonicalOrderStatus
 } from "@/lib/admin-orders";
+import { buildEmptyAnalyticsDashboardReport } from "@/lib/analytics";
 import { revalidateStoreSettings } from "@/lib/cache";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
 import { hasPublicSupabaseEnv } from "@/lib/env";
@@ -33,6 +34,7 @@ import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   AdminAnalytics,
   AdminPushSubscription,
+  AnalyticsDashboardReport,
   BackInStockAlert,
   BackInStockAlertStatus,
   CanonicalOrderStatus,
@@ -1825,4 +1827,42 @@ export async function getDailySummaryReportData(
     >[],
     lowStockThreshold: settings.low_stock_default
   });
+}
+
+// ─── POSTGRES ANALYTICS DASHBOARD (Phase 11) ─────────────
+
+export async function getAnalyticsDashboardData(params: {
+  from: string;
+  to: string;
+  includeOwnerMetrics: boolean;
+}): Promise<AnalyticsDashboardReport> {
+  const supabase = createAdminSupabaseClient();
+  const { data, error } = await supabase.rpc("get_analytics_dashboard" as never, {
+    p_from: params.from,
+    p_to: params.to,
+    p_include_owner_metrics: params.includeOwnerMetrics
+  } as never);
+
+  if (error) {
+    logger.error("get_analytics_dashboard RPC failed", {
+      error: error.message,
+      from: params.from,
+      to: params.to
+    });
+    return buildEmptyAnalyticsDashboardReport(
+      params.from,
+      params.to,
+      params.includeOwnerMetrics
+    );
+  }
+
+  if (!data || typeof data !== "object") {
+    return buildEmptyAnalyticsDashboardReport(
+      params.from,
+      params.to,
+      params.includeOwnerMetrics
+    );
+  }
+
+  return data as unknown as AnalyticsDashboardReport;
 }

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bodoni_Moda, Geist } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -69,6 +71,8 @@ export default function RootLayout({
           Skip to content
         </a>
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

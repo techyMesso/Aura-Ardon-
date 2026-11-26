@@ -61,6 +61,7 @@ export interface Product {
   compare_at_price?: string | null;
   cost_price?: string | null; // Owner-only; never exposed on storefront or to staff
   stock_quantity: number;  // DB column: stock_quantity
+  low_stock_threshold?: number | null;
   material: string | null;
   finish?: string | null;
   size_label?: string | null;
@@ -756,6 +757,251 @@ export interface DailySummaryReport {
   lowStockItems: DailySummaryLowStockItem[];
   cashStillToCollectCount: number;
   cashStillToCollectTotal: number;
+}
+
+// ─── Analytics Dashboard & Privacy-Friendly Events (Phase 11) ─
+
+export type StorefrontEventName =
+  | "product_view"
+  | "add_to_bag"
+  | "begin_checkout"
+  | "whatsapp_order_sent"
+  | "whatsapp_product_question";
+
+export type AnalyticsDatePreset =
+  | "today"
+  | "7d"
+  | "30d"
+  | "90d"
+  | "this_month"
+  | "custom";
+
+export interface AnalyticsDiscountCodeRow {
+  code: string;
+  uses: number;
+  discount_total: number;
+  revenue_total: number;
+}
+
+export interface AnalyticsPeriodKpis {
+  booked_revenue: number;
+  collected_revenue: number;
+  delivery_fees_collected: number;
+  delivery_rider_costs: number;
+  delivery_margin: number;
+  gross_profit: number | null;
+  gross_margin_pct: number | null;
+  items_missing_cost: number | null;
+  orders_total: number;
+  orders_active: number;
+  orders_by_status: {
+    pending: number;
+    confirmed: number;
+    dispatched: number;
+    delivered: number;
+    cancelled: number;
+    returned: number;
+  };
+  aov: number;
+  confirmation_rate: number;
+  cancellation_rate: number;
+  return_rate: number;
+  avg_hours_to_confirm: number | null;
+  avg_hours_to_deliver: number | null;
+  new_customers: number;
+  returning_customers: number;
+  discounts_given: number;
+  discounts_by_code: AnalyticsDiscountCodeRow[];
+}
+
+export interface AnalyticsRevenueSeriesPoint {
+  bucket: string;
+  label: string;
+  orders: number;
+  cancelled_orders: number;
+  booked_revenue: number;
+  collected_revenue: number;
+}
+
+export interface AnalyticsFunnel {
+  product_views: number;
+  add_to_bag: number;
+  begin_checkout: number;
+  whatsapp_order_sent: number;
+  confirmed: number;
+  delivered: number;
+  whatsapp_questions: number;
+}
+
+export interface AnalyticsTopProductRow {
+  product_id: string | null;
+  title: string;
+  category: string;
+  units: number;
+  revenue: number;
+  profit: number | null;
+  margin_pct: number | null;
+}
+
+export interface AnalyticsCategoryRow {
+  category: string;
+  orders: number;
+  units: number;
+  revenue: number;
+}
+
+export interface AnalyticsZoneRow {
+  zone: string;
+  orders: number;
+  revenue: number;
+  delivery_fees: number;
+  rider_costs: number;
+  delivery_margin: number;
+}
+
+export interface AnalyticsHeatmapCell {
+  dow: number; // 0 = Mon .. 6 = Sun (EAT)
+  hour: number; // 0 .. 23 (EAT)
+  orders: number;
+  revenue: number;
+}
+
+export interface AnalyticsCancelReasonRow {
+  reason: string;
+  count: number;
+  lost_value: number;
+}
+
+export interface AnalyticsStatusRow {
+  status: CanonicalOrderStatus;
+  count: number;
+  total: number;
+}
+
+export interface AnalyticsInventoryStockItem {
+  id: string;
+  title: string;
+  category: string;
+  stock_quantity: number;
+  threshold: number;
+  price: number;
+  units_30d: number;
+}
+
+export interface AnalyticsBestSellerRiskItem {
+  id: string;
+  title: string;
+  category: string;
+  stock_quantity: number;
+  units_30d: number;
+  daily_rate: number;
+  days_of_stock: number;
+}
+
+export interface AnalyticsDeadStockItem {
+  id: string;
+  title: string;
+  category: string;
+  stock_quantity: number;
+  retail_value: number;
+  cost_value: number | null;
+  last_sale_at: string | null;
+}
+
+export interface AnalyticsSellThroughItem {
+  id: string;
+  title: string;
+  category: string;
+  units_sold: number;
+  current_stock: number;
+  revenue: number;
+  sell_through_pct: number;
+}
+
+export interface AnalyticsInventoryTracker {
+  default_low_stock_threshold: number;
+  stock_value: {
+    total_units: number;
+    active_products: number;
+    retail_value: number;
+    cost_value: number | null;
+    products_missing_cost: number | null;
+  };
+  out_of_stock: AnalyticsInventoryStockItem[];
+  low_stock: AnalyticsInventoryStockItem[];
+  best_sellers_at_risk: AnalyticsBestSellerRiskItem[];
+  dead_stock: AnalyticsDeadStockItem[];
+  sell_through: AnalyticsSellThroughItem[];
+}
+
+export interface AnalyticsNeedsAttention {
+  pending_over_24h_count: number;
+  pending_over_24h: Array<{
+    id: string;
+    order_number: string;
+    customer_name: string;
+    total: number;
+    created_at: string;
+  }>;
+  out_of_stock_best_sellers_count: number;
+  out_of_stock_best_sellers: Array<{
+    id: string;
+    title: string;
+    units_30d: number;
+  }>;
+  dispatched_over_3d_count: number;
+  dispatched_over_3d: Array<{
+    id: string;
+    order_number: string;
+    customer_name: string;
+    rider_name: string | null;
+    dispatched_at: string;
+  }>;
+  unpaid_delivered_invoices_count: number;
+  unpaid_delivered_invoices_total: number;
+  unpaid_delivered_invoices: Array<{
+    id: string;
+    invoice_number: string;
+    customer_name: string;
+    balance_due: number;
+  }>;
+  reviews_pending_moderation_count: number;
+}
+
+export interface AnalyticsRecentOrder {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  status: CanonicalOrderStatus;
+  payment_status: PaymentStatus;
+  total: number;
+  delivery_zone_name: string;
+  created_at: string;
+}
+
+export interface AnalyticsDashboardReport {
+  range: {
+    from: string;
+    to: string;
+    previous_from: string;
+    previous_to: string;
+    days: number;
+    granularity: "day" | "week";
+  };
+  include_owner_metrics: boolean;
+  kpis: AnalyticsPeriodKpis;
+  previous_kpis: AnalyticsPeriodKpis;
+  revenue_series: AnalyticsRevenueSeriesPoint[];
+  funnel: AnalyticsFunnel;
+  top_products: AnalyticsTopProductRow[];
+  sales_by_category: AnalyticsCategoryRow[];
+  sales_by_zone: AnalyticsZoneRow[];
+  busiest_times_heatmap: AnalyticsHeatmapCell[];
+  cancellations_by_reason: AnalyticsCancelReasonRow[];
+  status_breakdown: AnalyticsStatusRow[];
+  inventory: AnalyticsInventoryTracker;
+  needs_attention: AnalyticsNeedsAttention;
+  recent_orders: AnalyticsRecentOrder[];
 }
 
 export type StoreSettingsUpdate = Partial<Omit<StoreSettings, "id" | "updated_at">>;
