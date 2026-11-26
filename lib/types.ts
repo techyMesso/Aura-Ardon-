@@ -177,6 +177,161 @@ export interface StockIntegrityDiscrepancy {
   discrepancy: number;
 }
 
+// ─── Invoices, Payments & Credit Notes (Phase 5) ─────────
+
+export type InvoiceStatus = "unpaid" | "partially_paid" | "paid" | "void";
+export type InvoicePaymentMethod = "cash" | "mpesa";
+
+export interface InvoiceCustomerSnapshot {
+  full_name: string;
+  phone: string;
+  address: string;
+  delivery_zone_name?: string | null;
+  town_county?: string | null;
+  location?: string | null;
+  order_number?: string | null;
+  is_gift?: boolean;
+  hide_prices?: boolean;
+}
+
+export interface InvoiceLineSnapshot {
+  order_item_id?: string | null;
+  product_id?: string | null;
+  name: string;
+  sku: string;
+  qty: number;
+  unit_price: number | string;
+  line_total: number | string;
+}
+
+export interface InvoiceBusinessSnapshot {
+  site_name: string;
+  business_phone: string;
+  business_email?: string | null;
+  business_address: string;
+  kra_pin?: string | null;
+  logo_url?: string | null;
+  currency?: string;
+  business_hours?: string;
+  invoice_footer?: string;
+  payment_instructions?: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  order_id: string;
+  status: InvoiceStatus;
+  issued_at: string;
+  due_at: string;
+  etims_invoice_number: string | null;
+  share_token: string;
+  share_expires_at: string;
+  share_revoked: boolean;
+  customer_snapshot: InvoiceCustomerSnapshot;
+  lines_snapshot: InvoiceLineSnapshot[];
+  business_snapshot: InvoiceBusinessSnapshot;
+  subtotal: string;
+  discount_code: string | null;
+  discount_amount: string;
+  delivery_fee: string;
+  total: string;
+  amount_paid: string;
+  credited_amount: string;
+  pdf_a4_path: string | null;
+  pdf_receipt_path: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoicePayment {
+  id: string;
+  invoice_id: string;
+  order_id: string;
+  amount: string;
+  method: InvoicePaymentMethod;
+  mpesa_code: string | null;
+  received_by: string;
+  paid_at: string;
+  note: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface CreditNoteLine {
+  order_item_id?: string | null;
+  name: string;
+  sku?: string | null;
+  qty: number;
+  unit_price: number | string;
+  line_total: number | string;
+  condition?: string | null;
+}
+
+export interface CreditNote {
+  id: string;
+  credit_note_number: string;
+  invoice_id: string;
+  order_id: string;
+  reason: string;
+  lines: CreditNoteLine[];
+  amount: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface InvoiceDetailBundle {
+  invoice: Invoice;
+  payments: InvoicePayment[];
+  creditNotes: CreditNote[];
+  order?: Pick<Order, "id" | "order_number" | "status" | "order_status" | "created_at"> | null;
+}
+
+export interface RiderCashupSummary {
+  receivedBy: string;
+  cashTotal: number;
+  mpesaTotal: number;
+  totalCollected: number;
+  paymentCount: number;
+  mpesaCodes: string[];
+}
+
+export interface DailyCashupReport {
+  date: string;
+  expectedTotal: number;
+  collectedTotal: number;
+  difference: number;
+  cashTotal: number;
+  mpesaTotal: number;
+  expectedInvoiceCount: number;
+  paymentCount: number;
+  mpesaPayments: Array<{
+    paymentId: string;
+    invoiceNumber: string;
+    mpesaCode: string;
+    amount: number;
+    receivedBy: string;
+    paidAt: string;
+  }>;
+  byRider: RiderCashupSummary[];
+}
+
+export interface MonthlySummaryReport {
+  month: string;
+  invoiceCount: number;
+  creditNoteCount: number;
+  paymentCount: number;
+  grossSales: number;
+  discounts: number;
+  deliveryFees: number;
+  creditNotesTotal: number;
+  netSales: number;
+  cashCollected: number;
+  mpesaCollected: number;
+  totalCollected: number;
+}
+
 // ─── OrderItem ───────────────────────────────────────────
 // Fields: id, order_id, product_id, product_title, quantity, unit_price, created_at
 

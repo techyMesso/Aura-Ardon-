@@ -41,8 +41,18 @@ import {
   PAYMENT_STATUSES,
   resolveCanonicalOrderStatus
 } from "@/lib/admin-orders";
+import {
+  computeInvoiceBalanceDue,
+  getInvoiceStatusBadgeClassName,
+  getInvoiceStatusLabel,
+  isValidMpesaCode,
+  normalizeMpesaCode
+} from "@/lib/invoices";
 import type {
   CanonicalOrderStatus,
+  Invoice,
+  InvoicePayment,
+  InvoicePaymentMethod,
   Order,
   OrderCancelReason,
   OrderItem,
@@ -62,6 +72,8 @@ interface OrderDetailResponse {
   items: OrderItem[];
   history?: OrderStatusHistoryEntry[];
   returns?: OrderReturnRecord[];
+  invoice?: Invoice | null;
+  payments?: InvoicePayment[];
 }
 
 const STATUS_TABS: Array<{ value: "all" | CanonicalOrderStatus; label: string }> = [
@@ -101,7 +113,17 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
   const [selectedItems, setSelectedItems] = useState<OrderItem[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<OrderStatusHistoryEntry[]>([]);
   const [selectedReturns, setSelectedReturns] = useState<OrderReturnRecord[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedPayments, setSelectedPayments] = useState<InvoicePayment[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Record payment modal state (prompted automatically when marked delivered!)
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [payMethod, setPayMethod] = useState<InvoicePaymentMethod>("mpesa");
+  const [payAmount, setPayAmount] = useState("");
+  const [payMpesaCode, setPayMpesaCode] = useState("");
+  const [payReceivedBy, setPayReceivedBy] = useState("Admin");
+  const [payNote, setPayNote] = useState("");
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +160,8 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
       setSelectedItems([]);
       setSelectedHistory([]);
       setSelectedReturns([]);
+      setSelectedInvoice(null);
+      setSelectedPayments([]);
       return;
     }
 
@@ -166,6 +190,8 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
           setSelectedItems(payload.items);
           setSelectedHistory(payload.history ?? []);
           setSelectedReturns(payload.returns ?? []);
+          setSelectedInvoice(payload.invoice ?? null);
+          setSelectedPayments(payload.payments ?? []);
         }
       } catch (caughtError) {
         if (!cancelled) {
@@ -246,9 +272,102 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
     setSelectedItems(bundle.items);
     if (bundle.history) setSelectedHistory(bundle.history);
     if (bundle.returns) setSelectedReturns(bundle.returns);
+    if ("invoice" in bundle) setSelectedInvoice(bundle.invoice ?? null);
+    if ("payments" in bundle) setSelectedPayments(bundle.payments ?? []);
     setOrders(current =>
       current.map(order => (order.id === bundle.order.id ? bundle.order : order))
     );
+  }
+
+  function openRecordPaymentModal(invoice: Invoice) {
+    const remaining = computeInvoiceBalanceDue(invoice);
+    setPayAmount(remaining > 0 ? String(remaining) : "");
+    setPayMethod("mpesa");
+    setPayMpesaCode("");
+    setPayReceivedBy("Admin");
+    setPayNote("");
+    setPaymentModalOpen(true);
+  }
+
+  async function handleSubmitOrderPayment(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedOrder || !selectedInvoice) return;
+
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Enter a payment amount greater than zero.");
+      return;
+    }
+    if (payMethod === "mpesa" && !isValidMpesaCode(payMpesaCode)) {
+      setError(
+        "Enter a valid M-Pesa confirmation code (10–12 uppercase letters/digits)."
+      );
+      return;
+    }
+
+    setSavingId(selectedOrder.id);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/invoices/${selectedInvoice.id}/payments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount,
+            method: payMethod,
+            mpesaCode:
+              payMethod === "mpesa" ? normalizeMpesaCode(payMpesaCode) : null,
+            receivedBy: payReceivedBy.trim() || "Admin",
+            note: payNote.trim() || null
+          })
+        }
+      );
+      const payload = (await response.json()) as {
+        invoice?: Invoice;
+        payments?: InvoicePayment[];
+        balanceDue?: number;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.invoice) {
+        throw new Error(payload.error ?? "Unable to record payment.");
+      }
+
+      setSelectedInvoice(payload.invoice);
+      setSelectedPayments(payload.payments ?? []);
+      const isNowPaid = payload.invoice.status === "paid";
+      setOrders(current =>
+        current.map(item =>
+          item.id === selectedOrder.id
+            ? { ...item, payment_status: isNowPaid ? "PAID" : "PENDING" }
+            : item
+        )
+      );
+      setSelectedOrder(current =>
+        current
+          ? { ...current, payment_status: isNowPaid ? "PAID" : "PENDING" }
+          : current
+      );
+      setPaymentModalOpen(false);
+      setSuccess(
+        isNowPaid
+          ? `Payment recorded — ${payload.invoice.invoice_number} is now PAID.`
+          : `Partial payment of ${formatCurrency(amount)} recorded (${formatCurrency(
+              payload.balanceDue ?? 0
+            )} remaining).`
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to record payment."
+      );
+    } finally {
+      setSavingId(null);
+    }
   }
 
   async function refreshOrders(nextFilters = filters) {
@@ -319,11 +438,25 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
       }
 
       syncUpdatedBundle(payload);
+      const invoiceInfo = payload.invoice
+        ? ` Invoice ${payload.invoice.invoice_number} issued.`
+        : "";
       setSuccess(
         `Order ${formatOrderDisplayNumber(payload.order)} marked ${getCanonicalStatusLabel(
           nextStatus
-        ).toLowerCase()}.`
+        ).toLowerCase()}.${nextStatus === "confirmed" ? invoiceInfo : ""}`
       );
+
+      // Phase 5: prompt "Record payment" automatically when an order is marked delivered
+      if (
+        nextStatus === "delivered" &&
+        payload.invoice &&
+        payload.invoice.status !== "paid" &&
+        payload.invoice.status !== "void" &&
+        computeInvoiceBalanceDue(payload.invoice) > 0
+      ) {
+        openRecordPaymentModal(payload.invoice);
+      }
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -963,15 +1096,62 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
 
               <div className="rounded-[2px] border border-border bg-stone/50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brass">
-                  Payment
+                  Payment &amp; invoice
                 </p>
                 <p className="mt-3 text-sm text-text">
                   {getPaymentMethodLabel(selectedOrder.payment_method)}
                 </p>
-                <div className="mt-2">
-                  <PaymentStatusBadge status={selectedOrder.payment_status} />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {selectedInvoice ? (
+                    <span
+                      className={`rounded-[2px] border px-2 py-0.5 text-xs font-semibold ${getInvoiceStatusBadgeClassName(
+                        selectedInvoice.status
+                      )}`}
+                    >
+                      {selectedInvoice.invoice_number} ·{" "}
+                      {getInvoiceStatusLabel(selectedInvoice.status)}
+                    </span>
+                  ) : (
+                    <PaymentStatusBadge status={selectedOrder.payment_status} />
+                  )}
                 </div>
-                {selectedCanonicalStatus !== "cancelled" ? (
+
+                {selectedInvoice ? (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-muted">
+                      Paid: {formatCurrency(selectedInvoice.amount_paid)} · Balance:{" "}
+                      {formatCurrency(computeInvoiceBalanceDue(selectedInvoice))}
+                    </p>
+                    {selectedPayments.length > 0 ? (
+                      <p className="text-xs text-muted">
+                        {selectedPayments.length}{" "}
+                        {selectedPayments.length === 1 ? "payment" : "payments"} recorded
+                      </p>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-3">
+                      {selectedInvoice.status !== "paid" &&
+                      selectedInvoice.status !== "void" &&
+                      computeInvoiceBalanceDue(selectedInvoice) > 0 ? (
+                        <button
+                          type="button"
+                          disabled={savingId === selectedOrder.id}
+                          onClick={() => openRecordPaymentModal(selectedInvoice)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brass underline underline-offset-4 hover:opacity-80 disabled:opacity-50"
+                        >
+                          <Wallet className="h-3.5 w-3.5" aria-hidden />
+                          Record payment
+                        </button>
+                      ) : null}
+                      <Link
+                        href={`/admin/invoices/${selectedInvoice.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-text underline underline-offset-4 hover:text-brass"
+                      >
+                        Open invoice
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      </Link>
+                    </div>
+                  </div>
+                ) : selectedCanonicalStatus !== "cancelled" ? (
                   <button
                     type="button"
                     disabled={savingId === selectedOrder.id}
@@ -1441,6 +1621,139 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
               </Button>
               <Button type="submit" disabled={savingId === selectedOrder.id}>
                 {savingId === selectedOrder.id ? "Recording..." : "Save return"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {/* Record Payment Modal (prompted when marking delivered or triggered manually) */}
+      {paymentModalOpen && selectedOrder && selectedInvoice ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="record-payment-modal-title"
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+        >
+          <button
+            type="button"
+            aria-label="Close payment dialog"
+            className="absolute inset-0 bg-ink/60 backdrop-blur-[1px]"
+            onClick={() => setPaymentModalOpen(false)}
+          />
+          <form
+            onSubmit={handleSubmitOrderPayment}
+            className="relative z-10 w-full max-w-md space-y-4 border border-border bg-paper p-5 text-text shadow-xl sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brass">
+                  Record payment
+                </p>
+                <h3
+                  id="record-payment-modal-title"
+                  className="mt-1 font-serif text-2xl text-text"
+                >
+                  {selectedInvoice.invoice_number}
+                </h3>
+                <p className="mt-1 text-xs text-muted">
+                  Balance due: {formatCurrency(computeInvoiceBalanceDue(selectedInvoice))}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setPaymentModalOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[2px] text-muted hover:bg-stone hover:text-text"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {(["mpesa", "cash"] as const).map(method => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => setPayMethod(method)}
+                  className={`min-h-10 rounded-[2px] border text-sm font-medium transition ${
+                    payMethod === method
+                      ? "border-brass bg-brass text-ink"
+                      : "border-border bg-paper text-muted hover:text-text"
+                  }`}
+                >
+                  {method === "mpesa" ? "M-Pesa" : "Cash"}
+                </button>
+              ))}
+            </div>
+
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium text-text">
+                Amount (KES) <span className="text-brass">*</span>
+              </span>
+              <Input
+                type="number"
+                min="1"
+                max={computeInvoiceBalanceDue(selectedInvoice)}
+                step="0.01"
+                required
+                value={payAmount}
+                onChange={event => setPayAmount(event.target.value)}
+              />
+            </label>
+
+            {payMethod === "mpesa" ? (
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium text-text">
+                  M-Pesa confirmation code <span className="text-brass">*</span>
+                </span>
+                <Input
+                  type="text"
+                  required
+                  placeholder="e.g. SHK4P9X2M1"
+                  value={payMpesaCode}
+                  onChange={event =>
+                    setPayMpesaCode(event.target.value.toUpperCase())
+                  }
+                  className="font-mono uppercase"
+                />
+              </label>
+            ) : null}
+
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium text-text">
+                Received by (rider or admin) <span className="text-brass">*</span>
+              </span>
+              <Input
+                type="text"
+                required
+                placeholder="Rider name or admin"
+                value={payReceivedBy}
+                onChange={event => setPayReceivedBy(event.target.value)}
+              />
+            </label>
+
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium text-text">Note (optional)</span>
+              <Input
+                type="text"
+                placeholder="Payment note..."
+                value={payNote}
+                onChange={event => setPayNote(event.target.value)}
+              />
+            </label>
+
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setPaymentModalOpen(false)}
+                disabled={savingId === selectedOrder.id}
+              >
+                Record later
+              </Button>
+              <Button type="submit" disabled={savingId === selectedOrder.id}>
+                {savingId === selectedOrder.id ? "Saving..." : "Save payment"}
               </Button>
             </div>
           </form>

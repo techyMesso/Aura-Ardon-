@@ -8,6 +8,11 @@ import {
 import { revalidateStoreSettings } from "@/lib/cache";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
 import { hasPublicSupabaseEnv } from "@/lib/env";
+import {
+  buildDailyCashupReport,
+  buildMonthlySummaryReport,
+  isShareTokenActive
+} from "@/lib/invoices";
 import { logger } from "@/lib/logger";
 import {
   DEFAULT_DELIVERY_ZONES,
@@ -20,7 +25,15 @@ import type {
   AdminAnalytics,
   CanonicalOrderStatus,
   Category,
+  CreditNote,
+  DailyCashupReport,
   DeliveryZone,
+  Invoice,
+  InvoiceDetailBundle,
+  InvoicePayment,
+  InvoicePaymentMethod,
+  InvoiceStatus,
+  MonthlySummaryReport,
   Order,
   OrderItem,
   OrderReturnRecord,
@@ -624,6 +637,9 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
   items: OrderItem[];
   history: OrderStatusHistoryEntry[];
   returns: OrderReturnRecord[];
+  invoice: Invoice | null;
+  payments: InvoicePayment[];
+  creditNotes: CreditNote[];
 } | null> {
   const supabase = createAdminSupabaseClient();
 
@@ -631,7 +647,10 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
     { data: order, error: orderError },
     { data: items, error: itemsError },
     { data: history, error: historyError },
-    { data: returns, error: returnsError }
+    { data: returns, error: returnsError },
+    { data: invoice },
+    { data: payments },
+    { data: creditNotes }
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -651,6 +670,17 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
     supabase
       .from("order_returns")
       .select("id, order_id, order_item_id, product_id, product_title, quantity, unit_price, refund_amount, condition, note, created_by, created_at")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true }),
+    supabase.from("invoices").select("*").eq("order_id", orderId).maybeSingle(),
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("paid_at", { ascending: true }),
+    supabase
+      .from("credit_notes")
+      .select("*")
       .eq("order_id", orderId)
       .order("created_at", { ascending: true })
   ]);
@@ -673,7 +703,10 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
     order: order as Order,
     items: (items ?? []) as OrderItem[],
     history: (history ?? []) as OrderStatusHistoryEntry[],
-    returns: (returns ?? []) as OrderReturnRecord[]
+    returns: (returns ?? []) as OrderReturnRecord[],
+    invoice: (invoice as Invoice | null) ?? null,
+    payments: (payments ?? []) as InvoicePayment[],
+    creditNotes: (creditNotes ?? []) as CreditNote[]
   };
 }
 
@@ -991,5 +1024,263 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
       label: product.product_title,
       value: product.quantity
     }))
+  };
+}
+
+// ─── INVOICES, PAYMENTS, CREDIT NOTES & REPORTS (Phase 5) ──
+
+export interface AdminInvoiceListItem extends Invoice {
+  order_status_canonical: CanonicalOrderStatus | null;
+  payment_methods: InvoicePaymentMethod[];
+  mpesa_codes: string[];
+}
+
+export interface ListAdminInvoicesParams {
+  status?: InvoiceStatus | "all";
+  method?: InvoicePaymentMethod | "all";
+  from?: string;
+  to?: string;
+  search?: string;
+  outstandingOnly?: boolean;
+}
+
+export async function listAdminInvoices(
+  params: ListAdminInvoicesParams = {}
+): Promise<AdminInvoiceListItem[]> {
+  const supabase = createAdminSupabaseClient();
+
+  let query = supabase
+    .from("invoices")
+    .select("*")
+    .order("issued_at", { ascending: false });
+
+  if (params.status && params.status !== "all") {
+    query = query.eq("status", params.status);
+  }
+  if (params.from) {
+    query = query.gte("issued_at", `${params.from}T00:00:00.000+03:00`);
+  }
+  if (params.to) {
+    query = query.lte("issued_at", `${params.to}T23:59:59.999+03:00`);
+  }
+
+  const [{ data: invoiceRows, error: invError }, { data: paymentRows }, { data: orderRows }] =
+    await Promise.all([
+      query,
+      supabase
+        .from("payments")
+        .select("invoice_id, method, mpesa_code")
+        .order("paid_at", { ascending: true }),
+      supabase.from("orders").select("id, status, order_status")
+    ]);
+
+  if (invError) throw new Error(invError.message);
+
+  const paymentsByInvoice = new Map<
+    string,
+    { methods: Set<InvoicePaymentMethod>; codes: string[] }
+  >();
+  for (const pay of (paymentRows ?? []) as Array<{
+    invoice_id: string;
+    method: InvoicePaymentMethod;
+    mpesa_code: string | null;
+  }>) {
+    const entry = paymentsByInvoice.get(pay.invoice_id) ?? {
+      methods: new Set<InvoicePaymentMethod>(),
+      codes: []
+    };
+    entry.methods.add(pay.method);
+    if (pay.mpesa_code) entry.codes.push(pay.mpesa_code);
+    paymentsByInvoice.set(pay.invoice_id, entry);
+  }
+
+  const orderStatusById = new Map<string, CanonicalOrderStatus>();
+  for (const ord of (orderRows ?? []) as Array<{
+    id: string;
+    status?: CanonicalOrderStatus | null;
+    order_status: OrderStatus;
+  }>) {
+    orderStatusById.set(ord.id, resolveCanonicalOrderStatus(ord));
+  }
+
+  const normalizedSearch = params.search?.trim().toLowerCase() ?? "";
+
+  let items: AdminInvoiceListItem[] = ((invoiceRows ?? []) as Invoice[]).map(inv => {
+    const payMeta = paymentsByInvoice.get(inv.id);
+    return {
+      ...inv,
+      order_status_canonical: orderStatusById.get(inv.order_id) ?? null,
+      payment_methods: payMeta ? Array.from(payMeta.methods) : [],
+      mpesa_codes: payMeta ? payMeta.codes : []
+    };
+  });
+
+  if (params.outstandingOnly) {
+    items = items.filter(
+      item =>
+        item.order_status_canonical === "delivered" &&
+        (item.status === "unpaid" || item.status === "partially_paid")
+    );
+  }
+
+  if (params.method && params.method !== "all") {
+    items = items.filter(item => item.payment_methods.includes(params.method as InvoicePaymentMethod));
+  }
+
+  if (normalizedSearch) {
+    items = items.filter(item => {
+      const haystack = [
+        item.invoice_number,
+        item.customer_snapshot?.full_name,
+        item.customer_snapshot?.phone,
+        item.customer_snapshot?.order_number,
+        item.etims_invoice_number,
+        ...item.mpesa_codes
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }
+
+  return items;
+}
+
+export async function getInvoiceDetailBundle(
+  invoiceOrOrderId: string
+): Promise<InvoiceDetailBundle | null> {
+  const supabase = createAdminSupabaseClient();
+
+  const { data: byId } = await supabase
+    .from("invoices")
+    .select("*")
+    .eq("id", invoiceOrOrderId)
+    .maybeSingle();
+
+  let invoice = (byId as Invoice | null) ?? null;
+
+  if (!invoice) {
+    const { data: byOrder } = await supabase
+      .from("invoices")
+      .select("*")
+      .eq("order_id", invoiceOrOrderId)
+      .maybeSingle();
+    invoice = (byOrder as Invoice | null) ?? null;
+  }
+
+  if (!invoice) return null;
+
+  const [{ data: payments }, { data: creditNotes }, { data: order }] = await Promise.all([
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("invoice_id", invoice.id)
+      .order("paid_at", { ascending: true }),
+    supabase
+      .from("credit_notes")
+      .select("*")
+      .eq("invoice_id", invoice.id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("orders")
+      .select("id, order_number, status, order_status, created_at")
+      .eq("id", invoice.order_id)
+      .maybeSingle()
+  ]);
+
+  return {
+    invoice,
+    payments: (payments ?? []) as InvoicePayment[],
+    creditNotes: (creditNotes ?? []) as CreditNote[],
+    order: (order as InvoiceDetailBundle["order"]) ?? null
+  };
+}
+
+export async function getInvoiceByShareToken(
+  token: string
+): Promise<InvoiceDetailBundle | null> {
+  const cleanToken = token.trim();
+  if (!cleanToken || cleanToken.length < 16) return null;
+
+  const supabase = createAdminSupabaseClient();
+  const { data: invoiceRow, error } = await supabase
+    .from("invoices")
+    .select("*")
+    .eq("share_token", cleanToken)
+    .maybeSingle();
+
+  if (error || !invoiceRow) return null;
+  const invoice = invoiceRow as Invoice;
+
+  if (!isShareTokenActive(invoice)) {
+    return null;
+  }
+
+  const [{ data: payments }, { data: creditNotes }] = await Promise.all([
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("invoice_id", invoice.id)
+      .order("paid_at", { ascending: true }),
+    supabase
+      .from("credit_notes")
+      .select("*")
+      .eq("invoice_id", invoice.id)
+      .order("created_at", { ascending: true })
+  ]);
+
+  return {
+    invoice,
+    payments: (payments ?? []) as InvoicePayment[],
+    creditNotes: (creditNotes ?? []) as CreditNote[]
+  };
+}
+
+export async function getDailyCashupReportData(
+  dateIso: string
+): Promise<DailyCashupReport> {
+  const supabase = createAdminSupabaseClient();
+  const [{ data: orders }, { data: invoices }, { data: payments }] = await Promise.all([
+    supabase.from("orders").select(ADMIN_ORDER_SELECT),
+    supabase.from("invoices").select("*"),
+    supabase.from("payments").select("*").order("paid_at", { ascending: true })
+  ]);
+
+  return buildDailyCashupReport(
+    dateIso,
+    (orders ?? []) as Order[],
+    (invoices ?? []) as Invoice[],
+    (payments ?? []) as InvoicePayment[]
+  );
+}
+
+export async function getMonthlySummaryReportData(monthIso: string): Promise<{
+  report: MonthlySummaryReport;
+  invoices: Invoice[];
+  payments: InvoicePayment[];
+  creditNotes: CreditNote[];
+}> {
+  const supabase = createAdminSupabaseClient();
+  const [{ data: invoices }, { data: payments }, { data: creditNotes }] = await Promise.all([
+    supabase.from("invoices").select("*").order("issued_at", { ascending: true }),
+    supabase.from("payments").select("*").order("paid_at", { ascending: true }),
+    supabase.from("credit_notes").select("*").order("created_at", { ascending: true })
+  ]);
+
+  const typedInvoices = (invoices ?? []) as Invoice[];
+  const typedPayments = (payments ?? []) as InvoicePayment[];
+  const typedCreditNotes = (creditNotes ?? []) as CreditNote[];
+
+  return {
+    report: buildMonthlySummaryReport(
+      monthIso,
+      typedInvoices,
+      typedPayments,
+      typedCreditNotes
+    ),
+    invoices: typedInvoices,
+    payments: typedPayments,
+    creditNotes: typedCreditNotes
   };
 }
