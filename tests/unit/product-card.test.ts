@@ -106,8 +106,8 @@ describe("product card stock state", () => {
     });
   });
 
-  it("formats storefront card prices with the KSh prefix and two decimals", () => {
-    expect(formatProductCardPrice("300")).toBe("KSh 300.00");
+  it("formats storefront card prices with the KES prefix and two decimals", () => {
+    expect(formatProductCardPrice("300")).toBe("KES 300.00");
   });
 });
 

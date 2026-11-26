@@ -1,3 +1,4 @@
+import { validateEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 let registered = false;
@@ -8,6 +9,10 @@ export async function register() {
   }
 
   registered = true;
+
+  if (process.env.NEXT_RUNTIME !== "edge" && process.env.NODE_ENV === "production") {
+    validateEnv(process.env);
+  }
 
   logger.info("Application instrumentation initialized");
 

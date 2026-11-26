@@ -30,5 +30,5 @@ export function getProductCardAvailability(product: Product, cartQuantity: numbe
 
 export function formatProductCardPrice(value: string | number) {
   const amount = Number(value);
-  return `KSh ${(Number.isFinite(amount) ? amount : 0).toFixed(2)}`;
+  return `KES ${(Number.isFinite(amount) ? amount : 0).toFixed(2)}`;
 }

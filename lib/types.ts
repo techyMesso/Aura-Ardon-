@@ -142,7 +142,61 @@ export interface AdminAnalytics {
   topProductsChart: AdminAnalyticsSeriesPoint[];
 }
 
-// ─── Admin User ──────────────────────────────────────────
+// ─── Store Settings & Delivery Zones (Phase 0) ───────────
+
+export interface StoreMessageTemplates {
+  confirmed: string;
+  dispatched: string;
+  delivered: string;
+  cancelled: string;
+  unpaid_reminder: string;
+  back_in_stock: string;
+}
+
+export interface StoreSettings {
+  id: boolean;
+  site_name: string;
+  business_phone: string;
+  business_email: string | null;
+  business_address: string;
+  kra_pin: string | null;
+  logo_url: string | null;
+  whatsapp_number: string;
+  currency: string;
+  timezone: string;
+  business_hours: string;
+  same_day_cutoff: string;
+  pending_auto_cancel_hours: number;
+  low_stock_default: number;
+  free_delivery_threshold: number;
+  instagram_url: string;
+  tiktok_url: string;
+  is_store_open: boolean;
+  holiday_banner_message: string;
+  invoice_footer: string;
+  payment_instructions: string;
+  message_templates: StoreMessageTemplates;
+  updated_at: string;
+}
+
+export type StoreSettingsUpdate = Partial<Omit<StoreSettings, "id" | "updated_at">>;
+
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  fee: number;
+  active: boolean;
+  sort_order: number;
+  is_outside_nairobi: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DeliveryZoneInsert = Omit<DeliveryZone, "id" | "created_at" | "updated_at"> & {
+  id?: string;
+};
+
+export type DeliveryZoneUpdate = Partial<Omit<DeliveryZone, "id" | "created_at" | "updated_at">>;
 
 // ─── Database Types ──────────────────────────────────────
 
@@ -153,6 +207,8 @@ export interface Database {
       products: { Row: Product; Insert: ProductInsert; Update: ProductUpdate };
       orders: { Row: Order; Insert: OrderInsert; Update: OrderUpdate };
       order_items: { Row: OrderItem; Insert: OrderItemInsert; Update: OrderItemUpdate };
+      store_settings: { Row: StoreSettings; Insert: Partial<StoreSettings>; Update: StoreSettingsUpdate };
+      delivery_zones: { Row: DeliveryZone; Insert: DeliveryZoneInsert; Update: DeliveryZoneUpdate };
     };
     Enums: {
       order_status: OrderStatus;

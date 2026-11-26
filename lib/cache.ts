@@ -23,3 +23,11 @@ export function revalidateProductCatalog() {
 export function revalidateCategoryCatalog() {
   safelyRevalidate(["categories"]);
 }
+
+export function revalidateStoreSettings() {
+  safelyRevalidate(["store-settings"]);
+}
+
+export function revalidateDeliveryZones() {
+  safelyRevalidate(["delivery-zones"]);
+}

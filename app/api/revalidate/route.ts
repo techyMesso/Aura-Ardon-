@@ -1,7 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { revalidateCategoryCatalog, revalidateProductCatalog } from "@/lib/cache";
+import {
+  revalidateCategoryCatalog,
+  revalidateDeliveryZones,
+  revalidateProductCatalog,
+  revalidateStoreSettings
+} from "@/lib/cache";
 import { getRevalidateSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -100,6 +105,10 @@ export async function POST(request: NextRequest) {
   } else if (table === "categories") {
     requestedTags.add("categories");
     requestedTags.add("products");
+  } else if (table === "store_settings") {
+    requestedTags.add("store-settings");
+  } else if (table === "delivery_zones") {
+    requestedTags.add("delivery-zones");
   }
 
   if (requestedTags.size === 0) {
@@ -115,6 +124,14 @@ export async function POST(request: NextRequest) {
   if (requestedTags.has("categories")) {
     revalidateCategoryCatalog();
     revalidated.push("categories");
+  }
+  if (requestedTags.has("store-settings")) {
+    revalidateStoreSettings();
+    revalidated.push("store-settings");
+  }
+  if (requestedTags.has("delivery-zones")) {
+    revalidateDeliveryZones();
+    revalidated.push("delivery-zones");
   }
 
   logger.info?.("Catalog cache revalidated", {

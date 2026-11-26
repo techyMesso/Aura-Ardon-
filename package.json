@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:stress": "vitest run tests/stress/checkout-stress.test.ts"
+    "test:stress": "vitest run tests/stress/checkout-stress.test.ts",
+    "seed:staging": "node scripts/seed-staging.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

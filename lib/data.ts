@@ -1,19 +1,29 @@
 import { unstable_cache } from "next/cache";
 
 import { buildAdminOrderSearchFilter } from "@/lib/admin-orders";
+import { revalidateStoreSettings } from "@/lib/cache";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
 import { hasPublicSupabaseEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import {
+  DEFAULT_DELIVERY_ZONES,
+  DEFAULT_MESSAGE_TEMPLATES,
+  DEFAULT_STORE_CONFIG
+} from "@/lib/site";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   AdminAnalytics,
   Category,
+  DeliveryZone,
   Order,
   OrderItem,
   OrderStatus,
   PaymentStatus,
-  Product
+  Product,
+  StoreMessageTemplates,
+  StoreSettings,
+  StoreSettingsUpdate
 } from "@/lib/types";
 
 const NAIROBI_TIME_ZONE = "Africa/Nairobi";
@@ -305,6 +315,224 @@ export function deriveCategoryRepresentatives(
 export async function listCategoryRepresentatives(): Promise<CategoryRepresentative[]> {
   const products = await listPublicProducts();
   return deriveCategoryRepresentatives(products);
+}
+
+// ─── STORE SETTINGS & DELIVERY ZONES (Phase 0) ───────────
+
+function buildFallbackStoreSettings(): StoreSettings {
+  return {
+    id: true,
+    ...DEFAULT_STORE_CONFIG,
+    message_templates: { ...DEFAULT_MESSAGE_TEMPLATES },
+    updated_at: new Date(0).toISOString()
+  };
+}
+
+function normalizeStoreSettingsRow(row: Record<string, unknown>): StoreSettings {
+  const fallback = buildFallbackStoreSettings();
+  const rawTemplates =
+    row.message_templates && typeof row.message_templates === "object"
+      ? (row.message_templates as Partial<StoreMessageTemplates>)
+      : {};
+
+  return {
+    id: true,
+    site_name: typeof row.site_name === "string" && row.site_name.trim() ? row.site_name : fallback.site_name,
+    business_phone:
+      typeof row.business_phone === "string" && row.business_phone.trim()
+        ? row.business_phone
+        : fallback.business_phone,
+    business_email: typeof row.business_email === "string" ? row.business_email : null,
+    business_address:
+      typeof row.business_address === "string" && row.business_address.trim()
+        ? row.business_address
+        : fallback.business_address,
+    kra_pin: typeof row.kra_pin === "string" ? row.kra_pin : null,
+    logo_url: typeof row.logo_url === "string" ? row.logo_url : null,
+    whatsapp_number:
+      typeof row.whatsapp_number === "string" && row.whatsapp_number.trim()
+        ? row.whatsapp_number
+        : fallback.whatsapp_number,
+    currency: typeof row.currency === "string" && row.currency.trim() ? row.currency : fallback.currency,
+    timezone: typeof row.timezone === "string" && row.timezone.trim() ? row.timezone : fallback.timezone,
+    business_hours:
+      typeof row.business_hours === "string" && row.business_hours.trim()
+        ? row.business_hours
+        : fallback.business_hours,
+    same_day_cutoff:
+      typeof row.same_day_cutoff === "string" && row.same_day_cutoff.trim()
+        ? row.same_day_cutoff
+        : fallback.same_day_cutoff,
+    pending_auto_cancel_hours:
+      typeof row.pending_auto_cancel_hours === "number" && row.pending_auto_cancel_hours > 0
+        ? row.pending_auto_cancel_hours
+        : fallback.pending_auto_cancel_hours,
+    low_stock_default:
+      typeof row.low_stock_default === "number" && row.low_stock_default >= 0
+        ? row.low_stock_default
+        : fallback.low_stock_default,
+    free_delivery_threshold:
+      Number.isFinite(Number(row.free_delivery_threshold))
+        ? Number(row.free_delivery_threshold)
+        : fallback.free_delivery_threshold,
+    instagram_url: typeof row.instagram_url === "string" ? row.instagram_url : "",
+    tiktok_url: typeof row.tiktok_url === "string" ? row.tiktok_url : "",
+    is_store_open: typeof row.is_store_open === "boolean" ? row.is_store_open : true,
+    holiday_banner_message:
+      typeof row.holiday_banner_message === "string" ? row.holiday_banner_message : "",
+    invoice_footer:
+      typeof row.invoice_footer === "string" ? row.invoice_footer : fallback.invoice_footer,
+    payment_instructions:
+      typeof row.payment_instructions === "string"
+        ? row.payment_instructions
+        : fallback.payment_instructions,
+    message_templates: {
+      ...DEFAULT_MESSAGE_TEMPLATES,
+      ...rawTemplates
+    },
+    updated_at: typeof row.updated_at === "string" ? row.updated_at : fallback.updated_at
+  };
+}
+
+async function fetchStoreSettingsUncached(): Promise<StoreSettings> {
+  const supabase = createPublicServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("store_settings")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    return buildFallbackStoreSettings();
+  }
+  return normalizeStoreSettingsRow(data as Record<string, unknown>);
+}
+
+const getCachedStoreSettings = unstable_cache(
+  fetchStoreSettingsUncached,
+  ["store-settings"],
+  {
+    tags: ["store-settings"],
+    revalidate: 300
+  }
+);
+
+export async function getStoreSettings(): Promise<StoreSettings> {
+  if (!hasPublicSupabaseEnv()) {
+    return buildFallbackStoreSettings();
+  }
+  try {
+    return await getCachedStoreSettings();
+  } catch (err) {
+    logger.warn("Falling back to default store settings", {
+      error: err instanceof Error ? err.message : String(err)
+    });
+    return buildFallbackStoreSettings();
+  }
+}
+
+export async function saveStoreSettings(
+  updates: StoreSettingsUpdate
+): Promise<StoreSettings> {
+  const supabase = createAdminSupabaseClient();
+  const { data, error } = await supabase
+    .from("store_settings")
+    .upsert({ id: true, ...updates } as never, { onConflict: "id" })
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Unable to save store settings.");
+  }
+
+  revalidateStoreSettings();
+  return normalizeStoreSettingsRow(data as Record<string, unknown>);
+}
+
+function buildFallbackDeliveryZones(): DeliveryZone[] {
+  const epoch = new Date(0).toISOString();
+  return DEFAULT_DELIVERY_ZONES.map((zone, index) => ({
+    id: `default-zone-${index + 1}`,
+    ...zone,
+    created_at: epoch,
+    updated_at: epoch
+  }));
+}
+
+async function fetchDeliveryZonesUncached(): Promise<DeliveryZone[]> {
+  const supabase = createPublicServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("delivery_zones")
+    .select("id, name, fee, active, sort_order, is_outside_nairobi, created_at, updated_at")
+    .eq("active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map(row => ({
+    id: String(row.id),
+    name: String(row.name),
+    fee: Number(row.fee ?? 0),
+    active: Boolean(row.active),
+    sort_order: Number(row.sort_order ?? 0),
+    is_outside_nairobi: Boolean(row.is_outside_nairobi),
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? "")
+  }));
+}
+
+const getCachedDeliveryZones = unstable_cache(
+  fetchDeliveryZonesUncached,
+  ["delivery-zones"],
+  {
+    tags: ["delivery-zones"],
+    revalidate: 300
+  }
+);
+
+export async function listDeliveryZones(): Promise<DeliveryZone[]> {
+  if (!hasPublicSupabaseEnv()) {
+    return buildFallbackDeliveryZones();
+  }
+  try {
+    const zones = await getCachedDeliveryZones();
+    return zones.length > 0 ? zones : buildFallbackDeliveryZones();
+  } catch (err) {
+    logger.warn("Falling back to default delivery zones", {
+      error: err instanceof Error ? err.message : String(err)
+    });
+    return buildFallbackDeliveryZones();
+  }
+}
+
+export async function listAllDeliveryZones(): Promise<DeliveryZone[]> {
+  const supabase = createAdminSupabaseClient();
+  const { data, error } = await supabase
+    .from("delivery_zones")
+    .select("id, name, fee, active, sort_order, is_outside_nairobi, created_at, updated_at")
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map(row => ({
+    id: String(row.id),
+    name: String(row.name),
+    fee: Number(row.fee ?? 0),
+    active: Boolean(row.active),
+    sort_order: Number(row.sort_order ?? 0),
+    is_outside_nairobi: Boolean(row.is_outside_nairobi),
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? "")
+  }));
 }
 
 // ─── ADMIN ────────────────────────────────────────────────

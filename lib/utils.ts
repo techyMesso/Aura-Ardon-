@@ -7,12 +7,13 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(value: string | number) {
   const amount = typeof value === "number" ? value : Number(value);
-
-  return new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  const formatted = new Intl.NumberFormat("en-KE", {
+    minimumFractionDigits: safeAmount % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2
-  }).format(amount);
+  }).format(safeAmount);
+
+  return `KES ${formatted}`;
 }
 
 export function normalizeKenyanPhoneNumber(phone: string) {

@@ -1,118 +1,74 @@
-# Auro Ardon Jewelry — Scalable Production Architecture
+# Auro Ardon — Architecture Overview
 
-## Request Path & System Topology
+## Stack & Environments
 
-```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│                             Browser / Client                               │
-│  • React Cart Context + localStorage (`auro-ardon-cart`)                   │
-│  • Client-generated `Idempotency-Key` + `submittingRef` double-tap guard   │
-└───────────────┬──────────────────────────────────────────┬─────────────────┘
-                │                                          │
-                │ 1. Static / ISR Pages & Images           │ 2. Dynamic Writes & Status
-                ▼                                          ▼
-┌─────────────────────────────────────────┐  ┌───────────────────────────────┐
-│        Vercel Edge Network / CDN        │  │  Vercel Serverless Functions  │
-│  • `/_next/static/*` (immutable cache)  │  │  • `POST /api/checkout`       │
-│  • `/_next/image` optimizer             │  │  • `GET /api/orders/status/*` │
-│  • ISR pages (`revalidate = 300`):      │  │  • `POST /api/revalidate`     │
-│    - `/`                                │  │  • `POST /api/admin/*`        │
-│    - `/shop`                            │  └───────┬───────────────┬───────┘
-│    - `/shop/[category]`                 │          │               │
-│    - `/p/[slug]` (canonical PDP)        │          │               │
-└───────────────┬─────────────────────────┘          │               │
-                │                                    │               │
-                │ Cache Miss / Revalidate            │ Rate Limit    │ PostgREST / RPC
-                ▼                                    ▼               ▼
-┌─────────────────────────────────────────┐  ┌───────────────┐  ┌────────────────────────────┐
-│      Supabase Storage Public CDN        │  │ Upstash Redis │  │ Supabase API & Supavisor   │
-│  • Public bucket: `product-images`      │  │  `@upstash/   │  │ Connection Pooler          │
-│  • Served via `next/image` with         │  │   ratelimit`  │  │  • Stateless HTTPS clients │
-│    WebP / AVIF optimization             │  │  • Sliding    │  │  • `create_checkout_order` │
-└─────────────────────────────────────────┘  │    window     │  │    transactional RPC with  │
-                                             └───────────────┘  │    advisory lock & RLS     │
-                                                                └──────────────┬─────────────┘
-                                                                               │
-                                                                               ▼
-                                                                ┌────────────────────────────┐
-                                                                │     Supabase Postgres      │
-                                                                │  • `categories` (RLS read) │
-                                                                │  • `products` (RLS read)   │
-                                                                │  • `orders` & `order_items`│
-                                                                └────────────────────────────┘
-```
-
-### Key Architectural Pillars
-
-1. **CDN & Image Optimization (`next/image` + Supabase Storage)**
-   - Product and category images are served from the public `product-images` Supabase Storage bucket and transformed at the Vercel Edge via `next/image` (`formats: ["image/avif", "image/webp"]`).
-   - Only the hero image on `/` and the first row (`priorityCount={4}`) on `/shop` use `priority`; all other product cards, category cards, thumbnails, and cart images use `loading="lazy"` with responsive `sizes`.
-   - Static bundles under `/_next/static/*` use Next.js default `public, max-age=31536000, immutable` caching.
-
-2. **Multi-Layer Catalog Caching (ISR + Next.js Data Cache)**
-   - Storefront catalog pages (`/`, `/shop`, `/shop/[category]`, `/p/[slug]`) export `revalidate = 300` (5-minute ISR) and pre-generate known category/product slugs via `generateStaticParams()`. Legacy `/shop/[category]/[product]` URLs permanently redirect to `/p/[slug]`.
-   - Catalog queries in `lib/data.ts` (`listCategories`, `listPublicProducts`, `listPublicProductIndex`, `listFeaturedProducts`, `listProductsByCategory`, `getProductBySlug`) are wrapped in `unstable_cache` with tag-based invalidation (`"products"`, `"categories"`, `"featured-products"`). Upstream Supabase errors throw inside the cached loader so transient failures are never cached as empty arrays.
-   - Transactional routes (`/cart`, `/checkout`, `/orders/[token]`, `/admin/*`, and `/api/*`) remain strictly dynamic (`force-dynamic` / uncached).
-
-3. **Connection Pooling, Stateless Backend & RLS Security**
-   - All database traffic uses `@supabase/supabase-js` and `@supabase/ssr` over HTTPS (PostgREST + RPC), routing through Supabase's managed Supavisor connection pooler.
-   - Server and service-role Supabase clients (`lib/supabase/server.ts`, `lib/supabase/admin.ts`) are instantiated per request with `persistSession: false`.
-   - Direct anonymous `INSERT`/`UPDATE`/`DELETE` on `orders` and `order_items` is revoked; both `public.create_checkout_order` and `public.update_admin_order` are `SECURITY DEFINER` RPCs restricted exclusively to `service_role` with deterministic `ORDER BY p.id ASC FOR UPDATE` row locking (preventing `40P01` deadlocks) and automatic stock restoration on cancellation.
-
-4. **Distributed Rate Limiting (Upstash Redis)**
-   - `lib/rate-limit.ts` uses `@upstash/ratelimit` (`Ratelimit.slidingWindow` with `ephemeralCache: false`) backed by `@upstash/redis`.
-   - Protected endpoints:
-     - `POST /api/checkout`: **5 requests / 10 min per IP** (`checkout:ip:<ip>`) + **5 requests / 10 min per normalized phone** (`checkout:phone:<phone>`).
-     - WhatsApp order handoff (`paymentMethod: "WHATSAPP"` in `POST /api/checkout`): **5 requests / 10 min per IP + phone** (`whatsapp-handoff:<ip>:<phone>`).
-     - `POST /api/revalidate`: **30 requests / 1 min per IP** (`revalidate:<ip>`).
-     - `GET /api/orders/status/[token]`: **30 requests / 5 min per IP** (`order-status:<ip>`).
-     - `POST /api/admin/login`: **5 requests / 10 min per IP** (`admin-login:<ip>`).
-   - **Graceful Degradation**: When `UPSTASH_REDIS_REST_URL` or `UPSTASH_REDIS_REST_TOKEN` is missing in local development (or if Upstash is unreachable), `checkRateLimit` logs a `console.warn` and fails open rather than crashing requests.
+- **Framework:** Next.js 15 (App Router, `output: "standalone"`), React 19, TypeScript, Tailwind CSS
+- **Backend & Data:** Supabase (Postgres 17, Auth, Storage `product-images` bucket)
+- **Rate Limiting:** Upstash Redis (`@upstash/ratelimit` sliding window; fails open in local dev when unset)
+- **Testing:** Vitest (unit, integration, checkout concurrency stress tests)
+- **Hosting:** Vercel (`https://aura-ardon.vercel.app`)
+- **Environments:**
+  - **Production Supabase:** `Aura & Ardon` (`bjasoyhcxubrkxrqurfr`, `eu-west-1`) — Production Vercel environment only
+  - **Staging Supabase:** `Aura & Ardon Staging` (`scukquqkdivnodefqggf`, `eu-west-1`) — Preview deployments & local development
 
 ---
 
-## Required Environment Variables
+## Route Inventory
 
-| Variable | Scope | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `NEXT_PUBLIC_SITE_URL` | Public | Production | Canonical URL (`https://aura-ardon.vercel.app`) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Public | Yes | Supabase project URL (`https://<project-ref>.supabase.co`) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | Yes | Supabase anonymous public API key |
-| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Public | Yes | Merchant WhatsApp number in international digits (e.g. `2547...`) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server | Yes | Supabase service role key (used only in server routes/RPC) |
-| `ADMIN_EMAIL` | Server | Yes | Authorized admin email for `/admin` |
-| `ORDER_STATUS_TOKEN_SECRET` | Server | Yes | HMAC secret used to sign customer order status tokens |
-| `REVALIDATE_SECRET` | Server | Production | Shared secret for `POST /api/revalidate` webhook authentication |
-| `UPSTASH_REDIS_REST_URL` | Server | Production | Upstash Redis REST URL (from Vercel Marketplace integration) |
-| `UPSTASH_REDIS_REST_TOKEN` | Server | Production | Upstash Redis REST token (from Vercel Marketplace integration) |
-| `SENTRY_DSN` | Server | Optional | Sentry DSN for error reporting |
+### Storefront (`app/(storefront)/*`)
+| Route | Rendering | Notes |
+| :--- | :--- | :--- |
+| `/` | ISR (`revalidate = 300`) | Hero, category highlights, featured & new-in sections |
+| `/shop`, `/shop/[category]` | ISR (`revalidate = 300`) | Catalog listing with URL-synced search, price, material, stock, and sort filters |
+| `/shop/[category]/[product]` | Dynamic redirect | Permanent redirect to canonical `/p/[slug]` |
+| `/p/[slug]` | ISR (`revalidate = 300`) | Canonical product detail page + dynamic `opengraph-image.tsx` |
+| `/cart` | Dynamic (`force-dynamic`) | Full shopping bag page |
+| `/checkout` | Dynamic (`force-dynamic`) | Checkout form & WhatsApp / pay-on-delivery confirmation |
+| `/orders/[token]` | Dynamic (`force-dynamic`) | HMAC-signed order tracking page |
+| `/about`, `/how-to-order`, `/shipping`, `/returns`, `/contact` | Static / ISR | Informational & policy pages |
+| `error.tsx`, `not-found.tsx`, `loading.tsx` | App boundaries | Storefront error, 404, and loading states |
+
+### Metadata & Asset Routes (`app/*`)
+- `/robots.txt` (`app/robots.ts`), `/sitemap.xml` (`app/sitemap.ts`), `/manifest.webmanifest` (`app/manifest.ts`), `/icon` (`app/icon.tsx`), `/apple-icon` (`app/apple-icon.tsx`)
+
+### Auth & Admin (`app/login`, `app/auth/*`, `app/admin/*`)
+- `middleware.ts` protects `/admin/:path*`, redirects legacy `/admin/login` → `/login`, and validates the Supabase Auth session against `ADMIN_EMAIL`.
+- Admin views: `/admin` (analytics overview), `/admin/products`, `/admin/products/new`, `/admin/products/[id]/edit`, `/admin/categories`, `/admin/orders`, `/admin/invoices`, `/admin/invoices/[id]`.
+
+### API Routes (`app/api/*`)
+- **Public / Health:** `GET /api/health` (app + DB connectivity), `GET /api/ready` (full env + DB readiness), `POST /api/checkout`, `GET /api/orders/status/[token]`, `POST /api/revalidate`
+- **Admin:** `POST /api/admin/login`, `GET /api/admin/analytics`, CRUD under `/api/admin/categories`, `/api/admin/products`, `/api/admin/orders`, and `POST /api/admin/storage/upload`
 
 ---
 
-## Triggering Cache Revalidation (`POST /api/revalidate`)
+## Layouts, Client State & Themes
 
-Catalog mutations performed through the built-in `/admin` dashboard automatically call `revalidateProductCatalog()`. To also invalidate the Vercel Data Cache immediately when rows in `public.products` or `public.categories` are edited directly in Supabase Studio or via SQL:
+- **Root layout (`app/layout.tsx`):** Loads `Bodoni_Moda` (`--font-display`) and `Geist` (`--font-body`), sets `metadataBase` from `SITE_URL` (`lib/site.ts`), and injects an inline theme initialization script (`auro-ardon-theme`) for flash-free light/dark mode.
+- **Storefront layout (`app/(storefront)/layout.tsx`):** Wraps storefront pages in `CartProvider` (`lib/cart.tsx`) and `StorefrontUIProvider` (`components/storefront/storefront-context.tsx`).
+- **Client state:** Cart (`auro-ardon-cart`), wishlist, and recently-viewed state currently use React Context backed by `localStorage` with live catalog reconciliation against `listPublicProductIndex()` (no Zustand installed yet).
 
-### 1. Manual `curl` Trigger
+---
 
-```bash
-curl -X POST "https://aura-ardon.vercel.app/api/revalidate" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${REVALIDATE_SECRET}" \
-  -d '{"tags": ["products", "categories"]}'
-```
+## Database Schema, Migrations, RPCs & RLS
 
-### 2. Supabase Database Webhook Setup
+Migrations live under `supabase/migrations/` (with legacy setup scripts retained in `supabase/`):
+- **Core tables:**
+  - `public.categories` — hierarchical categories (`parent_id`, `slug`, `display_order`)
+  - `public.products` — catalog items (`slug`, `category_id`, `price`, `stock_quantity`, detail specs, `images`, `active`, `is_featured`)
+  - `public.orders` & `public.order_items` — idempotent order records and line snapshots
+  - `public.store_settings` (Phase 0) — singleton store configuration row (business info, WhatsApp number, cutoffs, free-delivery threshold, open/closed banner, invoice copy, WhatsApp message templates)
+  - `public.delivery_zones` (Phase 0) — Nairobi & courier delivery zones with authoritative fees and sort order
+- **Transactional RPCs (`SECURITY DEFINER`, `service_role`-only):**
+  - `public.create_checkout_order(...)` — advisory-locked idempotent order creation with deterministic `ORDER BY p.id ASC FOR UPDATE` row locking and atomic stock decrement
+  - `public.update_admin_order(...)` — forward-only status transition enforcement and atomic stock restoration on cancellation
+- **RLS posture:**
+  - `categories` (`true`), `products` (`active = true`), `store_settings` (`true`), `delivery_zones` (`active = true`) allow public read via anon key.
+  - Direct anonymous/authenticated writes to `orders`, `order_items`, `store_settings`, and `delivery_zones` are revoked; mutations run server-side using `SUPABASE_SERVICE_ROLE_KEY`.
 
-1. In the **Supabase Dashboard**, navigate to **Database → Webhooks** and click **Create a new hook**.
-2. Configure the webhook:
-   - **Name**: `revalidate_storefront_catalog`
-   - **Table**: `public.products` (create a second hook for `public.categories` if desired)
-   - **Events**: Check `INSERT`, `UPDATE`, and `DELETE`
-   - **Type**: `HTTP Request`
-   - **Method**: `POST`
-   - **URL**: `https://aura-ardon.vercel.app/api/revalidate`
-   - **HTTP Headers**:
-     - `Content-Type`: `application/json`
-     - `x-revalidate-secret`: `<your-REVALIDATE_SECRET-value>`
-3. Save the webhook. Supabase will send standard webhook payloads (`{ "type": "UPDATE", "table": "products", "record": { "slug": "..." } }`), which `POST /api/revalidate` inspects to invalidate `"products"`, `"categories"`, `"featured-products"`, and the specific product/category slug tags.
+---
+
+## Caching, Configuration & Environment Validation
+
+- **`lib/site.ts`:** Single source of truth for `SITE_URL` (from `NEXT_PUBLIC_SITE_URL`, defaulting to `https://aura-ardon.vercel.app`, never using `VERCEL_URL`), `SITE_NAME`, `DEFAULT_STORE_CONFIG`, and `DEFAULT_DELIVERY_ZONES`.
+- **`lib/env.ts` + `lib/env-schema.mjs`:** Zod-validated environment schema enforced at build time (`next.config.mjs`) and server startup (`instrumentation.ts`).
+- **Cache tags (`lib/cache.ts`, `lib/data.ts`):** `products`, `featured-products`, `categories`, `store-settings`, and `delivery-zones`. Admin writes revalidate tags immediately; `POST /api/revalidate` supports Supabase webhooks and manual revalidation via `Authorization: Bearer <REVALIDATE_SECRET>` or `x-revalidate-secret`.
