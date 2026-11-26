@@ -600,6 +600,34 @@ export async function getOrderWithItems(
   return { order: order as Order, items: (items ?? []) as OrderItem[] };
 }
 
+export async function getOrderByNumber(
+  orderNumber: string
+): Promise<{ order: Order; items: OrderItem[] } | null> {
+  const normalized = orderNumber.trim().toUpperCase();
+  if (!normalized) return null;
+
+  const supabase = createAdminSupabaseClient();
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select(
+      "id, order_number, channel, status, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at"
+    )
+    .eq("order_number", normalized)
+    .maybeSingle();
+
+  if (orderError || !order) return null;
+
+  const { data: items, error: itemsError } = await supabase
+    .from("order_items")
+    .select("id, order_id, product_id, product_title, quantity, unit_price, created_at")
+    .eq("order_id", (order as { id: string }).id)
+    .order("created_at", { ascending: true });
+
+  if (itemsError) return null;
+
+  return { order: order as Order, items: (items ?? []) as OrderItem[] };
+}
+
 type ListAdminOrdersParams = {
   status?: OrderStatus | "ALL";
   paymentStatus?: PaymentStatus | "ALL";

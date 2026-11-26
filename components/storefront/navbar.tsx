@@ -13,6 +13,7 @@ import type { Category } from "@/lib/types";
 
 const HELP_LINKS = [
   { label: "Wishlist", href: "/wishlist" },
+  { label: "Track order", href: "/track" },
   { label: "About", href: "/about" },
   { label: "How to order", href: "/how-to-order" },
   { label: "Delivery", href: "/shipping" },

@@ -8,6 +8,7 @@ import { formatWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils";
 const HELP_LINKS = [
   { label: "About", href: "/about" },
   { label: "How to order", href: "/how-to-order" },
+  { label: "Track order", href: "/track" },
   { label: "Delivery", href: "/shipping" },
   { label: "Returns", href: "/returns" },
   { label: "FAQ", href: "/faq" },

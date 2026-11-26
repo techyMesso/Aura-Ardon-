@@ -210,7 +210,7 @@ export function OrderTrackingClient({
         <div className="flex justify-between text-muted">
           <span>Delivery</span>
           <span>
-            {Number(shippingFee) > 0 ? formatKES(shippingFee) : "Confirmed on dispatch"}
+            {Number(shippingFee) > 0 ? formatKES(shippingFee) : "Free"}
           </span>
         </div>
         <div className="flex justify-between border-t border-text/12 pt-3 font-medium text-text">

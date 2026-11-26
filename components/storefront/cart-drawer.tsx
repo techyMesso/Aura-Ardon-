@@ -35,19 +35,9 @@ export function CartDrawer() {
   const whatsappNumber =
     storeSettings.whatsappNumber || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
   const isStoreOpen = storeSettings.isStoreOpen;
-
-  const cartWhatsAppMessage = [
-    "Hello Auro Ardon, I would like to order these pieces:",
-    ...items.map(
-      item =>
-        `- ${formatProductTitle(item.product.title)} x${item.quantity} (${formatKES(Number(item.product.price) * item.quantity)})`
-    ),
-    `Subtotal: ${formatKES(total)}`
-  ].join("\n");
-
-  const cartWhatsAppUrl = items.length
-    ? createWhatsAppLink(whatsappNumber, cartWhatsAppMessage)
-    : null;
+  const freeDeliveryThreshold = storeSettings.freeDeliveryThreshold;
+  const amountToFreeDelivery =
+    freeDeliveryThreshold > 0 ? Math.max(0, freeDeliveryThreshold - total) : 0;
 
   const wishlistWhatsAppMessage = [
     "Hello Auro Ardon, here is my saved wishlist:",
@@ -69,6 +59,13 @@ export function CartDrawer() {
       footer={
         items.length > 0 ? (
           <div className="space-y-3">
+            {freeDeliveryThreshold > 0 ? (
+              <p className="rounded-[2px] bg-stone px-3 py-2 font-sans text-[12px] text-text">
+                {amountToFreeDelivery === 0
+                  ? "You unlocked free delivery!"
+                  : `Add ${formatKES(amountToFreeDelivery)} more for free delivery`}
+              </p>
+            ) : null}
             <div className="flex items-baseline justify-between font-sans text-[14px]">
               <span className="text-muted">Subtotal</span>
               <PriceKES amount={total} className="font-medium" />
@@ -89,25 +86,13 @@ export function CartDrawer() {
                   </p>
                 </div>
               ) : (
-                <>
-                  <Link
-                    href="/checkout"
-                    onClick={closeCart}
-                    className="btn-primary w-full"
-                  >
-                    Checkout
-                  </Link>
-                  {cartWhatsAppUrl ? (
-                    <a
-                      href={cartWhatsAppUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-outline w-full"
-                    >
-                      Continue on WhatsApp
-                    </a>
-                  ) : null}
-                </>
+                <Link
+                  href="/checkout"
+                  onClick={closeCart}
+                  className="btn-primary w-full"
+                >
+                  Continue on WhatsApp
+                </Link>
               )}
             </div>
           </div>

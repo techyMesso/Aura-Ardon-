@@ -70,13 +70,35 @@ export interface CartItem {
 //         customer_location, notes, payment_method, payment_status,
 //         order_status, subtotal, shipping_fee, total, created_at
 
+export type CanonicalOrderStatus =
+  | "pending"
+  | "confirmed"
+  | "dispatched"
+  | "delivered"
+  | "cancelled"
+  | "returned";
+
 export interface Order {
   id: string;
+  order_number?: string | null;
+  channel?: string | null;
+  status?: CanonicalOrderStatus | null;
+  customer_id?: string | null;
   customer_name: string;
   customer_email: string | null;
   customer_phone: string;
   customer_location: string;
+  delivery_zone_id?: string | null;
+  delivery_zone_name?: string | null;
+  delivery_address?: string | null;
+  town_county?: string | null;
   notes: string | null;
+  is_gift?: boolean;
+  gift_note?: string | null;
+  hide_prices?: boolean;
+  marketing_opt_in?: boolean;
+  discount_code?: string | null;
+  discount_amount?: string | number | null;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   order_status: OrderStatus;

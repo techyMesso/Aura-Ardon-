@@ -17,7 +17,6 @@ import {
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
-import { createWhatsAppLink } from "@/lib/utils";
 
 export function CartPageClient() {
   const { items, updateQuantity, removeItem, cartNotice, dismissCartNotice } =
@@ -25,20 +24,9 @@ export function CartPageClient() {
   const { total, itemCount } = useCartValue();
   const { recentlyViewedProducts, storeSettings } = useStorefrontUI();
   const isStoreOpen = storeSettings.isStoreOpen;
-
-  const whatsappNumber =
-    storeSettings.whatsappNumber || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
-  const cartWhatsAppMessage = [
-    "Hello Auro Ardon, I would like to order these pieces:",
-    ...items.map(
-      item =>
-        `- ${formatProductTitle(item.product.title)} x${item.quantity} (${formatKES(Number(item.product.price) * item.quantity)})`
-    ),
-    `Subtotal: ${formatKES(total)}`
-  ].join("\n");
-  const cartWhatsAppUrl = items.length
-    ? createWhatsAppLink(whatsappNumber, cartWhatsAppMessage)
-    : null;
+  const freeDeliveryThreshold = storeSettings.freeDeliveryThreshold;
+  const amountToFreeDelivery =
+    freeDeliveryThreshold > 0 ? Math.max(0, freeDeliveryThreshold - total) : 0;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-10 lg:py-14">
@@ -161,6 +149,14 @@ export function CartPageClient() {
           </ul>
 
           <div className="flex flex-col items-end gap-4">
+            {freeDeliveryThreshold > 0 ? (
+              <p className="rounded-[2px] bg-stone px-3.5 py-2 font-sans text-[13px] text-text">
+                {amountToFreeDelivery === 0
+                  ? "You unlocked free delivery!"
+                  : `Add ${formatKES(amountToFreeDelivery)} more for free delivery`}
+              </p>
+            ) : null}
+
             <div className="flex items-baseline gap-6 font-sans text-[16px]">
               <span className="text-muted">Subtotal</span>
               <PriceKES amount={total} className="text-[18px] font-medium" />
@@ -178,21 +174,9 @@ export function CartPageClient() {
                   </p>
                 </>
               ) : (
-                <>
-                  <Link href="/checkout" className="btn-primary w-full">
-                    Checkout
-                  </Link>
-                  {cartWhatsAppUrl ? (
-                    <a
-                      href={cartWhatsAppUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-outline w-full"
-                    >
-                      Continue on WhatsApp
-                    </a>
-                  ) : null}
-                </>
+                <Link href="/checkout" className="btn-primary w-full">
+                  Continue on WhatsApp
+                </Link>
               )}
             </div>
           </div>
