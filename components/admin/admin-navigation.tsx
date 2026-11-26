@@ -15,6 +15,7 @@ import {
   Package,
   Plus,
   Store,
+  Tag,
   UserRound,
   X
 } from "lucide-react";
@@ -25,7 +26,8 @@ const PRIMARY_ITEMS = [
   { href: "/admin", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", Icon: Package },
   { href: "/admin/categories", label: "Categories", Icon: FolderTree },
-  { href: "/admin/orders", label: "Orders", Icon: ClipboardList }
+  { href: "/admin/orders", label: "Orders", Icon: ClipboardList },
+  { href: "/admin/discounts", label: "Discounts", Icon: Tag }
 ];
 
 const REPORT_ITEMS = [
@@ -38,6 +40,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/products": "Products",
   "/admin/categories": "Categories",
   "/admin/orders": "Orders",
+  "/admin/discounts": "Discounts",
   "/admin/invoices": "Invoices"
 };
 
@@ -329,7 +332,9 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
         className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-paper/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-text backdrop-blur md:hidden"
         aria-label="Admin quick navigation"
       >
-        {PRIMARY_ITEMS.filter(item => item.label !== "Categories").map(
+        {PRIMARY_ITEMS.filter(
+          item => item.label !== "Categories" && item.label !== "Discounts"
+        ).map(
           ({ href, label, Icon }) => {
             const active = matchesRoute(pathname, href);
             return (

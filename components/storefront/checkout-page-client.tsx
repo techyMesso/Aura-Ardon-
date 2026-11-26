@@ -53,6 +53,14 @@ export function CheckoutPageClient({
   const [isGift, setIsGift] = useState(false);
   const [giftNote, setGiftNote] = useState("");
   const [discountCode, setDiscountCode] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: string;
+    label: string;
+    discountAmount: number;
+    freeDeliveryApplied: boolean;
+  } | null>(null);
+  const [validatingCode, setValidatingCode] = useState(false);
+  const [discountError, setDiscountError] = useState<string | null>(null);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   // Anti-bot honeypot — never shown to human shoppers
   const [website, setWebsite] = useState("");
@@ -72,9 +80,16 @@ export function CheckoutPageClient({
         subtotal: cartSubtotal,
         zoneFee: selectedZone?.fee ?? 0,
         freeDeliveryThreshold,
-        discountAmount: 0
+        discountAmount: appliedDiscount?.discountAmount ?? 0,
+        freeDeliveryFromCode: appliedDiscount?.freeDeliveryApplied ?? false
       }),
-    [cartSubtotal, freeDeliveryThreshold, selectedZone?.fee]
+    [
+      appliedDiscount?.discountAmount,
+      appliedDiscount?.freeDeliveryApplied,
+      cartSubtotal,
+      freeDeliveryThreshold,
+      selectedZone?.fee
+    ]
   );
 
   const cartSignature = useMemo(
@@ -100,6 +115,68 @@ export function CheckoutPageClient({
       setSelectedZoneId(activeZones[0].id);
     }
   }, [activeZones, selectedZoneId]);
+
+  useEffect(() => {
+    // Re-require server validation whenever bag contents or zone change
+    if (appliedDiscount) {
+      setAppliedDiscount(null);
+      setDiscountError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartSubtotal, selectedZone?.id]);
+
+  async function handleApplyDiscount() {
+    const clean = discountCode.trim().toUpperCase();
+    if (!clean || !selectedZone || items.length === 0) {
+      setDiscountError("Enter a discount code to apply.");
+      return;
+    }
+
+    setValidatingCode(true);
+    setDiscountError(null);
+    try {
+      const response = await fetch("/api/discounts/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: clean,
+          items: items.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity
+          })),
+          deliveryZoneId: selectedZone.id,
+          phone: phone.trim() || null
+        })
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        code?: string;
+        label?: string;
+        discountAmount?: number;
+        freeDeliveryApplied?: boolean;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.ok || !payload.code) {
+        setAppliedDiscount(null);
+        setDiscountError(payload.error ?? "Discount code is not valid.");
+        return;
+      }
+
+      setDiscountCode(payload.code);
+      setAppliedDiscount({
+        code: payload.code,
+        label: payload.label ?? payload.code,
+        discountAmount: Number(payload.discountAmount ?? 0),
+        freeDeliveryApplied: Boolean(payload.freeDeliveryApplied)
+      });
+    } catch {
+      setAppliedDiscount(null);
+      setDiscountError("Unable to verify discount code right now.");
+    } finally {
+      setValidatingCode(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -352,17 +429,57 @@ export function CheckoutPageClient({
               />
             </label>
 
-            <label className="block font-sans text-[14px]">
-              <span className="mb-1.5 block text-text">
+            <div className="block font-sans text-[14px]">
+              <label htmlFor="checkout-discount-code" className="mb-1.5 block text-text">
                 Discount code (optional)
-              </span>
-              <Input
-                autoComplete="off"
-                placeholder="Enter promo code if you have one"
-                value={discountCode}
-                onChange={event => setDiscountCode(event.target.value.toUpperCase())}
-              />
-            </label>
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  id="checkout-discount-code"
+                  autoComplete="off"
+                  placeholder="Enter promo code if you have one"
+                  value={discountCode}
+                  onChange={event => {
+                    setDiscountCode(event.target.value.toUpperCase());
+                    setDiscountError(null);
+                    if (appliedDiscount) setAppliedDiscount(null);
+                  }}
+                  className="uppercase"
+                />
+                {appliedDiscount ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setAppliedDiscount(null);
+                      setDiscountCode("");
+                      setDiscountError(null);
+                    }}
+                  >
+                    Remove
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={validatingCode || !discountCode.trim()}
+                    onClick={() => void handleApplyDiscount()}
+                  >
+                    {validatingCode ? "Checking..." : "Apply"}
+                  </Button>
+                )}
+              </div>
+              {appliedDiscount ? (
+                <p className="mt-1.5 text-[12px] font-medium text-emerald-700 dark:text-emerald-300">
+                  Code {appliedDiscount.code} applied ({appliedDiscount.label})
+                </p>
+              ) : null}
+              {discountError ? (
+                <p role="alert" className="mt-1.5 text-[12px] text-red-600 dark:text-red-400">
+                  {discountError}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="space-y-4 border-t border-text/12 pt-5 font-sans text-[14px]">
@@ -518,10 +635,17 @@ export function CheckoutPageClient({
 
               {totals.discountAmount > 0 ? (
                 <div className="flex justify-between text-muted">
-                  <span>Discount</span>
+                  <span>
+                    Discount{appliedDiscount ? ` (${appliedDiscount.code})` : ""}
+                  </span>
                   <span className="text-brass">
                     −{formatKES(totals.discountAmount)}
                   </span>
+                </div>
+              ) : appliedDiscount?.freeDeliveryApplied ? (
+                <div className="flex justify-between text-muted">
+                  <span>Promo ({appliedDiscount.code})</span>
+                  <span className="text-brass">Free delivery</span>
                 </div>
               ) : null}
 

@@ -38,7 +38,7 @@ export async function PATCH(
     const updates: ProductUpdate = {};
     const { data: existingProduct } = await supabase
       .from("products")
-      .select("slug, stock_quantity")
+      .select("slug, stock_quantity, price, compare_at_price")
       .eq("id", id)
       .maybeSingle();
 
@@ -46,7 +46,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Product not found." }, { status: 404 });
     }
 
-    const currentStock = (existingProduct as { stock_quantity: number }).stock_quantity;
+    const existingRow = existingProduct as {
+      slug: string | null;
+      stock_quantity: number;
+      price: string | number;
+      compare_at_price?: string | number | null;
+    };
+    const currentStock = existingRow.stock_quantity;
     if (
       payload.stock_quantity !== undefined &&
       payload.stock_quantity !== currentStock
@@ -60,10 +66,26 @@ export async function PATCH(
       );
     }
 
+    const effectivePrice =
+      payload.price !== undefined ? payload.price : Number(existingRow.price);
+    const effectiveCompareAt =
+      payload.compare_at_price !== undefined
+        ? payload.compare_at_price
+        : existingRow.compare_at_price != null
+          ? Number(existingRow.compare_at_price)
+          : null;
+
+    if (effectiveCompareAt !== null && effectiveCompareAt <= effectivePrice) {
+      return NextResponse.json(
+        { error: "Compare-at price must be higher than the selling price." },
+        { status: 400 }
+      );
+    }
+
     if (payload.title !== undefined) {
       updates.title = payload.title;
       // Only backfill slug if the existing product does not have one yet so live /p/[slug] URLs stay stable.
-      if (!(existingProduct as { slug: string | null }).slug) {
+      if (!existingRow.slug) {
         const candidateSlug = toCatalogSlug(payload.title);
         if (candidateSlug) {
           updates.slug = candidateSlug;
@@ -72,6 +94,12 @@ export async function PATCH(
     }
     if (payload.description !== undefined) updates.description = payload.description;
     if (payload.price !== undefined) updates.price = toMoneyString(payload.price);
+    if (payload.compare_at_price !== undefined) {
+      updates.compare_at_price =
+        payload.compare_at_price != null
+          ? toMoneyString(payload.compare_at_price)
+          : null;
+    }
     if (payload.category_id !== undefined) {
       const category = await getSelectedProductCategory(payload.category_id);
       updates.category = category.name;

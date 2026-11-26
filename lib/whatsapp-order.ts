@@ -33,6 +33,7 @@ export interface CheckoutTotalsInput {
   zoneFee: number;
   freeDeliveryThreshold: number;
   discountAmount?: number;
+  freeDeliveryFromCode?: boolean;
 }
 
 export interface CheckoutTotalsResult {
@@ -48,7 +49,8 @@ export function calculateCheckoutTotals({
   subtotal,
   zoneFee,
   freeDeliveryThreshold,
-  discountAmount = 0
+  discountAmount = 0,
+  freeDeliveryFromCode = false
 }: CheckoutTotalsInput): CheckoutTotalsResult {
   const safeSubtotal = Math.max(0, Number.isFinite(subtotal) ? subtotal : 0);
   const safeZoneFee = Math.max(0, Number.isFinite(zoneFee) ? zoneFee : 0);
@@ -61,8 +63,9 @@ export function calculateCheckoutTotals({
     Math.max(0, Number.isFinite(discountAmount) ? discountAmount : 0)
   );
 
-  const freeDeliveryUnlocked =
+  const thresholdReached =
     safeThreshold > 0 && safeSubtotal >= safeThreshold;
+  const freeDeliveryUnlocked = thresholdReached || freeDeliveryFromCode;
   const deliveryFee = freeDeliveryUnlocked ? 0 : safeZoneFee;
   const amountToFreeDelivery =
     safeThreshold > 0 && !freeDeliveryUnlocked
@@ -110,6 +113,8 @@ function formatMessageWithItemLimit(
     lines.push(
       `Discount${codeLabel}: −${formatCurrency(input.discountAmount ?? 0)}`
     );
+  } else if (input.discountCode && input.deliveryFee === 0) {
+    lines.push(`Promo (${input.discountCode}): Free delivery`);
   }
 
   const deliveryValue =

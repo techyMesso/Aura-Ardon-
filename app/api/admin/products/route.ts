@@ -57,6 +57,10 @@ export async function POST(request: Request) {
         title: payload.title,
         description: payload.description,
         price: toMoneyString(payload.price),
+        compare_at_price:
+          payload.compare_at_price != null
+            ? toMoneyString(payload.compare_at_price)
+            : null,
         stock_quantity: payload.stock_quantity,
         category: category.name,
         category_id: category.id,

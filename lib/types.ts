@@ -40,6 +40,7 @@ export interface Product {
   category: string;        // human-readable category name (denormalized)
   category_id: string | null;
   price: string;
+  compare_at_price?: string | null;
   stock_quantity: number;  // DB column: stock_quantity
   material: string | null;
   finish?: string | null;
@@ -331,6 +332,39 @@ export interface MonthlySummaryReport {
   mpesaCollected: number;
   totalCollected: number;
 }
+
+// ─── Discounts & Promotions (Phase 6) ────────────────────
+
+export type DiscountCodeType = "percent" | "fixed" | "free_delivery";
+
+export interface DiscountCode {
+  id: string;
+  code: string;
+  description: string | null;
+  type: DiscountCodeType;
+  value: string;
+  min_order_amount: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  usage_limit: number | null;
+  per_phone_limit: number | null;
+  first_order_only: boolean;
+  used_count: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DiscountCodeInsert = Omit<
+  DiscountCode,
+  "id" | "used_count" | "created_at" | "updated_at"
+> & {
+  id?: string;
+};
+
+export type DiscountCodeUpdate = Partial<
+  Omit<DiscountCode, "id" | "used_count" | "created_at" | "updated_at">
+>;
 
 // ─── OrderItem ───────────────────────────────────────────
 // Fields: id, order_id, product_id, product_title, quantity, unit_price, created_at

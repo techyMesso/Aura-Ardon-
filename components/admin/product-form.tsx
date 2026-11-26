@@ -92,6 +92,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [compareAtPrice, setCompareAtPrice] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [material, setMaterial] = useState("");
@@ -116,6 +117,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
     setTitle(initialProduct.title);
     setDescription(initialProduct.description);
     setPrice(initialProduct.price);
+    setCompareAtPrice(initialProduct.compare_at_price ?? "");
     setStockQuantity(String(initialProduct.stock_quantity));
     setCategoryId(getInitialProductCategoryId(initialProduct, categories));
     setMaterial(initialProduct.material || "");
@@ -143,6 +145,15 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       setError("Price must be above zero.");
       return;
     }
+    const trimmedCompareAt = compareAtPrice.trim();
+    const numericCompareAt = trimmedCompareAt ? Number(trimmedCompareAt) : null;
+    if (
+      numericCompareAt !== null &&
+      (!Number.isFinite(numericCompareAt) || numericCompareAt <= numericPrice)
+    ) {
+      setError("Compare-at price must be higher than the selling price.");
+      return;
+    }
     if (!isEdit && (!Number.isInteger(numericStock) || numericStock < 0)) {
       setError("Stock quantity cannot be negative and must be a whole number.");
       return;
@@ -157,6 +168,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       title: title.trim(),
       description: description.trim(),
       price: numericPrice,
+      compare_at_price: numericCompareAt,
       category_id: categoryId,
       material: material.trim(),
       finish: finish.trim() || null,
@@ -348,7 +360,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             Set availability
           </h3>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <div>
             <FormLabel htmlFor="product-price" required>
               Price (KES)
@@ -368,6 +380,26 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             />
             <p id="product-price-help" className="mt-1.5 text-xs text-muted">
               Price must be above zero.
+            </p>
+          </div>
+          <div>
+            <FormLabel htmlFor="product-compare-at-price">
+              Compare-at price (KES)
+            </FormLabel>
+            <Input
+              id="product-compare-at-price"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="Optional (e.g. 3200)"
+              value={compareAtPrice}
+              onChange={event => setCompareAtPrice(event.target.value)}
+              className="min-h-12 text-base"
+              aria-describedby="product-compare-at-help"
+            />
+            <p id="product-compare-at-help" className="mt-1.5 text-xs text-muted">
+              Optional original price (must exceed price to display a Sale badge).
             </p>
           </div>
           <div>

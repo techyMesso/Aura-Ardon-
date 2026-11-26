@@ -234,6 +234,11 @@ export function OrderConfirmationClient({
               </span>
               <span className="text-brass">−{formatKES(order.discountAmount)}</span>
             </div>
+          ) : order.discountCode && order.deliveryFee === 0 ? (
+            <div className="flex justify-between text-muted">
+              <span>Promo ({order.discountCode})</span>
+              <span className="text-brass">Free delivery</span>
+            </div>
           ) : null}
           <div className="flex justify-between text-muted">
             <span>

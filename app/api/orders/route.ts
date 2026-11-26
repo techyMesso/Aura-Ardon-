@@ -75,7 +75,12 @@ function getOrderErrorStatus(message: string): number {
     message.includes("delivery zone") ||
     message.includes("Town or county") ||
     message.includes("Invalid quantity") ||
-    message.includes("empty")
+    message.includes("empty") ||
+    message.includes("Discount code") ||
+    message.includes("Minimum order") ||
+    message.includes("usage limit") ||
+    message.includes("first-time") ||
+    message.includes("maximum number of times")
   ) {
     return 400;
   }
@@ -188,14 +193,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Discount code server-side validation hook (expanded with discount_codes table in Phase 6)
+    // Discount code is validated and applied strictly inside Postgres place_order(...)
     const requestedDiscountCode = payload.discountCode?.trim().toUpperCase() || null;
-    if (requestedDiscountCode) {
-      return NextResponse.json(
-        { error: `Discount code "${requestedDiscountCode}" is not active or does not exist.` },
-        { status: 400 }
-      );
-    }
 
     const supabase = createAdminSupabaseClient();
 
@@ -214,7 +213,7 @@ export async function POST(request: Request) {
           p_gift_note: payload.isGift ? payload.giftNote?.trim() || null : null,
           p_hide_prices: payload.isGift ? payload.hidePrices : false,
           p_marketing_opt_in: payload.marketingOptIn,
-          p_discount_code: null,
+          p_discount_code: requestedDiscountCode,
           p_discount_amount: 0,
           p_idempotency_key: idempotencyKey,
           p_items: payload.items.map(item => ({

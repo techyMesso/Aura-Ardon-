@@ -8,6 +8,7 @@ import { Heart } from "lucide-react";
 
 import {
   DEFAULT_PRODUCT_BLUR_DATA_URL,
+  formatKES,
   PriceKES
 } from "@/components/storefront/price-kes";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
@@ -17,6 +18,7 @@ import {
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
+import { isProductOnSale } from "@/lib/discounts";
 import { getProductCardAvailability } from "@/lib/product-card";
 import type { Product } from "@/lib/types";
 
@@ -53,6 +55,7 @@ export function ProductTile({
     !availability.soldOut &&
     product.stock_quantity > 0 &&
     product.stock_quantity <= 3;
+  const onSale = isProductOnSale(product);
 
   function handleAddToBag() {
     if (availability.disabled) return;
@@ -121,6 +124,11 @@ export function ProductTile({
               aria-hidden="true"
             />
           ) : null}
+          {onSale ? (
+            <span className="absolute left-2.5 top-2.5 z-10 rounded-[2px] bg-brass px-2 py-0.5 font-sans text-[11px] font-semibold uppercase tracking-[0.12em] text-ink">
+              Sale
+            </span>
+          ) : null}
         </div>
 
         <div className="flex flex-col pt-2.5">
@@ -129,7 +137,14 @@ export function ProductTile({
           </h3>
 
           <div className="mt-0.5 flex items-baseline justify-between gap-2">
-            <PriceKES amount={product.price} />
+            <div className="flex flex-wrap items-baseline gap-2">
+              <PriceKES amount={product.price} />
+              {onSale && product.compare_at_price ? (
+                <span className="font-sans text-[12px] text-muted line-through">
+                  {formatKES(product.compare_at_price)}
+                </span>
+              ) : null}
+            </div>
             {lowStock ? (
               <span className="font-sans text-[12px] leading-[1.5] text-muted">
                 Low stock

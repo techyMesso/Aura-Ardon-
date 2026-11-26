@@ -29,6 +29,7 @@ import {
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
+import { isProductOnSale } from "@/lib/discounts";
 import { resolveSiteUrl } from "@/lib/site";
 import type { Category, Product } from "@/lib/types";
 import { createWhatsAppLink } from "@/lib/utils";
@@ -376,8 +377,18 @@ export function ProductDetailClient({
             </button>
           </div>
 
-          <div className="mt-2 flex items-baseline gap-3">
+          <div className="mt-2 flex flex-wrap items-baseline gap-3">
             <PriceKES amount={product.price} className="text-[18px]" />
+            {isProductOnSale(product) && product.compare_at_price ? (
+              <>
+                <span className="font-sans text-[15px] text-muted line-through">
+                  {formatKES(product.compare_at_price)}
+                </span>
+                <span className="rounded-[2px] bg-brass px-2 py-0.5 font-sans text-[11px] font-semibold uppercase tracking-[0.12em] text-ink">
+                  Sale
+                </span>
+              </>
+            ) : null}
             {lowStock ? (
               <span className="font-sans text-[14px] text-muted">
                 Low stock ({product.stock_quantity} left)
