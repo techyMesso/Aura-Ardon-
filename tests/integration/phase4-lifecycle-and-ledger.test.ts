@@ -8,7 +8,13 @@ const getOrderDetailBundleMock = vi.fn();
 const listProductStockMovementsMock = vi.fn();
 const runStockIntegrityCheckMock = vi.fn();
 
-vi.mock("@/lib/auth", () => ({ assertAdminRequest }));
+vi.mock("@/lib/auth", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/lib/auth")>();
+  return {
+    ...actual,
+    assertAdminRequest
+  };
+});
 vi.mock("@/lib/cache", () => ({ revalidateProductCatalog }));
 vi.mock("@/lib/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() }
@@ -16,6 +22,7 @@ vi.mock("@/lib/logger", () => ({
 vi.mock("@/lib/data", () => ({
   getOrderDetailBundle: (...args: unknown[]) => getOrderDetailBundleMock(...args),
   listProductStockMovements: (...args: unknown[]) => listProductStockMovementsMock(...args),
+  listBackInStockAlerts: vi.fn().mockResolvedValue([]),
   runStockIntegrityCheck: (...args: unknown[]) => runStockIntegrityCheckMock(...args)
 }));
 vi.mock("@/lib/supabase/admin", () => ({

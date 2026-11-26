@@ -19,6 +19,7 @@ import {
   productHref
 } from "@/lib/catalog";
 import { isProductOnSale } from "@/lib/discounts";
+import { resolveProductImageAlt } from "@/lib/image-processing";
 import { getProductCardAvailability } from "@/lib/product-card";
 import type { Product } from "@/lib/types";
 
@@ -42,22 +43,36 @@ export function ProductTile({
 
   const href = productHref(product);
   const displayTitle = formatProductTitle(product.title);
+  const activeVariants = (product.variants ?? []).filter(v => v.active);
+  const hasVariants = activeVariants.length > 0;
+  const effectiveStock = hasVariants
+    ? activeVariants.reduce((sum, v) => sum + v.stock_quantity, 0)
+    : product.stock_quantity;
+
   const safeImages = product.images
     .map(getSafeCatalogImageUrl)
     .filter((image): image is string => Boolean(image));
   const coverImage = safeImages[0] || "/hero-jewelry.png";
   const secondImage = safeImages[1];
-  const cartQuantity =
-    items.find(item => item.product.id === product.id)?.quantity ?? 0;
-  const availability = getProductCardAvailability(product, cartQuantity);
+  const coverAlt = resolveProductImageAlt(product, 0);
+
+  const cartQuantity = items
+    .filter(item => item.product.id === product.id && !item.variant)
+    .reduce((sum, item) => sum + item.quantity, 0);
+  const availability = getProductCardAvailability(
+    { ...product, stock_quantity: effectiveStock },
+    hasVariants ? 0 : cartQuantity
+  );
   const wishlisted = isWishlisted(product.id);
   const lowStock =
-    !availability.soldOut &&
-    product.stock_quantity > 0 &&
-    product.stock_quantity <= 3;
+    !availability.soldOut && effectiveStock > 0 && effectiveStock <= 3;
   const onSale = isProductOnSale(product);
 
   function handleAddToBag() {
+    if (hasVariants) {
+      router.push(href);
+      return;
+    }
     if (availability.disabled) return;
     addItem(product, 1);
     setJustAdded(true);
@@ -104,7 +119,7 @@ export function ProductTile({
         >
           <Image
             src={coverImage}
-            alt={`${displayTitle} — Auro Ardon Nairobi`}
+            alt={coverAlt}
             fill
             priority={priority}
             loading={priority ? undefined : "lazy"}
@@ -153,6 +168,10 @@ export function ProductTile({
               <span className="font-sans text-[12px] leading-[1.5] text-muted">
                 Out of stock
               </span>
+            ) : hasVariants ? (
+              <span className="font-sans text-[12px] leading-[1.5] text-muted">
+                {activeVariants.length} options
+              </span>
             ) : null}
           </div>
         </div>
@@ -181,16 +200,20 @@ export function ProductTile({
         <button
           type="button"
           onClick={handleAddToBag}
-          disabled={availability.disabled}
+          disabled={!hasVariants && availability.disabled}
           className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-[2px] border border-text/25 bg-paper px-3 py-1.5 font-sans text-[14px] leading-[1.5] text-text transition-opacity duration-150 hover:border-brass hover:text-brass disabled:cursor-not-allowed disabled:opacity-45 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
         >
-          {justAdded
-            ? "Added to bag"
-            : availability.soldOut
-              ? "Out of stock"
-              : availability.disabled
-                ? "Bag limit reached"
-                : "Add to bag"}
+          {hasVariants
+            ? availability.soldOut
+              ? "Out of stock — view options"
+              : "Select option"
+            : justAdded
+              ? "Added to bag"
+              : availability.soldOut
+                ? "Out of stock"
+                : availability.disabled
+                  ? "Bag limit reached"
+                  : "Add to bag"}
         </button>
       </div>
     </article>

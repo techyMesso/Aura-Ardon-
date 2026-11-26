@@ -1,9 +1,9 @@
-import type { Product } from "@/lib/types";
+import type { Product, ProductStatus } from "@/lib/types";
 
 export const LOW_STOCK_THRESHOLD = 5;
 
-export type ProductActiveFilter = "all" | "active" | "inactive";
-export type ProductFeaturedFilter = "all" | "featured" | "not-featured";
+export type ProductActiveFilter = "all" | "active" | "draft" | "archived" | "inactive";
+export type ProductFeaturedFilter = "all" | "featured" | "new-in" | "not-featured";
 export type ProductStockFilter = "all" | "in-stock" | "low-stock" | "out-of-stock";
 export type ProductStockStatus = Exclude<ProductStockFilter, "all">;
 
@@ -23,6 +23,19 @@ export const DEFAULT_PRODUCT_LIST_FILTERS: ProductListFilters = {
   stock: "all"
 };
 
+export function resolveProductStatus(
+  product: Pick<Product, "status" | "active">
+): ProductStatus {
+  if (
+    product.status === "draft" ||
+    product.status === "active" ||
+    product.status === "archived"
+  ) {
+    return product.status;
+  }
+  return product.active ? "active" : "draft";
+}
+
 export function getProductStockStatus(quantity: number): ProductStockStatus {
   if (quantity <= 0) return "out-of-stock";
   if (quantity <= LOW_STOCK_THRESHOLD) return "low-stock";
@@ -32,21 +45,37 @@ export function getProductStockStatus(quantity: number): ProductStockStatus {
 export function filterProducts(products: Product[], filters: ProductListFilters) {
   const search = filters.search.trim().toLocaleLowerCase();
 
-  return products.filter((product) => {
-    if (search && !product.title.toLocaleLowerCase().includes(search)) return false;
+  return products.filter(product => {
+    if (
+      search &&
+      !product.title.toLocaleLowerCase().includes(search) &&
+      !(product.slug ?? "").toLocaleLowerCase().includes(search)
+    ) {
+      return false;
+    }
     if (filters.category !== "all" && product.category !== filters.category) return false;
-    if (filters.active === "active" && !product.active) return false;
-    if (filters.active === "inactive" && product.active) return false;
+
+    const status = resolveProductStatus(product);
+    if (filters.active === "active" && status !== "active") return false;
+    if (filters.active === "draft" && status !== "draft") return false;
+    if (filters.active === "archived" && status !== "archived") return false;
+    if (filters.active === "inactive" && status === "active") return false;
+
     if (filters.featured === "featured" && !product.is_featured) return false;
+    if (filters.featured === "new-in" && !product.is_new_in) return false;
     if (filters.featured === "not-featured" && product.is_featured) return false;
 
-    return filters.stock === "all" || getProductStockStatus(product.stock_quantity) === filters.stock;
+    return (
+      filters.stock === "all" ||
+      getProductStockStatus(product.stock_quantity) === filters.stock
+    );
   });
 }
 
 export interface CatalogQualityWarnings {
   missingCategory: Product[];
   missingSecondImage: Product[];
+  missingAltText: Product[];
   shortName: Product[];
   missingFinishSizeInTheBox: Product[];
   hasWarnings: boolean;
@@ -69,14 +98,21 @@ export function isBeautyCategoryProduct(product: Product): boolean {
 export function getCatalogQualityWarnings(
   products: Product[]
 ): CatalogQualityWarnings {
-  const activeProducts = products.filter(product => product.active);
-
-  const missingCategory = activeProducts.filter(
-    product => !product.category_id
+  const activeProducts = products.filter(
+    product => resolveProductStatus(product) === "active"
   );
+
+  const missingCategory = activeProducts.filter(product => !product.category_id);
   const missingSecondImage = activeProducts.filter(
     product => (product.images?.filter(Boolean).length ?? 0) < 2
   );
+  const missingAltText = activeProducts.filter(product => {
+    const imgCount = product.images?.filter(Boolean).length ?? 0;
+    const alts = product.image_alts ?? [];
+    if (imgCount === 0) return false;
+    if (alts.length < imgCount) return true;
+    return alts.slice(0, imgCount).some(alt => !alt || !alt.trim());
+  });
   const shortName = activeProducts.filter(
     product => (product.title?.trim().length ?? 0) < 8
   );
@@ -91,13 +127,14 @@ export function getCatalogQualityWarnings(
   return {
     missingCategory,
     missingSecondImage,
+    missingAltText,
     shortName,
     missingFinishSizeInTheBox,
     hasWarnings:
       missingCategory.length > 0 ||
       missingSecondImage.length > 0 ||
+      missingAltText.length > 0 ||
       shortName.length > 0 ||
       missingFinishSizeInTheBox.length > 0
   };
 }
-

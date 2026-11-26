@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  Bell,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Heart,
@@ -23,15 +25,15 @@ import {
 } from "@/components/storefront/price-kes";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
-import { useCart } from "@/lib/cart";
+import { getCartItemKey, useCart } from "@/lib/cart";
 import {
   formatProductTitle,
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
-import { isProductOnSale } from "@/lib/discounts";
+import { resolveProductImageAlt } from "@/lib/image-processing";
 import { resolveSiteUrl } from "@/lib/site";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, ProductVariant } from "@/lib/types";
 import { createWhatsAppLink } from "@/lib/utils";
 
 interface ProductDetailClientProps {
@@ -68,10 +70,62 @@ export function ProductDetailClient({
   } = useStorefrontUI();
 
   const displayTitle = formatProductTitle(product.title);
-  const safeImages = product.images
-    .map(getSafeCatalogImageUrl)
-    .filter((image): image is string => Boolean(image));
-  const images = safeImages.length ? safeImages : ["/hero-jewelry.png"];
+  const activeVariants = useMemo(
+    () => (product.variants ?? []).filter(v => v.active),
+    [product.variants]
+  );
+  const hasVariants = activeVariants.length > 0;
+
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() => {
+    if (!activeVariants.length) return null;
+    const firstInStock = activeVariants.find(v => v.stock_quantity > 0);
+    return (firstInStock ?? activeVariants[0]).id;
+  });
+
+  const selectedVariant: ProductVariant | null = useMemo(() => {
+    if (!hasVariants) return null;
+    return (
+      activeVariants.find(v => v.id === selectedVariantId) ??
+      activeVariants[0] ??
+      null
+    );
+  }, [activeVariants, hasVariants, selectedVariantId]);
+
+  const gallerySlides = useMemo(() => {
+    const slides: Array<{ src: string; alt: string }> = [];
+    const seen = new Set<string>();
+
+    const variantImg = getSafeCatalogImageUrl(selectedVariant?.image_url);
+    if (variantImg && !seen.has(variantImg)) {
+      seen.add(variantImg);
+      slides.push({
+        src: variantImg,
+        alt:
+          selectedVariant?.image_alt?.trim() ||
+          `${displayTitle} — ${selectedVariant?.name ?? "option"}`
+      });
+    }
+
+    product.images.forEach((rawUrl, index) => {
+      const safe = getSafeCatalogImageUrl(rawUrl);
+      if (safe && !seen.has(safe)) {
+        seen.add(safe);
+        slides.push({
+          src: safe,
+          alt: resolveProductImageAlt(product, index)
+        });
+      }
+    });
+
+    if (slides.length === 0) {
+      slides.push({
+        src: "/hero-jewelry.png",
+        alt: resolveProductImageAlt(product, 0)
+      });
+    }
+
+    return slides;
+  }, [displayTitle, product, selectedVariant]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -80,6 +134,16 @@ export function ProductDetailClient({
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [status, setStatus] = useState("");
 
+  // Back-in-stock waitlist form state
+  const [alertPhone, setAlertPhone] = useState("");
+  const [alertName, setAlertName] = useState("");
+  const [alertWebsite, setAlertWebsite] = useState("");
+  const [alertSubmitting, setAlertSubmitting] = useState(false);
+  const [alertFeedback, setAlertFeedback] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const mainImageButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -87,13 +151,39 @@ export function ProductDetailClient({
   const didSwipeRef = useRef(false);
   const pinchStartDistRef = useRef<number | null>(null);
   const pinchStartScaleRef = useRef<number>(1);
-  const panStartRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
+  const panStartRef = useRef<{
+    x: number;
+    y: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
 
+  const effectivePrice = Number(
+    selectedVariant?.price_override ?? product.price
+  );
+  const effectiveCompareAt =
+    selectedVariant?.compare_at_price != null
+      ? Number(selectedVariant.compare_at_price)
+      : product.compare_at_price != null
+        ? Number(product.compare_at_price)
+        : null;
+  const onSale =
+    effectiveCompareAt !== null &&
+    Number.isFinite(effectiveCompareAt) &&
+    effectiveCompareAt > effectivePrice;
+
+  const effectiveStock = selectedVariant
+    ? selectedVariant.stock_quantity
+    : product.stock_quantity;
+
+  const activeCartKey = getCartItemKey(product.id, selectedVariant?.id);
   const quantityInCart =
-    items.find(item => item.product.id === product.id)?.quantity ?? 0;
-  const remaining = Math.max(0, product.stock_quantity - quantityInCart);
-  const soldOut = product.stock_quantity < 1;
-  const lowStock = !soldOut && product.stock_quantity <= 3;
+    items.find(
+      item => getCartItemKey(item.product.id, item.variant?.id) === activeCartKey
+    )?.quantity ?? 0;
+  const remaining = Math.max(0, effectiveStock - quantityInCart);
+  const soldOut = effectiveStock < 1;
+  const lowStock = !soldOut && effectiveStock <= 3;
   const wishlisted = isWishlisted(product.id);
 
   const effectiveWhatsAppNumber =
@@ -104,24 +194,21 @@ export function ProductDetailClient({
   const effectiveProductUrl =
     productUrl || `${resolveSiteUrl()}${productHref(product)}`;
 
-  const askMessage = [
-    `Hi Auro Ardon! I have a question about ${displayTitle} (${formatKES(product.price)}).`,
-    `Link: ${effectiveProductUrl}`
-  ].join("\n");
+  const askLabel = selectedVariant
+    ? `${displayTitle} (${selectedVariant.name})`
+    : displayTitle;
 
-  const notifyMessage = [
-    `Hi Auro Ardon! Please notify me on WhatsApp when ${displayTitle} is back in stock.`,
+  const askMessage = [
+    `Hi Auro Ardon! I have a question about ${askLabel} (${formatKES(effectivePrice)}).`,
     `Link: ${effectiveProductUrl}`
   ].join("\n");
 
   const askWhatsAppUrl = createWhatsAppLink(effectiveWhatsAppNumber, askMessage);
-  const notifyWhatsAppUrl = createWhatsAppLink(
-    effectiveWhatsAppNumber,
-    notifyMessage
-  );
 
-  // Structured specs — only non-empty fields are rendered
   const specRows = [
+    ...(selectedVariant
+      ? [{ label: "Selected option", value: `${selectedVariant.name} (${selectedVariant.sku})` }]
+      : []),
     { label: "Dimensions / Case size", value: product.size_label?.trim() },
     { label: "Material", value: product.material?.trim() },
     { label: "Finish", value: product.finish?.trim() },
@@ -139,8 +226,15 @@ export function ProductDetailClient({
   }, [product.id, recordRecentlyViewed]);
 
   useEffect(() => {
+    setSelectedIndex(0);
+    setAlertFeedback(null);
+  }, [selectedVariantId]);
+
+  useEffect(() => {
     if (remaining > 0 && quantity > remaining) {
       setQuantity(remaining);
+    } else if (remaining > 0 && quantity < 1) {
+      setQuantity(1);
     }
   }, [quantity, remaining]);
 
@@ -165,12 +259,12 @@ export function ProductDetailClient({
       if (event.key === "Escape") setLightboxOpen(false);
       if (event.key === "ArrowRight") {
         setZoomScale(1);
-        setSelectedIndex(current => (current + 1) % images.length);
+        setSelectedIndex(current => (current + 1) % gallerySlides.length);
       }
       if (event.key === "ArrowLeft") {
         setZoomScale(1);
         setSelectedIndex(
-          current => (current - 1 + images.length) % images.length
+          current => (current - 1 + gallerySlides.length) % gallerySlides.length
         );
       }
       if (event.key === "+" || event.key === "=") {
@@ -187,28 +281,78 @@ export function ProductDetailClient({
       window.removeEventListener("keydown", onKeyDown);
       mainImageButton?.focus();
     };
-  }, [images.length, lightboxOpen]);
+  }, [gallerySlides.length, lightboxOpen]);
 
   function handleAddToBag() {
     if (remaining < 1) return;
     const amount = Math.min(quantity, remaining);
-    addItem(product, amount);
-    setStatus(`${displayTitle} added to bag.`);
+    addItem(product, amount, selectedVariant);
+    setStatus(`${askLabel} added to bag.`);
     openCart();
+  }
+
+  async function handleWaitlistSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (alertSubmitting) return;
+    setAlertSubmitting(true);
+    setAlertFeedback(null);
+
+    try {
+      const response = await fetch("/api/back-in-stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          variantId: selectedVariant?.id ?? null,
+          phone: alertPhone.trim(),
+          customerName: alertName.trim() || null,
+          website: alertWebsite
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        error?: string;
+      };
+      if (!response.ok || !data.ok) {
+        setAlertFeedback({
+          ok: false,
+          message: data.error || "Unable to save your WhatsApp alert."
+        });
+        return;
+      }
+      setAlertFeedback({
+        ok: true,
+        message:
+          data.message ||
+          "You're on the waitlist! We'll message you on WhatsApp as soon as it's restocked."
+      });
+      setAlertPhone("");
+      setAlertName("");
+    } catch {
+      setAlertFeedback({
+        ok: false,
+        message: "Unable to save your WhatsApp alert right now. Please try again."
+      });
+    } finally {
+      setAlertSubmitting(false);
+    }
   }
 
   function showPrevious() {
     setZoomScale(1);
-    setSelectedIndex(current => (current - 1 + images.length) % images.length);
+    setSelectedIndex(
+      current => (current - 1 + gallerySlides.length) % gallerySlides.length
+    );
   }
 
   function showNext() {
     setZoomScale(1);
-    setSelectedIndex(current => (current + 1) % images.length);
+    setSelectedIndex(current => (current + 1) % gallerySlides.length);
   }
 
   function handleGalleryTouchEnd(event: React.TouchEvent<HTMLButtonElement>) {
-    if (touchStartX.current === null || images.length < 2) return;
+    if (touchStartX.current === null || gallerySlides.length < 2) return;
     const distance = event.changedTouches[0].clientX - touchStartX.current;
     touchStartX.current = null;
     if (Math.abs(distance) < 40) return;
@@ -248,8 +392,14 @@ export function ProductDetailClient({
       const dy = event.touches[0].clientY - panStartRef.current.y;
       const maxOffset = (zoomScale - 1) * 160;
       setPanOffset({
-        x: Math.max(-maxOffset, Math.min(maxOffset, panStartRef.current.originX + dx)),
-        y: Math.max(-maxOffset, Math.min(maxOffset, panStartRef.current.originY + dy))
+        x: Math.max(
+          -maxOffset,
+          Math.min(maxOffset, panStartRef.current.originX + dx)
+        ),
+        y: Math.max(
+          -maxOffset,
+          Math.min(maxOffset, panStartRef.current.originY + dy)
+        )
       });
     }
   }
@@ -259,6 +409,7 @@ export function ProductDetailClient({
     panStartRef.current = null;
   }
 
+  const activeSlide = gallerySlides[selectedIndex] ?? gallerySlides[0];
   const otherRecentlyViewed = recentlyViewedProducts
     .filter(item => item.id !== product.id)
     .slice(0, 4);
@@ -306,8 +457,8 @@ export function ProductDetailClient({
             aria-label={`Zoom image of ${displayTitle}`}
           >
             <Image
-              src={images[selectedIndex]}
-              alt={`${displayTitle}, photo ${selectedIndex + 1} of ${images.length}`}
+              src={activeSlide.src}
+              alt={activeSlide.alt}
               fill
               priority
               placeholder="blur"
@@ -319,14 +470,14 @@ export function ProductDetailClient({
             />
           </button>
 
-          {images.length > 1 ? (
+          {gallerySlides.length > 1 ? (
             <div
               className="no-scrollbar mt-3 flex gap-2 overflow-x-auto"
               aria-label="Product thumbnails"
             >
-              {images.map((image, index) => (
+              {gallerySlides.map((slide, index) => (
                 <button
-                  key={`${image}-${index}`}
+                  key={`${slide.src}-${index}`}
                   type="button"
                   onClick={() => setSelectedIndex(index)}
                   aria-label={`View photo ${index + 1} of ${displayTitle}`}
@@ -338,7 +489,7 @@ export function ProductDetailClient({
                   }`}
                 >
                   <Image
-                    src={image}
+                    src={slide.src}
                     alt=""
                     aria-hidden="true"
                     fill
@@ -378,11 +529,11 @@ export function ProductDetailClient({
           </div>
 
           <div className="mt-2 flex flex-wrap items-baseline gap-3">
-            <PriceKES amount={product.price} className="text-[18px]" />
-            {isProductOnSale(product) && product.compare_at_price ? (
+            <PriceKES amount={effectivePrice} className="text-[18px]" />
+            {onSale && effectiveCompareAt !== null ? (
               <>
                 <span className="font-sans text-[15px] text-muted line-through">
-                  {formatKES(product.compare_at_price)}
+                  {formatKES(effectiveCompareAt)}
                 </span>
                 <span className="rounded-[2px] bg-brass px-2 py-0.5 font-sans text-[11px] font-semibold uppercase tracking-[0.12em] text-ink">
                   Sale
@@ -391,7 +542,7 @@ export function ProductDetailClient({
             ) : null}
             {lowStock ? (
               <span className="font-sans text-[14px] text-muted">
-                Low stock ({product.stock_quantity} left)
+                Low stock ({effectiveStock} left)
               </span>
             ) : soldOut ? (
               <span className="font-sans text-[14px] text-muted">
@@ -399,6 +550,61 @@ export function ProductDetailClient({
               </span>
             ) : null}
           </div>
+
+          {hasVariants ? (
+            <div className="mt-5 space-y-2.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="font-sans text-[13px] font-medium uppercase tracking-[0.12em] text-muted">
+                  Option
+                </p>
+                {selectedVariant ? (
+                  <span className="font-sans text-[13px] text-text">
+                    {selectedVariant.name}
+                    {selectedVariant.stock_quantity < 1 ? " — Out of stock" : ""}
+                  </span>
+                ) : null}
+              </div>
+              <div
+                role="radiogroup"
+                aria-label="Choose product option"
+                className="flex flex-wrap gap-2"
+              >
+                {activeVariants.map(variant => {
+                  const isSelected = selectedVariant?.id === variant.id;
+                  const variantOos = variant.stock_quantity < 1;
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => setSelectedVariantId(variant.id)}
+                      className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-[2px] border px-3.5 py-2 font-sans text-[13px] transition ${
+                        isSelected
+                          ? "border-brass bg-stone font-semibold text-text ring-1 ring-brass"
+                          : "border-text/20 bg-paper text-text hover:border-brass/70"
+                      } ${variantOos ? "opacity-65" : ""}`}
+                    >
+                      <span className={variantOos ? "line-through" : ""}>
+                        {variant.name}
+                      </span>
+                      {variant.price_override &&
+                      Number(variant.price_override) !== Number(product.price) ? (
+                        <span className="text-[12px] text-muted">
+                          {formatKES(variant.price_override)}
+                        </span>
+                      ) : null}
+                      {variantOos ? (
+                        <span className="text-[11px] uppercase tracking-wider text-muted">
+                          Sold out
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           {product.description ? (
             <p className="mt-5 font-sans text-[16px] leading-[1.5] text-text">
@@ -412,7 +618,9 @@ export function ProductDetailClient({
                 <div className="inline-flex h-11 items-center rounded-[2px] border border-text/20 bg-paper">
                   <button
                     type="button"
-                    onClick={() => setQuantity(current => Math.max(1, current - 1))}
+                    onClick={() =>
+                      setQuantity(current => Math.max(1, current - 1))
+                    }
                     disabled={quantity <= 1 || remaining < 1}
                     aria-label="Decrease quantity"
                     className="flex h-11 w-10 items-center justify-center text-text hover:text-brass disabled:opacity-40"
@@ -450,19 +658,79 @@ export function ProductDetailClient({
                   {remaining < 1 ? "Bag limit reached" : "Add to bag"}
                 </button>
               </div>
-            ) : notifyWhatsAppUrl ? (
-              <a
-                href={notifyWhatsAppUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-primary w-full"
-              >
-                Notify me on WhatsApp
-              </a>
             ) : (
-              <button type="button" disabled className="btn-primary w-full">
-                Out of stock
-              </button>
+              <div className="space-y-3 border border-brass/35 bg-stone p-4">
+                <div className="flex items-start gap-2.5">
+                  <Bell className="mt-0.5 h-4 w-4 shrink-0 text-brass" aria-hidden />
+                  <div>
+                    <p className="font-sans text-[14px] font-medium text-text">
+                      Notify me on WhatsApp when back in stock
+                    </p>
+                    <p className="mt-0.5 font-sans text-[12px] text-muted">
+                      Leave your WhatsApp number for {askLabel} and we&apos;ll message you first when it arrives.
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleWaitlistSubmit} className="space-y-2.5" noValidate>
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+                  >
+                    <input
+                      type="text"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={alertWebsite}
+                      onChange={e => setAlertWebsite(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      required
+                      aria-label="WhatsApp phone number"
+                      placeholder="0712 345 678 or +254..."
+                      value={alertPhone}
+                      onChange={e => setAlertPhone(e.target.value)}
+                      className="h-11 w-full rounded-[2px] border border-text/20 bg-paper px-3 font-sans text-[14px] text-text placeholder:text-muted focus:border-brass focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      aria-label="Your name (optional)"
+                      placeholder="Your name (optional)"
+                      value={alertName}
+                      onChange={e => setAlertName(e.target.value)}
+                      className="h-11 w-full rounded-[2px] border border-text/20 bg-paper px-3 font-sans text-[14px] text-text placeholder:text-muted focus:border-brass focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={alertSubmitting || !alertPhone.trim()}
+                    className="btn-primary w-full"
+                  >
+                    {alertSubmitting ? "Saving..." : "Notify me on WhatsApp"}
+                  </button>
+                </form>
+
+                {alertFeedback ? (
+                  <p
+                    role={alertFeedback.ok ? "status" : "alert"}
+                    className={`flex items-start gap-2 font-sans text-[13px] ${
+                      alertFeedback.ok
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    {alertFeedback.ok ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    ) : null}
+                    <span>{alertFeedback.message}</span>
+                  </p>
+                ) : null}
+              </div>
             )}
 
             {askWhatsAppUrl ? (
@@ -572,7 +840,7 @@ export function ProductDetailClient({
             <X className="h-5 w-5" aria-hidden />
           </button>
 
-          {images.length > 1 ? (
+          {gallerySlides.length > 1 ? (
             <button
               type="button"
               onClick={showPrevious}
@@ -597,8 +865,8 @@ export function ProductDetailClient({
               }}
             >
               <Image
-                src={images[selectedIndex]}
-                alt={`${displayTitle}, enlarged photo ${selectedIndex + 1}`}
+                src={activeSlide.src}
+                alt={activeSlide.alt}
                 fill
                 sizes="100vw"
                 className="object-contain"
@@ -606,7 +874,7 @@ export function ProductDetailClient({
             </div>
           </div>
 
-          {images.length > 1 ? (
+          {gallerySlides.length > 1 ? (
             <button
               type="button"
               onClick={showNext}

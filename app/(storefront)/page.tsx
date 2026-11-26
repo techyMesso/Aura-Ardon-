@@ -40,11 +40,27 @@ export default async function HomePage() {
   ]);
 
   const activeCategories = filterNonEmptyCategories(categories, allProducts);
-  const featuredProducts = allProducts
+  const featuredProducts = [...allProducts]
     .filter(product => product.is_featured)
+    .sort(
+      (a, b) =>
+        (a.featured_order ?? 0) - (b.featured_order ?? 0) ||
+        b.created_at.localeCompare(a.created_at)
+    )
     .slice(0, 6);
   const representatives = deriveCategoryRepresentatives(allProducts);
-  const newInProducts = allProducts.slice(0, 8);
+  const pinnedNewIn = [...allProducts]
+    .filter(product => product.is_new_in)
+    .sort(
+      (a, b) =>
+        (a.new_in_order ?? 0) - (b.new_in_order ?? 0) ||
+        b.created_at.localeCompare(a.created_at)
+    );
+  const pinnedNewInIds = new Set(pinnedNewIn.map(product => product.id));
+  const newInProducts = [
+    ...pinnedNewIn,
+    ...allProducts.filter(product => !pinnedNewInIds.has(product.id))
+  ].slice(0, 8);
   const bestsellers = selectHomepageBestsellers(
     allProducts,
     activeCategories,

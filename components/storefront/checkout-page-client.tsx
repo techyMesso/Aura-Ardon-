@@ -10,7 +10,12 @@ import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCart, useCartValue } from "@/lib/cart";
+import {
+  getCartItemKey,
+  getCartItemUnitPrice,
+  useCart,
+  useCartValue
+} from "@/lib/cart";
 import { formatProductTitle } from "@/lib/catalog";
 import type { DeliveryZone } from "@/lib/types";
 import { normalizeKenyanPhoneNumber } from "@/lib/utils";
@@ -94,7 +99,9 @@ export function CheckoutPageClient({
 
   const cartSignature = useMemo(
     () =>
-      items.map(item => `${item.product.id}:${item.quantity}`).join("|") +
+      items
+        .map(item => `${getCartItemKey(item.product.id, item.variant?.id)}:${item.quantity}`)
+        .join("|") +
       `:${selectedZone?.id ?? ""}:${discountCode.trim().toUpperCase()}`,
     [discountCode, items, selectedZone?.id]
   );
@@ -142,6 +149,7 @@ export function CheckoutPageClient({
           code: clean,
           items: items.map(item => ({
             productId: item.product.id,
+            ...(item.variant?.id ? { variantId: item.variant.id } : {}),
             quantity: item.quantity
           })),
           deliveryZoneId: selectedZone.id,
@@ -233,6 +241,7 @@ export function CheckoutPageClient({
         body: JSON.stringify({
           items: items.map(item => ({
             productId: item.product.id,
+            ...(item.variant?.id ? { variantId: item.variant.id } : {}),
             quantity: item.quantity
           })),
           fullName: fullName.trim(),
@@ -613,14 +622,15 @@ export function CheckoutPageClient({
             <ul className="mt-4 divide-y divide-text/10 font-sans text-[14px]">
               {items.map(item => (
                 <li
-                  key={item.product.id}
+                  key={getCartItemKey(item.product.id, item.variant?.id)}
                   className="flex items-baseline justify-between gap-4 py-2.5"
                 >
                   <span className="truncate text-text">
-                    {formatProductTitle(item.product.title)} × {item.quantity}
+                    {formatProductTitle(item.product.title)}
+                    {item.variant ? ` (${item.variant.name})` : ""} × {item.quantity}
                   </span>
                   <PriceKES
-                    amount={Number(item.product.price) * item.quantity}
+                    amount={getCartItemUnitPrice(item) * item.quantity}
                     className="shrink-0"
                   />
                 </li>

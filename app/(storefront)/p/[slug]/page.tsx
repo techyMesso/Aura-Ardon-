@@ -10,6 +10,7 @@ import {
   resolveProductCategory
 } from "@/lib/catalog";
 import {
+  getActiveRedirect,
   getProductBySlug,
   listCategories,
   listProductsByCategory,
@@ -73,7 +74,13 @@ export default async function CanonicalProductPage({
     getProductBySlug(decodedSlug),
     listCategories()
   ]);
-  if (!product) notFound();
+  if (!product) {
+    const redirectMatch = await getActiveRedirect(`/p/${decodedSlug}`);
+    if (redirectMatch) {
+      permanentRedirect(redirectMatch.to_path);
+    }
+    notFound();
+  }
 
   const canonicalPath = productHref(product);
   const requestedPath = `/p/${encodeURIComponent(decodedSlug)}`;

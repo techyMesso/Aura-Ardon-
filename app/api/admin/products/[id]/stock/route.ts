@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
-import { listProductStockMovements } from "@/lib/data";
+import { listBackInStockAlerts, listProductStockMovements } from "@/lib/data";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -104,12 +104,18 @@ export async function POST(
     }
 
     revalidateProductCatalog();
-    const ledger = await listProductStockMovements(id);
+    const [ledger, waitingAlerts] = await Promise.all([
+      listProductStockMovements(id),
+      Number(data.new_stock_quantity) > 0 && typeof listBackInStockAlerts === "function"
+        ? listBackInStockAlerts({ productId: id, status: "waiting" }).catch(() => [])
+        : Promise.resolve([])
+    ]);
 
     return NextResponse.json({
       ok: true,
       newStockQuantity: Number(data.new_stock_quantity),
       movementId: data.movement_id,
+      waitingAlerts,
       ...(ledger ?? {})
     });
   } catch (caughtError) {

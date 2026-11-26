@@ -63,21 +63,22 @@ export async function GET(request: NextRequest) {
     const tokens = cleaned.toLowerCase().split(/\s+/).filter(Boolean);
 
     // Combine Postgres full-text search (when column exists) + ilike substring match
+    // (products.active is kept synchronized with status = 'active' via DB trigger and RLS)
     const [ftsResponse, ilikeResponse] = await Promise.all([
       supabase
         .from("products")
         .select(
-          "id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, blur_data_url, created_at"
+          "id, title, slug, description, category, category_id, price, compare_at_price, stock_quantity, material, images, image_alts, is_featured, active, status, blur_data_url, created_at"
         )
-        .eq("active", true)
+        .eq("status", "active")
         .textSearch("search_tsv", cleaned, { type: "websearch", config: "english" })
         .limit(20),
       supabase
         .from("products")
         .select(
-          "id, title, slug, description, category, category_id, price, stock_quantity, material, images, is_featured, active, blur_data_url, created_at"
+          "id, title, slug, description, category, category_id, price, compare_at_price, stock_quantity, material, images, image_alts, is_featured, active, status, blur_data_url, created_at"
         )
-        .eq("active", true)
+        .eq("status", "active")
         .or(
           `title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},material.ilike.${pattern}`
         )

@@ -11,7 +11,13 @@ import {
 } from "@/components/storefront/price-kes";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
-import { useCart, useCartValue } from "@/lib/cart";
+import {
+  getCartItemKey,
+  getCartItemMaxStock,
+  getCartItemUnitPrice,
+  useCart,
+  useCartValue
+} from "@/lib/cart";
 import {
   formatProductTitle,
   getSafeCatalogImageUrl,
@@ -67,16 +73,20 @@ export function CartPageClient() {
               const displayTitle = formatProductTitle(item.product.title);
               const productPath = productHref(item.product);
               const image =
+                getSafeCatalogImageUrl(item.variant?.image_url) ||
                 getSafeCatalogImageUrl(item.product.images[0]) ||
                 "/hero-jewelry.png";
-              const atLimit = item.quantity >= item.product.stock_quantity;
+              const unitPrice = getCartItemUnitPrice(item);
+              const maxStock = getCartItemMaxStock(item);
+              const atLimit = item.quantity >= maxStock;
+              const itemKey = getCartItemKey(item.product.id, item.variant?.id);
 
               return (
-                <li key={item.product.id} className="flex gap-4 py-5">
+                <li key={itemKey} className="flex gap-4 py-5">
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-none bg-paper">
                     <Image
                       src={image}
-                      alt={displayTitle}
+                      alt={item.variant?.image_alt || displayTitle}
                       fill
                       loading="lazy"
                       placeholder="blur"
@@ -91,15 +101,22 @@ export function CartPageClient() {
 
                   <div className="flex min-w-0 flex-1 flex-col justify-between">
                     <div className="flex items-start justify-between gap-3">
-                      <Link
-                        href={productPath}
-                        className="font-sans text-[16px] text-text hover:text-brass"
-                      >
-                        {displayTitle}
-                      </Link>
+                      <div>
+                        <Link
+                          href={productPath}
+                          className="font-sans text-[16px] text-text hover:text-brass"
+                        >
+                          {displayTitle}
+                        </Link>
+                        {item.variant ? (
+                          <p className="mt-0.5 font-sans text-[13px] text-muted">
+                            {item.variant.name}
+                          </p>
+                        ) : null}
+                      </div>
                       <button
                         type="button"
-                        onClick={() => removeItem(item.product.id)}
+                        onClick={() => removeItem(item.product.id, item.variant?.id)}
                         aria-label={`Remove ${displayTitle}`}
                         className="text-muted hover:text-text"
                       >
@@ -112,7 +129,11 @@ export function CartPageClient() {
                         <button
                           type="button"
                           onClick={() =>
-                            updateQuantity(item.product.id, item.quantity - 1)
+                            updateQuantity(
+                              item.product.id,
+                              item.quantity - 1,
+                              item.variant?.id
+                            )
                           }
                           aria-label={`Decrease quantity of ${displayTitle}`}
                           className="flex h-9 w-9 items-center justify-center text-text hover:text-brass"
@@ -128,7 +149,11 @@ export function CartPageClient() {
                         <button
                           type="button"
                           onClick={() =>
-                            updateQuantity(item.product.id, item.quantity + 1)
+                            updateQuantity(
+                              item.product.id,
+                              item.quantity + 1,
+                              item.variant?.id
+                            )
                           }
                           disabled={atLimit}
                           aria-label={`Increase quantity of ${displayTitle}`}
@@ -138,9 +163,7 @@ export function CartPageClient() {
                         </button>
                       </div>
 
-                      <PriceKES
-                        amount={Number(item.product.price) * item.quantity}
-                      />
+                      <PriceKES amount={unitPrice * item.quantity} />
                     </div>
                   </div>
                 </li>

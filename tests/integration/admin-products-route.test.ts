@@ -6,7 +6,13 @@ const categoryMaybeSingle = vi.fn();
 const productSingle = vi.fn();
 const productInsert = vi.fn();
 
-vi.mock("@/lib/auth", () => ({ assertAdminRequest }));
+vi.mock("@/lib/auth", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/lib/auth")>();
+  return {
+    ...actual,
+    assertAdminRequest
+  };
+});
 vi.mock("@/lib/cache", () => ({ revalidateProductCatalog }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminSupabaseClient: () => ({
@@ -23,7 +29,10 @@ vi.mock("@/lib/supabase/admin", () => ({
   })
 }));
 
-function createProductRequest(categoryId = "11111111-1111-4111-8111-111111111111") {
+function createProductRequest(
+  categoryId = "11111111-1111-4111-8111-111111111111",
+  overrides: Record<string, unknown> = {}
+) {
   return new Request("https://example.test/api/admin/products", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -35,8 +44,11 @@ function createProductRequest(categoryId = "11111111-1111-4111-8111-111111111111
       category_id: categoryId,
       material: "Gold plated steel",
       images: ["https://example.test/cuff.jpg"],
+      image_alts: ["Sculptural gold-plated steel cuff bracelet"],
+      status: "active",
       active: true,
-      is_featured: true
+      is_featured: true,
+      ...overrides
     })
   });
 }
@@ -45,7 +57,11 @@ describe("POST /api/admin/products", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    assertAdminRequest.mockResolvedValue(undefined);
+    assertAdminRequest.mockResolvedValue({
+      id: "owner-1",
+      email: "admin@example.com",
+      app_metadata: { role: "owner" }
+    });
     categoryMaybeSingle.mockResolvedValue({
       data: { id: "11111111-1111-4111-8111-111111111111", name: "Bracelets" },
       error: null
@@ -62,10 +78,14 @@ describe("POST /api/admin/products", () => {
     const response = await POST(createProductRequest());
 
     expect(response.status).toBe(201);
-    expect(productInsert).toHaveBeenCalledWith(expect.objectContaining({
-      category_id: "11111111-1111-4111-8111-111111111111",
-      category: "Bracelets"
-    }));
+    expect(productInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category_id: "11111111-1111-4111-8111-111111111111",
+        category: "Bracelets",
+        image_alts: ["Sculptural gold-plated steel cuff bracelet"],
+        status: "active"
+      })
+    );
     expect(revalidateProductCatalog).toHaveBeenCalledOnce();
   });
 
@@ -73,6 +93,19 @@ describe("POST /api/admin/products", () => {
     const { POST } = await import("@/app/api/admin/products/route");
 
     const response = await POST(createProductRequest("not-a-uuid"));
+
+    expect(response.status).toBe(400);
+    expect(productInsert).not.toHaveBeenCalled();
+  });
+
+  it("requires descriptive alt text for every uploaded image", async () => {
+    const { POST } = await import("@/app/api/admin/products/route");
+
+    const response = await POST(
+      createProductRequest("11111111-1111-4111-8111-111111111111", {
+        image_alts: [""]
+      })
+    );
 
     expect(response.status).toBe(400);
     expect(productInsert).not.toHaveBeenCalled();

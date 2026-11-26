@@ -9,17 +9,20 @@ import { ImageDropzone } from "@/components/admin/image-dropzone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { resolveProductStatus } from "@/lib/admin-product-filters";
 import {
   getCategoryFormMessage,
   getInitialProductCategoryId,
   getProductFormCategories
 } from "@/lib/admin-product-form";
-import type { Category, Product } from "@/lib/types";
+import { toCatalogSlug } from "@/lib/catalog";
+import type { Category, Product, ProductStatus } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 interface ProductFormProps {
   categories: Category[];
   initialProduct?: Product | null;
+  canManageCostPrice?: boolean;
 }
 
 function FormLabel({
@@ -85,50 +88,88 @@ function Toggle({
   );
 }
 
-export function ProductForm({ categories, initialProduct }: ProductFormProps) {
+export function ProductForm({
+  categories,
+  initialProduct,
+  canManageCostPrice = false
+}: ProductFormProps) {
   const router = useRouter();
   const orderedCategories = getProductFormCategories(categories);
   const categoryMessage = getCategoryFormMessage(orderedCategories);
   const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [compareAtPrice, setCompareAtPrice] = useState("");
+  const [costPrice, setCostPrice] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [material, setMaterial] = useState("");
   const [finish, setFinish] = useState("");
   const [sizeLabel, setSizeLabel] = useState("");
+  const [waterResistance, setWaterResistance] = useState("");
+  const [warranty, setWarranty] = useState("");
+  const [ingredients, setIngredients] = useState("");
+  const [netWeight, setNetWeight] = useState("");
+  const [expiryInfo, setExpiryInfo] = useState("");
   const [inTheBox, setInTheBox] = useState("");
   const [care, setCare] = useState("");
   const [images, setImages] = useState<string[]>([]);
-  const [active, setActive] = useState(true);
+  const [imageAlts, setImageAlts] = useState<string[]>([]);
+  const [status, setStatus] = useState<ProductStatus>("active");
   const [isFeatured, setIsFeatured] = useState(false);
+  const [featuredOrder, setFeaturedOrder] = useState("0");
+  const [isNewIn, setIsNewIn] = useState(false);
+  const [newInOrder, setNewInOrder] = useState("0");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
   const isEdit = Boolean(initialProduct);
-  const selectedCategory = orderedCategories.find(category => category.id === categoryId);
+  const selectedCategory = orderedCategories.find(
+    category => category.id === categoryId
+  );
   const numericPrice = Number(price);
+  const numericCost = costPrice.trim() ? Number(costPrice) : null;
   const numericStock = Number(stockQuantity);
 
   useEffect(() => {
     if (!initialProduct) return;
 
     setTitle(initialProduct.title);
+    setSlug(initialProduct.slug || "");
     setDescription(initialProduct.description);
     setPrice(initialProduct.price);
     setCompareAtPrice(initialProduct.compare_at_price ?? "");
+    if (canManageCostPrice) {
+      setCostPrice(initialProduct.cost_price ?? "");
+    }
     setStockQuantity(String(initialProduct.stock_quantity));
     setCategoryId(getInitialProductCategoryId(initialProduct, categories));
     setMaterial(initialProduct.material || "");
     setFinish(initialProduct.finish || "");
     setSizeLabel(initialProduct.size_label || "");
+    setWaterResistance(initialProduct.water_resistance || "");
+    setWarranty(initialProduct.warranty || "");
+    setIngredients(initialProduct.ingredients || "");
+    setNetWeight(initialProduct.net_weight || "");
+    setExpiryInfo(initialProduct.expiry_info || "");
     setInTheBox(initialProduct.in_the_box || "");
     setCare(initialProduct.care || "");
     setImages(initialProduct.images);
-    setActive(initialProduct.active);
+    setImageAlts(
+      initialProduct.images.map(
+        (_, idx) =>
+          initialProduct.image_alts?.[idx] ||
+          `${initialProduct.title} — photo ${idx + 1}`
+      )
+    );
+    setStatus(resolveProductStatus(initialProduct));
     setIsFeatured(initialProduct.is_featured);
-  }, [categories, initialProduct]);
+    setFeaturedOrder(String(initialProduct.featured_order ?? 0));
+    setIsNewIn(Boolean(initialProduct.is_new_in));
+    setNewInOrder(String(initialProduct.new_in_order ?? 0));
+  }, [canManageCostPrice, categories, initialProduct]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -154,6 +195,14 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       setError("Compare-at price must be higher than the selling price.");
       return;
     }
+    if (
+      canManageCostPrice &&
+      numericCost !== null &&
+      (!Number.isFinite(numericCost) || numericCost < 0)
+    ) {
+      setError("Cost price cannot be negative.");
+      return;
+    }
     if (!isEdit && (!Number.isInteger(numericStock) || numericStock < 0)) {
       setError("Stock quantity cannot be negative and must be a whole number.");
       return;
@@ -163,9 +212,21 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       return;
     }
 
+    const cleanedAlts = images.map((_, idx) => (imageAlts[idx] ?? "").trim());
+    const missingAltIdx = cleanedAlts.findIndex(alt => alt.length < 2);
+    if (missingAltIdx !== -1) {
+      setError(
+        `Alt text is required for photo ${missingAltIdx + 1} (at least 2 characters).`
+      );
+      return;
+    }
+
     setSaving(true);
+    const normalizedSlug = slug.trim() ? toCatalogSlug(slug) : null;
+
     const payload: Record<string, unknown> = {
       title: title.trim(),
+      ...(normalizedSlug ? { slug: normalizedSlug } : {}),
       description: description.trim(),
       price: numericPrice,
       compare_at_price: numericCompareAt,
@@ -173,12 +234,27 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       material: material.trim(),
       finish: finish.trim() || null,
       size_label: sizeLabel.trim() || null,
+      water_resistance: waterResistance.trim() || null,
+      warranty: warranty.trim() || null,
+      ingredients: ingredients.trim() || null,
+      net_weight: netWeight.trim() || null,
+      expiry_info: expiryInfo.trim() || null,
       in_the_box: inTheBox.trim() || null,
       care: care.trim() || null,
       images,
-      active,
-      is_featured: isFeatured
+      image_alts: cleanedAlts,
+      status,
+      active: status === "active",
+      is_featured: isFeatured,
+      featured_order: Math.max(0, Math.floor(Number(featuredOrder) || 0)),
+      is_new_in: isNewIn,
+      new_in_order: Math.max(0, Math.floor(Number(newInOrder) || 0))
     };
+
+    if (canManageCostPrice) {
+      payload.cost_price = numericCost;
+    }
+
     if (!isEdit) {
       payload.stock_quantity = numericStock;
     }
@@ -194,13 +270,18 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
           body: JSON.stringify(payload)
         }
       );
-      const data = (await response.json()) as { error?: string };
+      const data = (await response.json()) as {
+        error?: string;
+        redirectCreated?: { from: string; to: string; statusCode: number } | null;
+      };
       if (!response.ok) throw new Error(data.error || "Failed to save product.");
 
       setSuccess(
-        isEdit
-          ? "Product updated. Returning to products..."
-          : "Product created. Returning to products..."
+        data.redirectCreated
+          ? `Product updated and 301 redirect created (${data.redirectCreated.from} → ${data.redirectCreated.to}). Returning to products...`
+          : isEdit
+            ? "Product updated. Returning to products..."
+            : "Product created. Returning to products..."
       );
       router.push("/admin/products");
       router.refresh();
@@ -211,6 +292,15 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       setSaving(false);
     }
   }
+
+  const estimatedProfit =
+    canManageCostPrice &&
+    Number.isFinite(numericPrice) &&
+    numericPrice > 0 &&
+    numericCost !== null &&
+    Number.isFinite(numericCost)
+      ? numericPrice - numericCost
+      : null;
 
   return (
     <form
@@ -229,19 +319,37 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
           </h3>
         </div>
         <div className="space-y-4">
-          <div>
-            <FormLabel htmlFor="product-title" required>
-              Product title
-            </FormLabel>
-            <Input
-              id="product-title"
-              placeholder="Signature gold cuff"
-              value={title}
-              onChange={event => setTitle(event.target.value)}
-              required
-              className="min-h-12 text-base"
-            />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <FormLabel htmlFor="product-title" required>
+                Product title
+              </FormLabel>
+              <Input
+                id="product-title"
+                placeholder="Signature gold cuff"
+                value={title}
+                onChange={event => setTitle(event.target.value)}
+                required
+                className="min-h-12 text-base"
+              />
+            </div>
+            <div>
+              <FormLabel htmlFor="product-slug">URL slug</FormLabel>
+              <Input
+                id="product-slug"
+                placeholder="Auto-generated from title"
+                value={slug}
+                onChange={event => setSlug(event.target.value)}
+                className="min-h-12 text-base"
+              />
+              <p className="mt-1.5 text-xs text-muted">
+                {isEdit
+                  ? "Changing the slug automatically creates a 301 redirect from the old /p/ URL."
+                  : "Leave blank to generate cleanly from the title."}
+              </p>
+            </div>
           </div>
+
           <div>
             <FormLabel htmlFor="product-description" required>
               Description
@@ -255,10 +363,8 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
               rows={5}
               className="min-h-32 resize-none text-base"
             />
-            <p className="mt-1.5 text-xs leading-5 text-muted">
-              Help customers picture the piece: include finish, size or fit, and care details.
-            </p>
           </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <FormLabel htmlFor="product-category" required>
@@ -305,6 +411,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
               />
             </div>
           </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <FormLabel htmlFor="product-finish">Finish</FormLabel>
@@ -317,10 +424,10 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
               />
             </div>
             <div>
-              <FormLabel htmlFor="product-size-label">Length / size</FormLabel>
+              <FormLabel htmlFor="product-size-label">Length / size / case</FormLabel>
               <Input
                 id="product-size-label"
-                placeholder="45 cm + 5 cm extender"
+                placeholder="45 cm + 5 cm extender or 40mm case"
                 value={sizeLabel}
                 onChange={event => setSizeLabel(event.target.value)}
                 className="min-h-12 text-base"
@@ -347,6 +454,60 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
               />
             </div>
           </div>
+
+          <details className="rounded-[2px] border border-border bg-stone/40 p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-text">
+              Watch &amp; beauty specifications (optional)
+            </summary>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <FormLabel htmlFor="product-water-resistance">Water resistance</FormLabel>
+                <Input
+                  id="product-water-resistance"
+                  placeholder="e.g. 3 ATM splash-resistant"
+                  value={waterResistance}
+                  onChange={e => setWaterResistance(e.target.value)}
+                />
+              </div>
+              <div>
+                <FormLabel htmlFor="product-warranty">Warranty</FormLabel>
+                <Input
+                  id="product-warranty"
+                  placeholder="e.g. 6-month movement warranty"
+                  value={warranty}
+                  onChange={e => setWarranty(e.target.value)}
+                />
+              </div>
+              <div>
+                <FormLabel htmlFor="product-net-weight">Net weight / volume</FormLabel>
+                <Input
+                  id="product-net-weight"
+                  placeholder="e.g. 5 ml / 0.17 fl oz"
+                  value={netWeight}
+                  onChange={e => setNetWeight(e.target.value)}
+                />
+              </div>
+              <div>
+                <FormLabel htmlFor="product-expiry">Expiry / shelf life</FormLabel>
+                <Input
+                  id="product-expiry"
+                  placeholder="e.g. 12 months after opening"
+                  value={expiryInfo}
+                  onChange={e => setExpiryInfo(e.target.value)}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <FormLabel htmlFor="product-ingredients">Ingredients</FormLabel>
+                <Textarea
+                  id="product-ingredients"
+                  rows={2}
+                  placeholder="Key ingredients for lip care / beauty items"
+                  value={ingredients}
+                  onChange={e => setIngredients(e.target.value)}
+                />
+              </div>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -360,7 +521,9 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             Set availability
           </h3>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div
+          className={`grid gap-4 ${canManageCostPrice ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"}`}
+        >
           <div>
             <FormLabel htmlFor="product-price" required>
               Price (KES)
@@ -376,11 +539,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
               onChange={event => setPrice(event.target.value)}
               required
               className="min-h-12 text-base"
-              aria-describedby="product-price-help"
             />
-            <p id="product-price-help" className="mt-1.5 text-xs text-muted">
-              Price must be above zero.
-            </p>
           </div>
           <div>
             <FormLabel htmlFor="product-compare-at-price">
@@ -396,12 +555,34 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
               value={compareAtPrice}
               onChange={event => setCompareAtPrice(event.target.value)}
               className="min-h-12 text-base"
-              aria-describedby="product-compare-at-help"
             />
-            <p id="product-compare-at-help" className="mt-1.5 text-xs text-muted">
-              Optional original price (must exceed price to display a Sale badge).
+            <p className="mt-1.5 text-xs text-muted">
+              Must exceed price to show a Sale badge.
             </p>
           </div>
+          {canManageCostPrice ? (
+            <div>
+              <FormLabel htmlFor="product-cost-price">
+                Cost price (KES, owner only)
+              </FormLabel>
+              <Input
+                id="product-cost-price"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                placeholder="Optional (private)"
+                value={costPrice}
+                onChange={event => setCostPrice(event.target.value)}
+                className="min-h-12 text-base"
+              />
+              <p className="mt-1.5 text-xs text-muted">
+                {estimatedProfit !== null
+                  ? `Est. margin: ${formatCurrency(estimatedProfit)} (${Math.round((estimatedProfit / numericPrice) * 100)}%)`
+                  : "Never sent to storefront or staff browsers."}
+              </p>
+            </div>
+          ) : null}
           <div>
             <FormLabel htmlFor="product-stock" required={!isEdit}>
               {isEdit ? "Current stock (ledger managed)" : "Initial stock quantity"}
@@ -418,12 +599,11 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
               required={!isEdit}
               disabled={isEdit}
               className="min-h-12 text-base disabled:cursor-not-allowed disabled:bg-stone disabled:opacity-80"
-              aria-describedby="product-stock-help"
             />
-            <p id="product-stock-help" className="mt-1.5 text-xs text-muted">
+            <p className="mt-1.5 text-xs text-muted">
               {isEdit
-                ? "Stock is never overwritten directly. Use the Stock History & Manual Adjustment ledger below (requires a note)."
-                : "Cannot be negative. Saved as an initial_stock entry in the stock ledger."}
+                ? "Use the Variants or Stock Ledger section below (requires a note)."
+                : "Recorded as initial_stock in the ledger."}
             </p>
           </div>
         </div>
@@ -439,10 +619,17 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             Show the details
           </h3>
           <p className="mt-1 text-sm text-muted">
-            The first image is used as the cover image. Use Cover or arrow controls to reorder.
+            Uploads are compressed to WebP (max 2000 px) in your browser. Drag to reorder and fill in required alt text for every image.
           </p>
         </div>
-        <ImageDropzone value={images} onChange={setImages} />
+        <ImageDropzone
+          value={images}
+          alts={imageAlts}
+          onChange={(nextUrls, nextAlts) => {
+            setImages(nextUrls);
+            setImageAlts(nextAlts);
+          }}
+        />
       </section>
 
       <section
@@ -450,26 +637,107 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
         aria-labelledby="publishing-heading"
       >
         <div className="mb-5">
-          <p className="text-sm font-medium text-brass">Publishing</p>
+          <p className="text-sm font-medium text-brass">Publishing &amp; homepage placement</p>
           <h3 id="publishing-heading" className="mt-1 font-serif text-2xl text-text">
-            Choose visibility
+            Status &amp; pinning
           </h3>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Toggle
-            id="product-active"
-            checked={active}
-            onChange={setActive}
-            label="Active"
-            description="Visible in the storefront."
-          />
-          <Toggle
-            id="product-featured"
-            checked={isFeatured}
-            onChange={setIsFeatured}
-            label="Featured"
-            description="Appears in featured collections."
-          />
+
+        <div className="space-y-4">
+          <div>
+            <FormLabel htmlFor="product-status" required>
+              Product status
+            </FormLabel>
+            <div className="grid gap-2.5 sm:grid-cols-3">
+              {(
+                [
+                  {
+                    value: "active",
+                    label: "Active",
+                    desc: "Live in storefront & search."
+                  },
+                  {
+                    value: "draft",
+                    label: "Draft",
+                    desc: "Hidden while preparing listing."
+                  },
+                  {
+                    value: "archived",
+                    label: "Archived",
+                    desc: "Hidden from store; kept on past orders & invoices."
+                  }
+                ] as const
+              ).map(option => {
+                const selected = status === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setStatus(option.value)}
+                    aria-pressed={selected}
+                    className={`rounded-[2px] border p-3.5 text-left transition ${
+                      selected
+                        ? "border-brass bg-stone ring-1 ring-brass"
+                        : "border-border bg-paper hover:border-brass/60"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-text">{option.label}</p>
+                    <p className="mt-0.5 text-xs text-muted">{option.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2.5">
+              <Toggle
+                id="product-featured"
+                checked={isFeatured}
+                onChange={setIsFeatured}
+                label="Featured on homepage"
+                description="Pin to hero / featured showcase."
+              />
+              {isFeatured ? (
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                    Featured display order (lower shows first)
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="9999"
+                    value={featuredOrder}
+                    onChange={e => setFeaturedOrder(e.target.value)}
+                  />
+                </label>
+              ) : null}
+            </div>
+
+            <div className="space-y-2.5">
+              <Toggle
+                id="product-new-in"
+                checked={isNewIn}
+                onChange={setIsNewIn}
+                label='Pin to "New in"'
+                description='Place at the front of the homepage "New in" rail.'
+              />
+              {isNewIn ? (
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                    New in display order (lower shows first)
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="9999"
+                    value={newInOrder}
+                    onChange={e => setNewInOrder(e.target.value)}
+                  />
+                </label>
+              ) : null}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -488,7 +756,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             {images[0] ? (
               <Image
                 src={images[0]}
-                alt="Product cover preview"
+                alt={imageAlts[0] || "Product cover preview"}
                 fill
                 sizes="80px"
                 className="object-cover"
@@ -517,7 +785,9 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
                 : "Stock not set"}
             </p>
             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-              {active ? "Active" : "Inactive"} — {isFeatured ? "Featured" : "Standard"}
+              {status}
+              {isFeatured ? ` · Featured (#${featuredOrder})` : ""}
+              {isNewIn ? ` · New in (#${newInOrder})` : ""}
             </p>
           </div>
         </div>

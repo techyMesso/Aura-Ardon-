@@ -30,7 +30,8 @@ const categoryCreateSchema = z.object({
   description: nullableOptionalString(500),
   image_url: nullableOptionalUrl,
   parent_id: nullableOptionalUuid,
-  display_order: z.coerce.number().int().min(0).default(0)
+  display_order: z.coerce.number().int().min(0).default(0),
+  active: z.boolean().optional().default(true)
 });
 
 function getErrorStatus(error: unknown) {
@@ -47,7 +48,7 @@ export async function GET() {
     const supabase = createAdminSupabaseClient();
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+      .select("id, name, slug, parent_id, description, image_url, display_order, active, created_at")
       .order("display_order", { ascending: true })
       .order("name", { ascending: true });
 
@@ -82,9 +83,10 @@ export async function POST(request: Request) {
         description: payload.description ?? null,
         image_url: payload.image_url ?? null,
         parent_id: payload.parent_id ?? null,
-        display_order: payload.display_order
+        display_order: payload.display_order,
+        active: payload.active ?? true
       } as never)
-      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+      .select("id, name, slug, parent_id, description, image_url, display_order, active, created_at")
       .single();
 
     if (error) {

@@ -14,6 +14,7 @@ interface ProductStockLedgerProps {
   initialStock: number;
   initialLedgerSum: number;
   initialMovements: StockMovement[];
+  hasVariants?: boolean;
 }
 
 function formatNairobiDateTime(value: string) {
@@ -30,7 +31,8 @@ export function ProductStockLedger({
   productId,
   initialStock,
   initialLedgerSum,
-  initialMovements
+  initialMovements,
+  hasVariants = false
 }: ProductStockLedgerProps) {
   const [stock, setStock] = useState(initialStock);
   const [ledgerSum, setLedgerSum] = useState(initialLedgerSum);
@@ -163,6 +165,11 @@ export function ProductStockLedger({
       </div>
 
       {/* Manual Adjustment Form */}
+      {hasVariants ? (
+        <div className="rounded-[2px] border border-brass/30 bg-stone/50 p-4 text-sm text-muted">
+          This product tracks inventory per variant. Use the <strong className="text-text">Adjust stock</strong> controls in the <strong className="text-text">Optional variants</strong> section above — every variant movement appears in this unified ledger below.
+        </div>
+      ) : (
       <form
         onSubmit={handleAdjustSubmit}
         className="space-y-4 rounded-[2px] border border-brass/30 bg-stone/50 p-4"
@@ -264,6 +271,7 @@ export function ProductStockLedger({
           </p>
         ) : null}
       </form>
+      )}
 
       {/* Stock History Table */}
       <div>

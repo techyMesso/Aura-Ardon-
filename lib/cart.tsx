@@ -9,18 +9,34 @@ import {
   useState,
   type ReactNode
 } from "react";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, ProductVariant } from "@/lib/types";
 
 export interface CartItem {
   product: Product;
+  variant?: ProductVariant | null;
   quantity: number;
+}
+
+export function getCartItemKey(
+  productId: string,
+  variantId?: string | null
+): string {
+  return `${productId}::${variantId || "base"}`;
+}
+
+export function getCartItemUnitPrice(item: Pick<CartItem, "product" | "variant">): number {
+  return Number(item.variant?.price_override ?? item.product.price) || 0;
+}
+
+export function getCartItemMaxStock(item: Pick<CartItem, "product" | "variant">): number {
+  return item.variant ? item.variant.stock_quantity : item.product.stock_quantity;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (product: Product, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  addItem: (product: Product, quantity?: number, variant?: ProductVariant | null) => void;
+  removeItem: (productId: string, variantId?: string | null) => void;
+  updateQuantity: (productId: string, quantity: number, variantId?: string | null) => void;
   clearCart: () => void;
   categories: Category[];
   cartNotice: string | null;
@@ -54,7 +70,48 @@ function reconcileCartItems(
     const freshProduct =
       catalogById.size > 0 ? catalogById.get(item.product.id) : item.product;
 
-    if (!freshProduct || !freshProduct.active || freshProduct.stock_quantity < 1) {
+    if (!freshProduct || !freshProduct.active) {
+      adjusted = true;
+      continue;
+    }
+
+    const activeVariants = (freshProduct.variants ?? []).filter(v => v.active);
+
+    if (item.variant?.id) {
+      const freshVariant =
+        catalogById.size > 0
+          ? activeVariants.find(v => v.id === item.variant?.id) ?? null
+          : item.variant;
+
+      if (!freshVariant || !freshVariant.active || freshVariant.stock_quantity < 1) {
+        adjusted = true;
+        continue;
+      }
+
+      const requestedQty = Math.max(1, Math.floor(item.quantity || 1));
+      const clampedQty = Math.min(requestedQty, freshVariant.stock_quantity);
+      const oldPrice = Number(item.variant.price_override ?? item.product.price);
+      const newPrice = Number(freshVariant.price_override ?? freshProduct.price);
+
+      if (clampedQty !== requestedQty || oldPrice !== newPrice) {
+        adjusted = true;
+      }
+
+      nextItems.push({
+        product: freshProduct,
+        variant: freshVariant,
+        quantity: clampedQty
+      });
+      continue;
+    }
+
+    // If product now requires a variant, drop stale base-product entry
+    if (activeVariants.length > 0) {
+      adjusted = true;
+      continue;
+    }
+
+    if (freshProduct.stock_quantity < 1) {
       adjusted = true;
       continue;
     }
@@ -71,6 +128,7 @@ function reconcileCartItems(
 
     nextItems.push({
       product: freshProduct,
+      variant: null,
       quantity: clampedQty
     });
   }
@@ -123,48 +181,65 @@ export function CartProvider({
     }
   }, [items, hydrated]);
 
-  const addItem = useCallback((product: Product, quantity = 1) => {
-    setItems(prev => {
-      const requestedQuantity = Math.max(1, Math.floor(quantity));
-      if (product.stock_quantity < 1) return prev;
+  const addItem = useCallback(
+    (product: Product, quantity = 1, variant: ProductVariant | null = null) => {
+      setItems(prev => {
+        const requestedQuantity = Math.max(1, Math.floor(quantity));
+        const maxStock = variant ? variant.stock_quantity : product.stock_quantity;
+        if (maxStock < 1) return prev;
 
-      const existing = prev.find(item => item.product.id === product.id);
-      if (existing) {
-        return prev.map(item =>
-          item.product.id === product.id
-            ? {
-                product,
-                quantity: Math.min(
-                  item.quantity + requestedQuantity,
-                  product.stock_quantity
-                )
-              }
-            : item
+        const targetKey = getCartItemKey(product.id, variant?.id);
+        const existing = prev.find(
+          item => getCartItemKey(item.product.id, item.variant?.id) === targetKey
         );
-      }
-      return [
-        ...prev,
-        { product, quantity: Math.min(requestedQuantity, product.stock_quantity) }
-      ];
-    });
-  }, []);
+        if (existing) {
+          return prev.map(item =>
+            getCartItemKey(item.product.id, item.variant?.id) === targetKey
+              ? {
+                  product,
+                  variant,
+                  quantity: Math.min(item.quantity + requestedQuantity, maxStock)
+                }
+              : item
+          );
+        }
+        return [
+          ...prev,
+          { product, variant, quantity: Math.min(requestedQuantity, maxStock) }
+        ];
+      });
+    },
+    []
+  );
 
-  const removeItem = useCallback((productId: string) => {
-    setItems(prev => prev.filter(item => item.product.id !== productId));
-  }, []);
+  const removeItem = useCallback(
+    (productId: string, variantId?: string | null) => {
+      const targetKey = getCartItemKey(productId, variantId);
+      setItems(prev =>
+        prev.filter(
+          item => getCartItemKey(item.product.id, item.variant?.id) !== targetKey
+        )
+      );
+    },
+    []
+  );
 
   const updateQuantity = useCallback(
-    (productId: string, quantity: number) => {
+    (productId: string, quantity: number, variantId?: string | null) => {
       if (quantity < 1) {
-        removeItem(productId);
+        removeItem(productId, variantId);
         return;
       }
+      const targetKey = getCartItemKey(productId, variantId);
       setItems(prev =>
         prev.map(item => {
-          if (item.product.id !== productId) return item;
+          if (getCartItemKey(item.product.id, item.variant?.id) !== targetKey) {
+            return item;
+          }
+          const maxStock = getCartItemMaxStock(item);
           return {
             ...item,
-            quantity: Math.min(Math.floor(quantity), item.product.stock_quantity)
+            quantity: Math.min(Math.floor(quantity), maxStock)
           };
         })
       );
@@ -205,10 +280,10 @@ export function CartProvider({
 
   const cartValue = useMemo(() => {
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-    const total = items.reduce((sum, item) => {
-      const price = Number(item.product.price) || 0;
-      return sum + price * item.quantity;
-    }, 0);
+    const total = items.reduce(
+      (sum, item) => sum + getCartItemUnitPrice(item) * item.quantity,
+      0
+    );
 
     return { items, itemCount, total };
   }, [items]);

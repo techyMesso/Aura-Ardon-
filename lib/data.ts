@@ -23,6 +23,8 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   AdminAnalytics,
+  BackInStockAlert,
+  BackInStockAlertStatus,
   CanonicalOrderStatus,
   Category,
   CreditNote,
@@ -43,6 +45,8 @@ import type {
   OrderStatusHistoryEntry,
   PaymentStatus,
   Product,
+  ProductVariant,
+  RedirectRecord,
   StockIntegrityDiscrepancy,
   StockMovement,
   StoreMessageTemplates,
@@ -72,19 +76,63 @@ function formatIsoDateLabel(isoDate: string): string {
 }
 
 // ─── PUBLIC (storefront) ──────────────────────────────────
+// Explicitly exclude cost_price on all public selects (reinforced by Postgres column grants).
+
+export const PUBLIC_PRODUCT_SELECT: string =
+  "id, title, slug, description, category, category_id, price, compare_at_price, stock_quantity, material, finish, size_label, water_resistance, warranty, ingredients, net_weight, expiry_info, in_the_box, care, images, image_alts, blur_data_url, is_featured, featured_order, is_new_in, new_in_order, active, status, created_at";
+
+export const OWNER_PRODUCT_SELECT: string =
+  "id, title, slug, description, category, category_id, price, compare_at_price, cost_price, stock_quantity, material, finish, size_label, water_resistance, warranty, ingredients, net_weight, expiry_info, in_the_box, care, images, image_alts, blur_data_url, is_featured, featured_order, is_new_in, new_in_order, active, status, created_at";
+
+export const PUBLIC_VARIANT_SELECT: string =
+  "id, product_id, name, option_values, sku, price_override, compare_at_price, stock_quantity, image_url, image_alt, sort_order, active, created_at, updated_at";
+
+export const OWNER_VARIANT_SELECT: string =
+  "id, product_id, name, option_values, sku, price_override, compare_at_price, cost_price, stock_quantity, image_url, image_alt, sort_order, active, created_at, updated_at";
+
+async function attachPublicVariants(products: Product[]): Promise<Product[]> {
+  if (products.length === 0) return products;
+  const supabase = createPublicServerSupabaseClient();
+  const productIds = products.map(product => product.id);
+  const { data: variantRows, error } = await supabase
+    .from("product_variants")
+    .select(PUBLIC_VARIANT_SELECT)
+    .in("product_id", productIds)
+    .eq("active", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    logger.warn("Unable to attach product variants", { error: error.message });
+    return products;
+  }
+
+  const byProductId = new Map<string, ProductVariant[]>();
+  for (const variant of (variantRows ?? []) as unknown as ProductVariant[]) {
+    const list = byProductId.get(variant.product_id) ?? [];
+    list.push(variant);
+    byProductId.set(variant.product_id, list);
+  }
+
+  return products.map(product => ({
+    ...product,
+    variants: byProductId.get(product.id) ?? []
+  }));
+}
 
 async function fetchPublicProductsUncached(): Promise<Product[]> {
   const supabase = createPublicServerSupabaseClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*")
+    .select(PUBLIC_PRODUCT_SELECT)
+    .eq("status", "active")
     .eq("active", true)
     .order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
-  return (data ?? []) as Product[];
+  return attachPublicVariants((data ?? []) as unknown as Product[]);
 }
 
 const getCachedPublicProducts = unstable_cache(
@@ -114,7 +162,7 @@ export async function listPublicProducts(): Promise<Product[]> {
 
 /**
  * Lightweight catalog projection for layout-level client providers (search, wishlist, recently viewed).
- * Reduces RSC hydration payload size while keeping the Product shape compatible.
+ * Reduces RSC hydration payload size while keeping the Product shape compatible and excluding cost_price.
  */
 export async function listPublicProductIndex(): Promise<Product[]> {
   const products = await listPublicProducts();
@@ -126,12 +174,19 @@ export async function listPublicProductIndex(): Promise<Product[]> {
     category: product.category,
     category_id: product.category_id,
     price: product.price,
+    compare_at_price: product.compare_at_price ?? null,
     stock_quantity: product.stock_quantity,
     material: product.material,
     images: product.images.slice(0, 2),
+    image_alts: (product.image_alts ?? []).slice(0, 2),
     is_featured: product.is_featured,
+    featured_order: product.featured_order ?? 0,
+    is_new_in: product.is_new_in ?? false,
+    new_in_order: product.new_in_order ?? 0,
     active: product.active,
+    status: product.status ?? "active",
     blur_data_url: product.blur_data_url ?? null,
+    variants: product.variants ?? [],
     created_at: product.created_at
   }));
 }
@@ -140,16 +195,18 @@ async function fetchFeaturedProductsUncached(limit: number): Promise<Product[]> 
   const supabase = createPublicServerSupabaseClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*")
+    .select(PUBLIC_PRODUCT_SELECT)
     .eq("is_featured", true)
+    .eq("status", "active")
     .eq("active", true)
+    .order("featured_order", { ascending: true })
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) {
     throw new Error(error.message);
   }
-  return (data ?? []) as Product[];
+  return attachPublicVariants((data ?? []) as unknown as Product[]);
 }
 
 export async function listFeaturedProducts(limit = 6): Promise<Product[]> {
@@ -178,6 +235,7 @@ async function fetchProductsByCategoryUncached(categorySlug: string): Promise<Pr
     .from("categories")
     .select("id")
     .eq("slug", categorySlug)
+    .eq("active", true)
     .maybeSingle();
 
   if (catError) {
@@ -189,8 +247,9 @@ async function fetchProductsByCategoryUncached(categorySlug: string): Promise<Pr
   const categoryId = (cat as { id: string }).id;
   const { data, error } = await supabase
     .from("products")
-    .select("*")
+    .select(PUBLIC_PRODUCT_SELECT)
     .eq("category_id", categoryId)
+    .eq("status", "active")
     .eq("active", true)
     .order("created_at", { ascending: false });
 
@@ -198,7 +257,7 @@ async function fetchProductsByCategoryUncached(categorySlug: string): Promise<Pr
     throw new Error(error.message);
   }
 
-  return (data ?? []) as Product[];
+  return attachPublicVariants((data ?? []) as unknown as Product[]);
 }
 
 export async function listProductsByCategory(categorySlug: string): Promise<Product[]> {
@@ -222,8 +281,9 @@ async function fetchProductBySlugUncached(slug: string): Promise<Product | null>
   const supabase = createPublicServerSupabaseClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*")
+    .select(PUBLIC_PRODUCT_SELECT)
     .eq("slug", slug)
+    .eq("status", "active")
     .eq("active", true)
     .maybeSingle();
 
@@ -231,7 +291,9 @@ async function fetchProductBySlugUncached(slug: string): Promise<Product | null>
     throw new Error(error.message);
   }
   if (data) {
-    return data as Product;
+    const typed = data as unknown as Product;
+    const [enriched] = await attachPublicVariants([typed]);
+    return enriched ?? typed;
   }
 
   // Legacy UUID fallback when old links use product ID instead of slug
@@ -243,15 +305,19 @@ async function fetchProductBySlugUncached(slug: string): Promise<Product | null>
 
   const { data: legacyData, error: legacyError } = await supabase
     .from("products")
-    .select("*")
+    .select(PUBLIC_PRODUCT_SELECT)
     .eq("id", slug)
+    .eq("status", "active")
     .eq("active", true)
     .maybeSingle();
 
   if (legacyError) {
     throw new Error(legacyError.message);
   }
-  return (legacyData as Product | null) ?? null;
+  if (!legacyData) return null;
+  const typedLegacy = legacyData as unknown as Product;
+  const [enriched] = await attachPublicVariants([typedLegacy]);
+  return enriched ?? typedLegacy;
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
@@ -271,11 +337,32 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   }
 }
 
+export async function getActiveRedirect(pathname: string): Promise<RedirectRecord | null> {
+  if (!hasPublicSupabaseEnv()) return null;
+  const normalized = pathname.trim().replace(/\/+$/, "").toLowerCase();
+  if (!normalized) return null;
+  try {
+    const supabase = createPublicServerSupabaseClient();
+    const { data, error } = await supabase
+      .from("redirects")
+      .select("id, from_path, to_path, status_code, entity_type, entity_id, active, created_at, updated_at")
+      .ilike("from_path", normalized)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return data as RedirectRecord;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchCategoriesUncached(): Promise<Category[]> {
   const supabase = createPublicServerSupabaseClient();
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+    .select("id, name, slug, parent_id, description, image_url, display_order, active, created_at")
+    .eq("active", true)
     .order("display_order", { ascending: true })
     .order("name", { ascending: true });
 
@@ -578,14 +665,17 @@ export async function listAdminDashboardData() {
     { data: categories, error: categoriesError },
     { data: returns, error: returnsError }
   ] = await Promise.all([
-    supabase.from("products").select("*").order("created_at", { ascending: false }),
+    supabase
+      .from("products")
+      .select(PUBLIC_PRODUCT_SELECT)
+      .order("created_at", { ascending: false }),
     supabase
       .from("orders")
       .select(ADMIN_ORDER_SELECT)
       .order("created_at", { ascending: false }),
     supabase
       .from("categories")
-      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+      .select("id, name, slug, parent_id, description, image_url, display_order, active, created_at")
       .order("display_order", { ascending: true }),
     supabase
       .from("order_returns")
@@ -603,7 +693,7 @@ export async function listAdminDashboardData() {
   }
 
   return {
-    products: (products ?? []) as Product[],
+    products: (products ?? []) as unknown as Product[],
     orders: (orders ?? []) as Order[],
     categories: (categories ?? []) as Category[],
     returns: (returns ?? []) as OrderReturnRecord[]
@@ -624,7 +714,7 @@ export async function getOrderWithItems(
         .maybeSingle(),
       supabase
         .from("order_items")
-        .select("id, order_id, product_id, product_title, quantity, unit_price, created_at")
+        .select("id, order_id, product_id, variant_id, variant_name, variant_sku, product_title, quantity, unit_price, created_at")
         .eq("order_id", orderId)
         .order("created_at", { ascending: true })
     ]);
@@ -661,7 +751,7 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
       .maybeSingle(),
     supabase
       .from("order_items")
-      .select("id, order_id, product_id, product_title, quantity, unit_price, created_at")
+      .select("id, order_id, product_id, variant_id, variant_name, variant_sku, product_title, quantity, unit_price, created_at")
       .eq("order_id", orderId)
       .order("created_at", { ascending: true }),
     supabase
@@ -855,7 +945,22 @@ export async function listProductStockMovements(productId: string): Promise<{
   }));
 
   const typedProduct = product as Pick<Product, "id" | "title" | "stock_quantity">;
-  const ledgerSum = enriched.reduce((sum, movement) => sum + Number(movement.change ?? 0), 0);
+  const { data: variantRows } = await supabase
+    .from("product_variants")
+    .select("id, active")
+    .eq("product_id", productId);
+  const typedVariants = (variantRows ?? []) as Array<{ id: string; active: boolean }>;
+  const hasVariants = typedVariants.length > 0;
+  const activeVariantIds = new Set(
+    typedVariants.filter(v => v.active).map(v => v.id)
+  );
+  const ledgerSum = hasVariants
+    ? enriched
+        .filter(movement => movement.variant_id && activeVariantIds.has(movement.variant_id))
+        .reduce((sum, movement) => sum + Number(movement.change ?? 0), 0)
+    : enriched
+        .filter(movement => !movement.variant_id)
+        .reduce((sum, movement) => sum + Number(movement.change ?? 0), 0);
 
   return {
     product: typedProduct,
@@ -1390,4 +1495,116 @@ export async function getCustomerDetailBundle(
 
 export async function listOptedInCustomers(): Promise<Customer[]> {
   return listAdminCustomers({ filter: "opted_in" });
+}
+
+// ─── PRODUCT VARIANTS & BACK-IN-STOCK ALERTS (Phase 8) ───
+
+export async function listProductVariantsAdmin(
+  productId: string,
+  options: { includeCostPrice: boolean }
+): Promise<ProductVariant[]> {
+  const supabase = createAdminSupabaseClient();
+  const { data, error } = await supabase
+    .from("product_variants")
+    .select(options.includeCostPrice ? OWNER_VARIANT_SELECT : PUBLIC_VARIANT_SELECT)
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as ProductVariant[];
+}
+
+export async function listBackInStockAlerts(params?: {
+  productId?: string;
+  status?: BackInStockAlertStatus | "all";
+  restockedOnly?: boolean;
+}): Promise<BackInStockAlert[]> {
+  const supabase = createAdminSupabaseClient();
+  let query = supabase
+    .from("back_in_stock_alerts")
+    .select("id, product_id, variant_id, phone, customer_name, status, notified_at, notified_by, created_at")
+    .order("created_at", { ascending: false });
+
+  if (params?.productId) {
+    query = query.eq("product_id", params.productId);
+  }
+  if (params?.status && params.status !== "all") {
+    query = query.eq("status", params.status);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const rawAlerts = (data ?? []) as BackInStockAlert[];
+  if (rawAlerts.length === 0) return [];
+
+  const productIds = Array.from(new Set(rawAlerts.map(a => a.product_id)));
+  const variantIds = Array.from(
+    new Set(
+      rawAlerts
+        .map(a => a.variant_id)
+        .filter((v): v is string => Boolean(v))
+    )
+  );
+
+  const [{ data: productRows }, { data: variantRows }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, title, slug, price, stock_quantity")
+      .in("id", productIds),
+    variantIds.length > 0
+      ? supabase
+          .from("product_variants")
+          .select("id, name, sku, price_override, stock_quantity")
+          .in("id", variantIds)
+      : Promise.resolve({ data: [] as unknown[] })
+  ]);
+
+  const productMap = new Map(
+    ((productRows ?? []) as Array<{
+      id: string;
+      title: string;
+      slug: string | null;
+      price: string;
+      stock_quantity: number;
+    }>).map(p => [p.id, p])
+  );
+
+  const variantMap = new Map(
+    ((variantRows ?? []) as Array<{
+      id: string;
+      name: string;
+      sku: string;
+      price_override: string | null;
+      stock_quantity: number;
+    }>).map(v => [v.id, v])
+  );
+
+  const enriched = rawAlerts.map(alert => {
+    const product = productMap.get(alert.product_id);
+    const variant = alert.variant_id ? variantMap.get(alert.variant_id) : undefined;
+    return {
+      ...alert,
+      product_title: product?.title ?? "Product",
+      product_slug: product?.slug ?? null,
+      product_price: variant?.price_override ?? product?.price ?? undefined,
+      product_stock: product?.stock_quantity ?? 0,
+      variant_name: variant?.name ?? null,
+      variant_sku: variant?.sku ?? null,
+      variant_stock: variant ? variant.stock_quantity : null
+    };
+  });
+
+  if (params?.restockedOnly) {
+    return enriched.filter(alert => {
+      const available =
+        alert.variant_id != null
+          ? (alert.variant_stock ?? 0)
+          : (alert.product_stock ?? 0);
+      return alert.status === "waiting" && available > 0;
+    });
+  }
+
+  return enriched;
 }

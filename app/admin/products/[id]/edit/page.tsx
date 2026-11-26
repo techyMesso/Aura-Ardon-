@@ -2,12 +2,28 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { BackInStockPanel } from "@/components/admin/back-in-stock-panel";
 import { ProductForm } from "@/components/admin/product-form";
 import { ProductStockLedger } from "@/components/admin/product-stock-ledger";
-import { listProductStockMovements } from "@/lib/data";
+import { ProductVariantsManager } from "@/components/admin/product-variants-manager";
+import { isOwnerUser, requireAdminPage } from "@/lib/auth";
+import {
+  getStoreSettings,
+  listBackInStockAlerts,
+  listProductStockMovements,
+  listProductVariantsAdmin,
+  OWNER_PRODUCT_SELECT,
+  PUBLIC_PRODUCT_SELECT
+} from "@/lib/data";
 import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import type { Category, Product, StockMovement } from "@/lib/types";
+import type {
+  BackInStockAlert,
+  Category,
+  Product,
+  ProductVariant,
+  StockMovement
+} from "@/lib/types";
 
 export const metadata = {
   title: "Edit Product",
@@ -19,30 +35,48 @@ export default async function EditProductPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await requireAdminPage();
+  const canManageCostPrice = isOwnerUser(user);
   const { id } = await params;
+
   let product: Product | null = null;
   let categories: Category[] = [];
+  let initialVariants: ProductVariant[] = [];
   let initialMovements: StockMovement[] = [];
   let initialLedgerSum = 0;
+  let waitingAlerts: BackInStockAlert[] = [];
+  const storeSettings = await getStoreSettings();
 
   try {
     const supabase = createAdminSupabaseClient();
+    const productColumns = canManageCostPrice
+      ? OWNER_PRODUCT_SELECT
+      : PUBLIC_PRODUCT_SELECT;
+
     const [
       { data: productData, error: productError },
       { data: categoryData, error: categoryError },
-      stockLedger
+      variants,
+      stockLedger,
+      alerts
     ] = await Promise.all([
-      supabase.from("products").select("*").eq("id", id).single(),
+      supabase.from("products").select(productColumns).eq("id", id).single(),
       supabase
         .from("categories")
-        .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+        .select("id, name, slug, parent_id, description, image_url, display_order, active, created_at")
         .order("display_order", { ascending: true })
         .order("name", { ascending: true }),
-      listProductStockMovements(id).catch(() => null)
+      listProductVariantsAdmin(id, { includeCostPrice: canManageCostPrice }).catch(() => []),
+      listProductStockMovements(id).catch(() => null),
+      listBackInStockAlerts({ productId: id, status: "waiting" }).catch(() => [])
     ]);
-    if (!productError && productData) product = productData as Product;
+
+    if (!productError && productData) product = productData as unknown as Product;
     if (categoryError) throw new Error(categoryError.message);
-    categories = categoryData ?? [];
+    categories = (categoryData ?? []) as Category[];
+    initialVariants = variants;
+    waitingAlerts = alerts;
+
     if (stockLedger) {
       initialMovements = stockLedger.movements;
       initialLedgerSum = stockLedger.ledgerSum;
@@ -72,15 +106,34 @@ export default async function EditProductPage({
         <p className="text-sm font-medium text-brass">Inventory</p>
         <h2 className="font-serif text-3xl text-text">Edit product</h2>
         <p className="mt-2 text-sm text-muted">
-          Update details, images, and visibility. Use the Stock Ledger below for audited stock changes.
+          Update details, status, variants, images, and visibility. Stock changes always go through the ledger.
         </p>
       </div>
-      <ProductForm initialProduct={product} categories={categories} />
+
+      <ProductForm
+        initialProduct={product}
+        categories={categories}
+        canManageCostPrice={canManageCostPrice}
+      />
+
+      <ProductVariantsManager
+        productId={product.id}
+        basePrice={product.price}
+        initialVariants={initialVariants}
+        canManageCostPrice={canManageCostPrice}
+      />
+
+      <BackInStockPanel
+        initialAlerts={waitingAlerts}
+        storeSettings={storeSettings}
+      />
+
       <ProductStockLedger
         productId={product.id}
         initialStock={product.stock_quantity}
         initialLedgerSum={initialLedgerSum}
         initialMovements={initialMovements}
+        hasVariants={initialVariants.length > 0}
       />
     </section>
   );

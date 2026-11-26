@@ -11,7 +11,13 @@ import {
   PriceKES
 } from "@/components/storefront/price-kes";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
-import { useCart, useCartValue } from "@/lib/cart";
+import {
+  getCartItemKey,
+  getCartItemMaxStock,
+  getCartItemUnitPrice,
+  useCart,
+  useCartValue
+} from "@/lib/cart";
 import {
   formatProductTitle,
   getSafeCatalogImageUrl,
@@ -134,16 +140,20 @@ export function CartDrawer() {
               const displayTitle = formatProductTitle(item.product.title);
               const productPath = productHref(item.product);
               const image =
+                getSafeCatalogImageUrl(item.variant?.image_url) ||
                 getSafeCatalogImageUrl(item.product.images[0]) ||
                 "/hero-jewelry.png";
-              const atLimit = item.quantity >= item.product.stock_quantity;
+              const unitPrice = getCartItemUnitPrice(item);
+              const maxStock = getCartItemMaxStock(item);
+              const atLimit = item.quantity >= maxStock;
+              const itemKey = getCartItemKey(item.product.id, item.variant?.id);
 
               return (
-                <li key={item.product.id} className="flex gap-3 py-4 first:pt-0">
+                <li key={itemKey} className="flex gap-3 py-4 first:pt-0">
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-none bg-paper">
                     <Image
                       src={image}
-                      alt={displayTitle}
+                      alt={item.variant?.image_alt || displayTitle}
                       fill
                       placeholder="blur"
                       blurDataURL={
@@ -157,16 +167,23 @@ export function CartDrawer() {
 
                   <div className="flex min-w-0 flex-1 flex-col justify-between">
                     <div className="flex items-start justify-between gap-2">
-                      <Link
-                        href={productPath}
-                        onClick={closeCart}
-                        className="truncate font-sans text-[14px] text-text hover:text-brass"
-                      >
-                        {displayTitle}
-                      </Link>
+                      <div className="min-w-0">
+                        <Link
+                          href={productPath}
+                          onClick={closeCart}
+                          className="block truncate font-sans text-[14px] text-text hover:text-brass"
+                        >
+                          {displayTitle}
+                        </Link>
+                        {item.variant ? (
+                          <p className="truncate font-sans text-[12px] text-muted">
+                            {item.variant.name}
+                          </p>
+                        ) : null}
+                      </div>
                       <button
                         type="button"
-                        onClick={() => removeItem(item.product.id)}
+                        onClick={() => removeItem(item.product.id, item.variant?.id)}
                         aria-label={`Remove ${displayTitle}`}
                         className="text-muted hover:text-text"
                       >
@@ -174,14 +191,18 @@ export function CartDrawer() {
                       </button>
                     </div>
 
-                    <PriceKES amount={item.product.price} />
+                    <PriceKES amount={unitPrice} />
 
                     <div className="mt-2 flex items-center justify-between">
                       <div className="inline-flex items-center rounded-[2px] border border-text/20">
                         <button
                           type="button"
                           onClick={() =>
-                            updateQuantity(item.product.id, item.quantity - 1)
+                            updateQuantity(
+                              item.product.id,
+                              item.quantity - 1,
+                              item.variant?.id
+                            )
                           }
                           aria-label={`Decrease quantity of ${displayTitle}`}
                           className="flex h-8 w-8 items-center justify-center text-text hover:text-brass"
@@ -197,7 +218,11 @@ export function CartDrawer() {
                         <button
                           type="button"
                           onClick={() =>
-                            updateQuantity(item.product.id, item.quantity + 1)
+                            updateQuantity(
+                              item.product.id,
+                              item.quantity + 1,
+                              item.variant?.id
+                            )
                           }
                           disabled={atLimit}
                           aria-label={`Increase quantity of ${displayTitle}`}
@@ -207,9 +232,7 @@ export function CartDrawer() {
                         </button>
                       </div>
 
-                      <PriceKES
-                        amount={Number(item.product.price) * item.quantity}
-                      />
+                      <PriceKES amount={unitPrice * item.quantity} />
                     </div>
                   </div>
                 </li>

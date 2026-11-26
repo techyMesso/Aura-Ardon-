@@ -35,7 +35,8 @@ const categoryUpdateSchema = z.object({
   description: nullableOptionalString(500),
   image_url: nullableOptionalUrl,
   parent_id: nullableOptionalUuid,
-  display_order: z.coerce.number().int().min(0).optional()
+  display_order: z.coerce.number().int().min(0).optional(),
+  active: z.boolean().optional()
 });
 
 export async function GET(
@@ -48,7 +49,7 @@ export async function GET(
     const supabase = createAdminSupabaseClient();
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+      .select("id, name, slug, parent_id, description, image_url, display_order, active, created_at")
       .eq("id", id)
       .maybeSingle();
 
@@ -102,12 +103,13 @@ export async function PATCH(
     if (payload.image_url !== undefined) updates.image_url = payload.image_url;
     if (payload.parent_id !== undefined) updates.parent_id = payload.parent_id;
     if (payload.display_order !== undefined) updates.display_order = payload.display_order;
+    if (payload.active !== undefined) updates.active = payload.active;
 
     const { data, error } = await supabase
       .from("categories")
       .update(updates as never)
       .eq("id", id)
-      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+      .select("id, name, slug, parent_id, description, image_url, display_order, active, created_at")
       .maybeSingle();
 
     if (error) {

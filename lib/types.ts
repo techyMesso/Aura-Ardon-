@@ -24,13 +24,31 @@ export interface Category {
   description: string | null;
   image_url: string | null;
   display_order: number;
+  active?: boolean;
   created_at: string;
 }
 
-// ─── Product ─────────────────────────────────────────────
-// Fields: id, title, slug, description, category, category_id, price,
-//         stock_quantity, material, finish, size_label, in_the_box, care,
-//         images, is_featured, active, created_at
+// ─── Product & Variants ──────────────────────────────────
+
+export type ProductStatus = "draft" | "active" | "archived";
+
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  name: string;
+  option_values: Record<string, string>;
+  sku: string;
+  price_override: string | null;
+  compare_at_price?: string | null;
+  cost_price?: string | null; // Owner-only; never exposed on storefront or to staff
+  stock_quantity: number;
+  image_url: string | null;
+  image_alt: string | null;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Product {
   id: string;
@@ -41,6 +59,7 @@ export interface Product {
   category_id: string | null;
   price: string;
   compare_at_price?: string | null;
+  cost_price?: string | null; // Owner-only; never exposed on storefront or to staff
   stock_quantity: number;  // DB column: stock_quantity
   material: string | null;
   finish?: string | null;
@@ -53,16 +72,56 @@ export interface Product {
   in_the_box?: string | null;
   care?: string | null;
   images: string[];
+  image_alts?: string[];
   is_featured: boolean;   // DB column: is_featured
-  active: boolean;        // NEW: active/inactive toggle
+  featured_order?: number;
+  is_new_in?: boolean;
+  new_in_order?: number;
+  active: boolean;        // Synced with status === 'active'
+  status?: ProductStatus;
   blur_data_url?: string | null;
+  variants?: ProductVariant[];
   created_at: string;
+}
+
+export interface RedirectRecord {
+  id: string;
+  from_path: string;
+  to_path: string;
+  status_code: number;
+  entity_type: "product" | "category" | "custom";
+  entity_id: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type BackInStockAlertStatus = "waiting" | "notified" | "cancelled";
+
+export interface BackInStockAlert {
+  id: string;
+  product_id: string;
+  variant_id: string | null;
+  phone: string;
+  customer_name: string | null;
+  status: BackInStockAlertStatus;
+  notified_at: string | null;
+  notified_by: string | null;
+  created_at: string;
+  product_title?: string;
+  product_slug?: string | null;
+  product_price?: string;
+  product_stock?: number;
+  variant_name?: string | null;
+  variant_sku?: string | null;
+  variant_stock?: number | null;
 }
 
 // ─── Cart ────────────────────────────────────────────────
 
 export interface CartItem {
   product: Product;
+  variant?: ProductVariant | null;
   quantity: number;
 }
 
@@ -408,6 +467,9 @@ export interface OrderItem {
   id: string;
   order_id: string;
   product_id: string | null;
+  variant_id?: string | null;
+  variant_name?: string | null;
+  variant_sku?: string | null;
   product_title: string;
   quantity: number;
   unit_price: string;

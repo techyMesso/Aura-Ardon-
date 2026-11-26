@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { ProductForm } from "@/components/admin/product-form";
+import { isOwnerUser, requireAdminPage } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import type { Category } from "@/lib/types";
@@ -12,16 +13,19 @@ export const metadata = {
 };
 
 export default async function NewProductPage() {
+  const user = await requireAdminPage();
+  const canManageCostPrice = isOwnerUser(user);
+
   let categories: Category[] = [];
   try {
     const supabase = createAdminSupabaseClient();
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
+      .select("id, name, slug, parent_id, description, image_url, display_order, active, created_at")
       .order("display_order", { ascending: true })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
-    categories = data ?? [];
+    categories = (data ?? []) as Category[];
   } catch (error) {
     logger.error("Failed to fetch product form categories", {
       error: error instanceof Error ? error.message : String(error)
@@ -42,10 +46,13 @@ export default async function NewProductPage() {
         <p className="text-sm font-medium text-brass">Inventory</p>
         <h2 className="font-serif text-2xl text-text sm:text-3xl">Add new product</h2>
         <p className="mt-1 text-sm text-muted sm:mt-2">
-          Fill in the details, upload images, and publish your listing.
+          Fill in the details, upload WebP images with alt text, and choose status &amp; homepage placement.
         </p>
       </div>
-      <ProductForm categories={categories} />
+      <ProductForm
+        categories={categories}
+        canManageCostPrice={canManageCostPrice}
+      />
     </section>
   );
 }

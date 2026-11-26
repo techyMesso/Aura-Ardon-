@@ -17,6 +17,7 @@ const validateDiscountSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid("Invalid product ID."),
+        variantId: z.string().uuid("Invalid variant ID.").nullable().optional(),
         quantity: z.number().int().positive("Invalid quantity.")
       })
     )
@@ -78,16 +79,35 @@ export async function POST(request: Request) {
       );
     }
 
-    // Re-fetch authoritative product prices from DB (never trust browser prices)
+    // Re-fetch authoritative product & variant prices from DB (never trust browser prices)
     const supabase = createAdminSupabaseClient();
     const productIds = Array.from(new Set(payload.items.map(item => item.productId)));
-    const { data: products, error: productsError } = await supabase
-      .from("products")
-      .select("id, price, active")
-      .in("id", productIds);
+    const variantIds = Array.from(
+      new Set(
+        payload.items
+          .map(item => item.variantId)
+          .filter((value): value is string => Boolean(value))
+      )
+    );
+
+    const [{ data: products, error: productsError }, variantsResp] = await Promise.all([
+      supabase
+        .from("products")
+        .select("id, price, active, status")
+        .in("id", productIds),
+      variantIds.length > 0
+        ? supabase
+            .from("product_variants")
+            .select("id, product_id, price_override, active")
+            .in("id", variantIds)
+        : Promise.resolve({ data: [] as unknown[], error: null })
+    ]);
 
     if (productsError) {
       throw new Error(productsError.message);
+    }
+    if (variantsResp.error) {
+      throw new Error(variantsResp.error.message);
     }
 
     const priceById = new Map<string, number>();
@@ -95,20 +115,47 @@ export async function POST(request: Request) {
       id: string;
       price: string | number;
       active: boolean;
+      status?: string | null;
     }>) {
-      if (row.active) {
+      if (row.active && (row.status === undefined || row.status === null || row.status === "active")) {
         priceById.set(row.id, Number(row.price));
       }
     }
 
+    const variantById = new Map<
+      string,
+      { product_id: string; price_override: string | number | null; active: boolean }
+    >();
+    for (const row of (variantsResp.data ?? []) as Array<{
+      id: string;
+      product_id: string;
+      price_override: string | number | null;
+      active: boolean;
+    }>) {
+      variantById.set(row.id, row);
+    }
+
     let subtotal = 0;
     for (const item of payload.items) {
-      const unitPrice = priceById.get(item.productId);
-      if (unitPrice === undefined) {
+      const basePrice = priceById.get(item.productId);
+      if (basePrice === undefined) {
         return NextResponse.json(
           { error: "One or more items in your bag are no longer available." },
           { status: 400 }
         );
+      }
+      let unitPrice = basePrice;
+      if (item.variantId) {
+        const variant = variantById.get(item.variantId);
+        if (!variant || !variant.active || variant.product_id !== item.productId) {
+          return NextResponse.json(
+            { error: "One or more selected options are no longer available." },
+            { status: 400 }
+          );
+        }
+        if (variant.price_override != null) {
+          unitPrice = Number(variant.price_override);
+        }
       }
       subtotal += unitPrice * item.quantity;
     }

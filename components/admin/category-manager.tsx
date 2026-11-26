@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Power, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toCatalogSlug } from "@/lib/catalog";
+import { compressImageToWebp } from "@/lib/image-processing";
 import type { Category } from "@/lib/types";
 
 interface CategoryManagerProps {
@@ -31,10 +32,12 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
     description: "",
     image_url: "",
     parent_id: "",
-    display_order: 0
+    display_order: 0,
+    active: true
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [reordering, setReordering] = useState(false);
 
   function startEdit(cat: Category) {
@@ -46,7 +49,8 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
       description: cat.description || "",
       image_url: cat.image_url || "",
       parent_id: cat.parent_id || "",
-      display_order: cat.display_order
+      display_order: cat.display_order,
+      active: cat.active !== false
     });
   }
 
@@ -58,9 +62,33 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
       description: "",
       image_url: "",
       parent_id: "",
-      display_order: categories.length
+      display_order: categories.length,
+      active: true
     });
     setError(null);
+  }
+
+  async function uploadCoverImage(file: File) {
+    setUploadingImage(true);
+    setError(null);
+    try {
+      const compressed = await compressImageToWebp(file, 2000, 0.85);
+      const formData = new FormData();
+      formData.append("files", compressed.file);
+      const res = await fetch("/api/admin/storage/upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = (await res.json()) as { urls?: string[]; error?: string };
+      if (!res.ok || !data.urls?.[0]) {
+        throw new Error(data.error ?? "Upload failed.");
+      }
+      setForm(current => ({ ...current, image_url: data.urls![0] }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploadingImage(false);
+    }
   }
 
   async function saveCategory(e: React.FormEvent) {
@@ -78,7 +106,8 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
         parent_id: form.parent_id.trim() || null,
         display_order: Number.isFinite(Number(form.display_order))
           ? Math.max(0, Math.floor(Number(form.display_order)))
-          : 0
+          : 0,
+        active: form.active
       };
       const res = editingId
         ? await fetch(`/api/admin/categories/${editingId}`, {
@@ -110,6 +139,25 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
     }
   }
 
+  async function toggleCategoryActive(cat: Category) {
+    const nextActive = cat.active === false;
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/categories/${cat.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: nextActive })
+      });
+      const data = (await res.json()) as Category & { error?: string };
+      if (!res.ok) throw new Error(data.error || "Unable to update category.");
+      setCategories(current =>
+        current.map(item => (item.id === cat.id ? data : item))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update category.");
+    }
+  }
+
   async function deleteCategory(id: string) {
     if (!confirm("Delete this category? Products in it will become uncategorized.")) return;
     setError(null);
@@ -135,7 +183,6 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
     const [moved] = reordered.splice(idx, 1);
     reordered.splice(targetIdx, 0, moved);
 
-    // Assign deterministic sequential display_order values so ties never cause no-ops.
     const updates = reordered
       .map((cat, order) => ({ cat, order }))
       .filter(({ cat, order }) => cat.display_order !== order);
@@ -199,26 +246,46 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                 value={form.slug}
                 onChange={e => setForm({ ...form, slug: e.target.value })}
               />
+              <span className="block text-xs text-muted">
+                Changing a slug automatically adds a 301 redirect from the old /shop/ URL.
+              </span>
             </label>
           </div>
           <label className="block space-y-1.5 text-sm">
-            <span className="text-text">Description (optional)</span>
+            <span className="text-text">SEO Description (optional)</span>
             <Textarea
-              placeholder="Short collection summary shown on category pages"
+              placeholder="Shown directly on the /shop/[category] collection header and Google meta description"
               value={form.description}
               onChange={e => setForm({ ...form, description: e.target.value })}
             />
           </label>
-          <label className="block space-y-1.5 text-sm">
-            <span className="text-text">Cover image URL (optional)</span>
-            <Input
-              type="url"
-              placeholder="https://...supabase.co/storage/v1/object/public/product-images/..."
-              value={form.image_url}
-              onChange={e => setForm({ ...form, image_url: e.target.value })}
-            />
-          </label>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="block space-y-1.5 text-sm">
+            <span className="text-text">Cover image (optional)</span>
+            <div className="flex gap-2">
+              <Input
+                type="url"
+                placeholder="https://...supabase.co/storage/v1/object/public/product-images/..."
+                value={form.image_url}
+                onChange={e => setForm({ ...form, image_url: e.target.value })}
+              />
+              <label className="btn-outline shrink-0 cursor-pointer px-3 text-xs">
+                <Upload className="h-3.5 w-3.5" aria-hidden />
+                {uploadingImage ? "Uploading..." : "Upload WebP"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadCoverImage(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
             <label className="block space-y-1.5 text-sm">
               <span className="text-text">Parent category (optional)</span>
               <select
@@ -235,7 +302,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
               </select>
             </label>
             <label className="block space-y-1.5 text-sm">
-              <span className="text-text">Display order</span>
+              <span className="text-text">Sort order</span>
               <Input
                 type="number"
                 min={0}
@@ -246,6 +313,17 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                 required
               />
             </label>
+            <div className="flex items-end pb-2">
+              <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm text-text">
+                <input
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={e => setForm({ ...form, active: e.target.checked })}
+                  className="h-4 w-4 accent-brass"
+                />
+                <span>Active (visible on storefront)</span>
+              </label>
+            </div>
           </div>
           {error ? (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -275,58 +353,80 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
       </div>
 
       <div className="space-y-3 md:hidden">
-        {categories.map((cat, index) => (
-          <article key={cat.id} className="border border-border bg-paper p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-medium text-text">{cat.name}</p>
-                <p className="mt-1 truncate text-sm text-muted">/{cat.slug}</p>
-                {cat.description ? (
-                  <p className="mt-2 text-sm leading-6 text-muted">{cat.description}</p>
-                ) : null}
+        {categories.map((cat, index) => {
+          const isActive = cat.active !== false;
+          return (
+            <article key={cat.id} className="border border-border bg-paper p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-text">{cat.name}</p>
+                  <p className="mt-1 truncate text-sm text-muted">/{cat.slug}</p>
+                  {cat.description ? (
+                    <p className="mt-2 text-sm leading-6 text-muted">{cat.description}</p>
+                  ) : null}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="shrink-0 text-sm text-muted">#{cat.display_order}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      isActive
+                        ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200"
+                        : "bg-stone text-muted"
+                    }`}
+                  >
+                    {isActive ? "Active" : "Hidden"}
+                  </span>
+                </div>
               </div>
-              <span className="shrink-0 text-sm text-muted">#{cat.display_order}</span>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-3">
-              <Button
-                variant="ghost"
-                onClick={() => void moveCategory(cat.id, "up")}
-                disabled={index === 0 || reordering}
-                className="min-h-11 px-3 text-sm"
-                aria-label={`Move ${cat.name} up`}
-              >
-                <ArrowUp className="mr-1 h-4 w-4" aria-hidden />
-                Up
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => void moveCategory(cat.id, "down")}
-                disabled={index === categories.length - 1 || reordering}
-                className="min-h-11 px-3 text-sm"
-                aria-label={`Move ${cat.name} down`}
-              >
-                <ArrowDown className="mr-1 h-4 w-4" aria-hidden />
-                Down
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => startEdit(cat)}
-                className="min-h-11 px-3 text-sm"
-              >
-                <Pencil className="mr-1 h-4 w-4" aria-hidden />
-                Edit
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => void deleteCategory(cat.id)}
-                className="min-h-11 px-3 text-sm"
-              >
-                <Trash2 className="mr-1 h-4 w-4" aria-hidden />
-                Delete
-              </Button>
-            </div>
-          </article>
-        ))}
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => void toggleCategoryActive(cat)}
+                  className="min-h-11 px-3 text-sm"
+                >
+                  <Power className="mr-1 h-4 w-4" aria-hidden />
+                  {isActive ? "Hide" : "Activate"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => void moveCategory(cat.id, "up")}
+                  disabled={index === 0 || reordering}
+                  className="min-h-11 px-3 text-sm"
+                  aria-label={`Move ${cat.name} up`}
+                >
+                  <ArrowUp className="mr-1 h-4 w-4" aria-hidden />
+                  Up
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => void moveCategory(cat.id, "down")}
+                  disabled={index === categories.length - 1 || reordering}
+                  className="min-h-11 px-3 text-sm"
+                  aria-label={`Move ${cat.name} down`}
+                >
+                  <ArrowDown className="mr-1 h-4 w-4" aria-hidden />
+                  Down
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => startEdit(cat)}
+                  className="min-h-11 px-3 text-sm"
+                >
+                  <Pencil className="mr-1 h-4 w-4" aria-hidden />
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => void deleteCategory(cat.id)}
+                  className="min-h-11 px-3 text-sm"
+                >
+                  <Trash2 className="mr-1 h-4 w-4" aria-hidden />
+                  Delete
+                </Button>
+              </div>
+            </article>
+          );
+        })}
         {!categories.length ? (
           <div className="border border-dashed border-border bg-stone/50 p-8 text-center">
             <p className="font-medium text-text">No categories yet</p>
@@ -345,62 +445,80 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                 <th className="px-4 py-3">Order</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Slug</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Description</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-paper">
-              {categories.map((cat, index) => (
-                <tr key={cat.id} className="hover:bg-stone/50">
-                  <td className="px-4 py-4 text-muted">{cat.display_order}</td>
-                  <td className="px-4 py-4 font-medium text-text">{cat.name}</td>
-                  <td className="px-4 py-4 text-muted">{cat.slug}</td>
-                  <td className="max-w-xs truncate px-4 py-4 text-muted">
-                    {cat.description || "-"}
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        onClick={() => void moveCategory(cat.id, "up")}
-                        disabled={index === 0 || reordering}
-                        className="h-9 w-9 p-0"
-                        aria-label={`Move ${cat.name} up`}
+              {categories.map((cat, index) => {
+                const isActive = cat.active !== false;
+                return (
+                  <tr key={cat.id} className="hover:bg-stone/50">
+                    <td className="px-4 py-4 text-muted">{cat.display_order}</td>
+                    <td className="px-4 py-4 font-medium text-text">{cat.name}</td>
+                    <td className="px-4 py-4 text-muted">{cat.slug}</td>
+                    <td className="px-4 py-4">
+                      <button
+                        type="button"
+                        onClick={() => void toggleCategoryActive(cat)}
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200"
+                            : "bg-stone text-muted"
+                        }`}
                       >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => void moveCategory(cat.id, "down")}
-                        disabled={index === categories.length - 1 || reordering}
-                        className="h-9 w-9 p-0"
-                        aria-label={`Move ${cat.name} down`}
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="h-9 w-9 p-0"
-                        onClick={() => startEdit(cat)}
-                        aria-label={`Edit ${cat.name}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        className="h-9 w-9 p-0"
-                        onClick={() => void deleteCategory(cat.id)}
-                        aria-label={`Delete ${cat.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <Power className="mr-1 h-3 w-3" />
+                        {isActive ? "Active" : "Hidden"}
+                      </button>
+                    </td>
+                    <td className="max-w-xs truncate px-4 py-4 text-muted">
+                      {cat.description || "-"}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          onClick={() => void moveCategory(cat.id, "up")}
+                          disabled={index === 0 || reordering}
+                          className="h-9 w-9 p-0"
+                          aria-label={`Move ${cat.name} up`}
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => void moveCategory(cat.id, "down")}
+                          disabled={index === categories.length - 1 || reordering}
+                          className="h-9 w-9 p-0"
+                          aria-label={`Move ${cat.name} down`}
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-9 w-9 p-0"
+                          onClick={() => startEdit(cat)}
+                          aria-label={`Edit ${cat.name}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          className="h-9 w-9 p-0"
+                          onClick={() => void deleteCategory(cat.id)}
+                          aria-label={`Delete ${cat.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {categories.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted">
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted">
                     No categories yet.
                   </td>
                 </tr>

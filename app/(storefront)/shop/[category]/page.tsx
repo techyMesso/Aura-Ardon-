@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { CollectionShell } from "@/components/storefront/collection-shell";
 import { ShopPageClient } from "@/components/storefront/shop-page-client";
-import { listCategories, listProductsByCategory } from "@/lib/data";
+import {
+  getActiveRedirect,
+  listCategories,
+  listProductsByCategory
+} from "@/lib/data";
 import {
   buildBreadcrumbJsonLd,
   buildPageMetadata,
@@ -52,6 +56,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const category = categories.find(record => record.slug === slug);
 
   if (!category) {
+    const redirectMatch = await getActiveRedirect(`/shop/${slug}`);
+    if (redirectMatch) {
+      permanentRedirect(redirectMatch.to_path);
+    }
     notFound();
   }
 

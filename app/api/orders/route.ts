@@ -17,6 +17,7 @@ const ORDER_DB_TIMEOUT_MS = 6000;
 
 const orderItemSchema = z.object({
   productId: z.string().uuid("Invalid product in bag."),
+  variantId: z.string().uuid("Invalid product option in bag.").nullable().optional(),
   quantity: z.number().int().positive("Quantity must be at least 1.")
 });
 
@@ -75,6 +76,7 @@ function getOrderErrorStatus(message: string): number {
     message.includes("delivery zone") ||
     message.includes("Town or county") ||
     message.includes("Invalid quantity") ||
+    message.includes("select an option") ||
     message.includes("empty") ||
     message.includes("Discount code") ||
     message.includes("Minimum order") ||
@@ -218,6 +220,7 @@ export async function POST(request: Request) {
           p_idempotency_key: idempotencyKey,
           p_items: payload.items.map(item => ({
             product_id: item.productId,
+            ...(item.variantId ? { variant_id: item.variantId } : {}),
             quantity: item.quantity
           }))
         } as never)
