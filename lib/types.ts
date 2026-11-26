@@ -184,6 +184,11 @@ export interface Order {
   returned_at?: string | null;
   needs_review?: boolean;
   review_reason?: string | null;
+  rider_id?: string | null;
+  rider_name?: string | null;
+  rider_phone?: string | null;
+  rider_cost?: string | number | null;
+  dispatched_at?: string | null;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   order_status: OrderStatus;
@@ -347,14 +352,30 @@ export interface InvoiceDetailBundle {
   invoice: Invoice;
   payments: InvoicePayment[];
   creditNotes: CreditNote[];
-  order?: Pick<Order, "id" | "order_number" | "status" | "order_status" | "created_at"> | null;
+  order?: Pick<
+    Order,
+    | "id"
+    | "order_number"
+    | "status"
+    | "order_status"
+    | "created_at"
+    | "rider_id"
+    | "rider_name"
+    | "rider_phone"
+  > | null;
 }
 
 export interface RiderCashupSummary {
   receivedBy: string;
+  riderId?: string | null;
+  riderPhone?: string | null;
+  expectedTotal: number;
+  deliveryCount: number;
+  riderCostTotal: number;
   cashTotal: number;
   mpesaTotal: number;
   totalCollected: number;
+  difference: number;
   paymentCount: number;
   mpesaCodes: string[];
 }
@@ -366,6 +387,7 @@ export interface DailyCashupReport {
   difference: number;
   cashTotal: number;
   mpesaTotal: number;
+  totalRiderCost: number;
   expectedInvoiceCount: number;
   paymentCount: number;
   mpesaPayments: Array<{
@@ -458,6 +480,125 @@ export interface CustomerDetailBundle {
   customer: Customer;
   orders: Order[];
   invoices: Invoice[];
+}
+
+// ─── Delivery & Riders (Phase 9) ─────────────────────────
+
+export interface Rider {
+  id: string;
+  name: string;
+  phone: string;
+  active: boolean;
+  default_cost: number;
+  zone_costs: Record<string, number>;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RiderInsert = Omit<Rider, "id" | "created_at" | "updated_at"> & {
+  id?: string;
+};
+
+export type RiderUpdate = Partial<Omit<Rider, "id" | "created_at" | "updated_at">>;
+
+export interface DispatchSheetItemSummary {
+  title: string;
+  variant_name?: string | null;
+  quantity: number;
+}
+
+export interface DispatchSheetRow {
+  orderId: string;
+  orderNumber: string;
+  status: CanonicalOrderStatus;
+  customerName: string;
+  customerPhone: string;
+  deliveryZoneName: string;
+  address: string;
+  townCounty: string | null;
+  items: DispatchSheetItemSummary[];
+  itemsSummary: string;
+  totalUnits: number;
+  orderTotal: number;
+  amountToCollect: number;
+  riderId: string | null;
+  riderName: string;
+  riderPhone: string | null;
+  riderCost: number | null;
+  dispatchedAt: string | null;
+  notes: string | null;
+  isGift: boolean;
+  hidePrices: boolean;
+}
+
+export interface DispatchSheetRiderGroup {
+  riderKey: string;
+  riderId: string | null;
+  riderName: string;
+  riderPhone: string | null;
+  orderCount: number;
+  totalToCollect: number;
+  totalRiderCost: number;
+  rows: DispatchSheetRow[];
+}
+
+export interface DispatchSheetReport {
+  date: string;
+  totalOrders: number;
+  totalAmountToCollect: number;
+  totalRiderCost: number;
+  rows: DispatchSheetRow[];
+  byRider: DispatchSheetRiderGroup[];
+}
+
+export interface DeliveryMarginZoneRow {
+  zoneName: string;
+  orderCount: number;
+  feesCharged: number;
+  riderCosts: number;
+  margin: number;
+  marginPercent: number | null;
+}
+
+export interface DeliveryMarginRiderRow {
+  riderId: string | null;
+  riderName: string;
+  riderPhone: string | null;
+  orderCount: number;
+  feesCharged: number;
+  riderCosts: number;
+  margin: number;
+  marginPercent: number | null;
+}
+
+export interface DeliveryMarginOrderRow {
+  orderId: string;
+  orderNumber: string;
+  createdAt: string;
+  dispatchedAt: string | null;
+  status: CanonicalOrderStatus;
+  customerName: string;
+  zoneName: string;
+  riderName: string;
+  deliveryFeeCharged: number;
+  riderCost: number;
+  margin: number;
+}
+
+export interface DeliveryMarginReport {
+  from: string;
+  to: string;
+  orderCount: number;
+  ordersWithRiderCost: number;
+  ordersMissingRiderCost: number;
+  totalFeesCharged: number;
+  totalRiderCosts: number;
+  netMargin: number;
+  marginPercent: number | null;
+  byZone: DeliveryMarginZoneRow[];
+  byRider: DeliveryMarginRiderRow[];
+  orders: DeliveryMarginOrderRow[];
 }
 
 // ─── OrderItem ───────────────────────────────────────────

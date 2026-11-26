@@ -14,10 +14,19 @@ import {
   isShareTokenActive
 } from "@/lib/invoices";
 import { logger } from "@/lib/logger";
+import { createOrderNumberToken } from "@/lib/order-status-token";
+import {
+  buildDeliveryMarginReport,
+  buildDispatchSheetReport,
+  buildDispatchedWhatsAppUrl,
+  computeOrderAmountToCollect,
+  sanitizeZoneCosts
+} from "@/lib/riders";
 import {
   DEFAULT_DELIVERY_ZONES,
   DEFAULT_MESSAGE_TEMPLATES,
-  DEFAULT_STORE_CONFIG
+  DEFAULT_STORE_CONFIG,
+  SITE_URL
 } from "@/lib/site";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
@@ -31,7 +40,9 @@ import type {
   Customer,
   CustomerDetailBundle,
   DailyCashupReport,
+  DeliveryMarginReport,
   DeliveryZone,
+  DispatchSheetReport,
   Invoice,
   InvoiceDetailBundle,
   InvoicePayment,
@@ -47,6 +58,7 @@ import type {
   Product,
   ProductVariant,
   RedirectRecord,
+  Rider,
   StockIntegrityDiscrepancy,
   StockMovement,
   StoreMessageTemplates,
@@ -653,8 +665,8 @@ export async function listAllDeliveryZones(): Promise<DeliveryZone[]> {
 
 // ─── ADMIN ────────────────────────────────────────────────
 
-const ADMIN_ORDER_SELECT =
-  "id, order_number, channel, status, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, cancel_reason, cancel_note, cancelled_at, restocked_at, returned_at, needs_review, review_reason, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at";
+const ADMIN_ORDER_SELECT: string =
+  "id, order_number, channel, status, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, cancel_reason, cancel_note, cancelled_at, restocked_at, returned_at, needs_review, review_reason, rider_id, rider_name, rider_phone, rider_cost, dispatched_at, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at";
 
 export async function listAdminDashboardData() {
   const supabase = createAdminSupabaseClient();
@@ -694,7 +706,7 @@ export async function listAdminDashboardData() {
 
   return {
     products: (products ?? []) as unknown as Product[],
-    orders: (orders ?? []) as Order[],
+    orders: (orders ?? []) as unknown as Order[],
     categories: (categories ?? []) as Category[],
     returns: (returns ?? []) as OrderReturnRecord[]
   };
@@ -721,7 +733,7 @@ export async function getOrderWithItems(
 
   if (orderError || !order || itemsError) return null;
 
-  return { order: order as Order, items: (items ?? []) as OrderItem[] };
+  return { order: order as unknown as Order, items: (items ?? []) as OrderItem[] };
 }
 
 export async function getOrderDetailBundle(orderId: string): Promise<{
@@ -732,6 +744,7 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
   invoice: Invoice | null;
   payments: InvoicePayment[];
   creditNotes: CreditNote[];
+  dispatchedWhatsAppUrl: string | null;
 } | null> {
   const supabase = createAdminSupabaseClient();
 
@@ -742,7 +755,8 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
     { data: returns, error: returnsError },
     { data: invoice },
     { data: payments },
-    { data: creditNotes }
+    { data: creditNotes },
+    settings
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -774,7 +788,8 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
       .from("credit_notes")
       .select("*")
       .eq("order_id", orderId)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: true }),
+    getStoreSettings()
   ]);
 
   if (orderError || !order || itemsError) return null;
@@ -791,14 +806,36 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
     });
   }
 
+  const typedOrder = order as unknown as Order;
+  const typedInvoice = (invoice as unknown as Invoice | null) ?? null;
+
+  let trackLink = `${SITE_URL}/track`;
+  if (typedOrder.order_number?.trim()) {
+    const cleanCode = typedOrder.order_number.trim().toUpperCase();
+    try {
+      const token = createOrderNumberToken(cleanCode);
+      trackLink = `${SITE_URL}/order/${encodeURIComponent(cleanCode)}?t=${encodeURIComponent(token)}`;
+    } catch {
+      trackLink = `${SITE_URL}/track`;
+    }
+  }
+
+  const dispatchedWhatsAppUrl = buildDispatchedWhatsAppUrl({
+    order: typedOrder,
+    template: settings.message_templates?.dispatched,
+    trackLink,
+    amountToCollect: computeOrderAmountToCollect(typedOrder, typedInvoice)
+  });
+
   return {
-    order: order as Order,
-    items: (items ?? []) as OrderItem[],
-    history: (history ?? []) as OrderStatusHistoryEntry[],
-    returns: (returns ?? []) as OrderReturnRecord[],
-    invoice: (invoice as Invoice | null) ?? null,
-    payments: (payments ?? []) as InvoicePayment[],
-    creditNotes: (creditNotes ?? []) as CreditNote[]
+    order: typedOrder,
+    items: (items ?? []) as unknown as OrderItem[],
+    history: (history ?? []) as unknown as OrderStatusHistoryEntry[],
+    returns: (returns ?? []) as unknown as OrderReturnRecord[],
+    invoice: typedInvoice,
+    payments: (payments ?? []) as unknown as InvoicePayment[],
+    creditNotes: (creditNotes ?? []) as unknown as CreditNote[],
+    dispatchedWhatsAppUrl
   };
 }
 
@@ -820,12 +857,12 @@ export async function getOrderByNumber(
   const { data: items, error: itemsError } = await supabase
     .from("order_items")
     .select("id, order_id, product_id, product_title, quantity, unit_price, created_at")
-    .eq("order_id", (order as { id: string }).id)
+    .eq("order_id", (order as unknown as { id: string }).id)
     .order("created_at", { ascending: true });
 
   if (itemsError) return null;
 
-  return { order: order as Order, items: (items ?? []) as OrderItem[] };
+  return { order: order as unknown as Order, items: (items ?? []) as OrderItem[] };
 }
 
 type ListAdminOrdersParams = {
@@ -884,7 +921,7 @@ export async function listAdminOrders(
     throw new Error(error.message);
   }
 
-  return (data ?? []) as Order[];
+  return (data ?? []) as unknown as Order[];
 }
 
 export async function listProductStockMovements(productId: string): Promise<{
@@ -1291,7 +1328,7 @@ export async function getInvoiceDetailBundle(
       .order("created_at", { ascending: true }),
     supabase
       .from("orders")
-      .select("id, order_number, status, order_status, created_at")
+      .select("id, order_number, status, order_status, created_at, rider_id, rider_name, rider_phone")
       .eq("id", invoice.order_id)
       .maybeSingle()
   ]);
@@ -1356,7 +1393,7 @@ export async function getDailyCashupReportData(
 
   return buildDailyCashupReport(
     dateIso,
-    (orders ?? []) as Order[],
+    (orders ?? []) as unknown as Order[],
     (invoices ?? []) as Invoice[],
     (payments ?? []) as InvoicePayment[]
   );
@@ -1473,7 +1510,7 @@ export async function getCustomerDetailBundle(
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
 
-  const typedOrders = (orders ?? []) as Order[];
+  const typedOrders = (orders ?? []) as unknown as Order[];
   const orderIds = typedOrders.map(order => order.id);
 
   let invoices: Invoice[] = [];
@@ -1607,4 +1644,96 @@ export async function listBackInStockAlerts(params?: {
   }
 
   return enriched;
+}
+
+// ─── DELIVERY & RIDERS (Phase 9) ─────────────────────────
+
+function normalizeRiderRow(row: Record<string, unknown>): Rider {
+  return {
+    id: String(row.id),
+    name: String(row.name ?? ""),
+    phone: String(row.phone ?? ""),
+    active: Boolean(row.active ?? true),
+    default_cost: Number(row.default_cost ?? 0),
+    zone_costs: sanitizeZoneCosts(row.zone_costs),
+    notes: typeof row.notes === "string" && row.notes.trim() ? row.notes : null,
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? "")
+  };
+}
+
+export async function listRiders(options?: {
+  activeOnly?: boolean;
+}): Promise<Rider[]> {
+  const supabase = createAdminSupabaseClient();
+  let query = supabase
+    .from("riders")
+    .select("id, name, phone, active, default_cost, zone_costs, notes, created_at, updated_at")
+    .order("active", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (options?.activeOnly) {
+    query = query.eq("active", true);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map(normalizeRiderRow);
+}
+
+export async function getDispatchSheetReportData(
+  dateIso: string,
+  options?: { riderId?: string | null; includeConfirmed?: boolean }
+): Promise<DispatchSheetReport> {
+  const supabase = createAdminSupabaseClient();
+  const [{ data: orders, error: ordersError }, { data: items }, { data: invoices }] =
+    await Promise.all([
+      supabase
+        .from("orders")
+        .select(ADMIN_ORDER_SELECT)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("order_items")
+        .select(
+          "id, order_id, product_id, variant_id, variant_name, variant_sku, product_title, quantity, unit_price, created_at"
+        )
+        .order("created_at", { ascending: true }),
+      supabase.from("invoices").select("*")
+    ]);
+
+  if (ordersError) {
+    throw new Error(ordersError.message);
+  }
+
+  return buildDispatchSheetReport(
+    dateIso,
+    (orders ?? []) as unknown as Order[],
+    (items ?? []) as unknown as OrderItem[],
+    (invoices ?? []) as unknown as Invoice[],
+    options
+  );
+}
+
+export async function getDeliveryMarginReportData(
+  fromIso: string,
+  toIso: string
+): Promise<DeliveryMarginReport> {
+  const supabase = createAdminSupabaseClient();
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select(ADMIN_ORDER_SELECT)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return buildDeliveryMarginReport(
+    fromIso,
+    toIso,
+    (orders ?? []) as unknown as Order[]
+  );
 }

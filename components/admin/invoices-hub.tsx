@@ -630,28 +630,59 @@ export function InvoicesHub({
 
           {/* Per Rider / Collector Breakdown */}
           <div className="border border-border bg-paper p-5">
-            <h3 className="font-serif text-2xl text-text">Collections by rider / staff</h3>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-serif text-2xl text-text">
+                  Daily cash-up by rider
+                </h3>
+                <p className="mt-1 text-xs text-muted">
+                  Grouped by assigned delivery rider (or collector for unassigned orders). Total rider costs for {cashup.date}:{" "}
+                  <span className="font-semibold text-text">
+                    {formatCurrency(cashup.totalRiderCost ?? 0)}
+                  </span>
+                </p>
+              </div>
+              <Link
+                href="/admin/riders?tab=dispatch"
+                className="text-sm font-semibold text-brass hover:underline"
+              >
+                Open dispatch sheet
+              </Link>
+            </div>
             {cashup.byRider.length === 0 ? (
               <p className="mt-3 text-sm text-muted">
-                No payments recorded on {cashup.date}.
+                No deliveries or payments recorded on {cashup.date}.
               </p>
             ) : (
               <div className="mt-4 overflow-x-auto border border-border">
-                <table className="min-w-[620px] w-full divide-y divide-border text-left text-sm">
+                <table className="min-w-[820px] w-full divide-y divide-border text-left text-sm">
                   <thead className="bg-stone text-xs uppercase tracking-[0.12em] text-muted">
                     <tr>
-                      <th className="px-4 py-3">Received by</th>
+                      <th className="px-4 py-3">Rider / Collector</th>
+                      <th className="px-4 py-3 text-right">Deliveries</th>
+                      <th className="px-4 py-3 text-right">Expected</th>
                       <th className="px-4 py-3 text-right">Cash</th>
                       <th className="px-4 py-3 text-right">M-Pesa</th>
-                      <th className="px-4 py-3 text-right">Total</th>
+                      <th className="px-4 py-3 text-right">Collected</th>
+                      <th className="px-4 py-3 text-right">Difference</th>
+                      <th className="px-4 py-3 text-right">Rider cost</th>
                       <th className="px-4 py-3">M-Pesa codes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {cashup.byRider.map(row => (
-                      <tr key={row.receivedBy}>
-                        <td className="px-4 py-3 font-medium text-text">
-                          {row.receivedBy}
+                      <tr key={row.riderId ?? row.receivedBy}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text">{row.receivedBy}</p>
+                          {row.riderPhone ? (
+                            <p className="text-xs text-muted">{row.riderPhone}</p>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 text-right text-muted">
+                          {row.deliveryCount}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-text">
+                          {formatCurrency(row.expectedTotal)}
                         </td>
                         <td className="px-4 py-3 text-right text-muted">
                           {formatCurrency(row.cashTotal)}
@@ -661,6 +692,20 @@ export function InvoicesHub({
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-text">
                           {formatCurrency(row.totalCollected)}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-right font-semibold ${
+                            row.difference === 0
+                              ? "text-emerald-700 dark:text-emerald-300"
+                              : "text-amber-800 dark:text-amber-300"
+                          }`}
+                        >
+                          {row.difference > 0
+                            ? `+${formatCurrency(row.difference)}`
+                            : formatCurrency(row.difference)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-muted">
+                          {formatCurrency(row.riderCostTotal)}
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-muted">
                           {row.mpesaCodes.length > 0 ? row.mpesaCodes.join(", ") : "—"}

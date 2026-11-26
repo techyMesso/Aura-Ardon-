@@ -13,7 +13,9 @@ const idParamSchema = z.object({
 
 const statusChangeSchema = z.object({
   status: z.enum(["confirmed", "dispatched", "delivered"]),
-  reason: z.string().trim().max(300).optional().nullable()
+  reason: z.string().trim().max(300).optional().nullable(),
+  riderId: z.string().uuid("Invalid rider ID.").optional().nullable(),
+  riderCost: z.number().min(0, "Rider cost cannot be negative.").max(1_000_000).optional().nullable()
 });
 
 export async function POST(
@@ -28,23 +30,41 @@ export async function POST(
     const actor = adminUser?.email ?? adminUser?.id ?? "admin";
     const supabase = createAdminSupabaseClient();
 
-    const { error } = await supabase
-      .rpc("set_order_status" as never, {
-        p_order_id: id,
-        p_to_status: payload.status,
-        p_changed_by: actor,
-        p_reason: payload.reason ?? null
-      } as never)
-      .single();
+    const useDispatchRpc =
+      payload.status === "dispatched" &&
+      (payload.riderId !== undefined || payload.riderCost !== undefined);
+
+    const { error } = useDispatchRpc
+      ? await supabase
+          .rpc("dispatch_order" as never, {
+            p_order_id: id,
+            p_rider_id: payload.riderId ?? null,
+            p_rider_cost: payload.riderCost ?? null,
+            p_changed_by: actor,
+            p_reason: payload.reason ?? null
+          } as never)
+          .single()
+      : await supabase
+          .rpc("set_order_status" as never, {
+            p_order_id: id,
+            p_to_status: payload.status,
+            p_changed_by: actor,
+            p_reason: payload.reason ?? null
+          } as never)
+          .single();
 
     if (error) {
-      if (error.message.includes("Order not found")) {
-        return NextResponse.json({ error: "Order not found." }, { status: 404 });
+      if (
+        error.message.includes("Order not found") ||
+        error.message.includes("Rider not found")
+      ) {
+        return NextResponse.json({ error: error.message }, { status: 404 });
       }
       if (
         error.message.includes("Invalid status transition") ||
         error.message.includes("Use cancel_order") ||
-        error.message.includes("Use return_order")
+        error.message.includes("Use return_order") ||
+        error.message.includes("inactive")
       ) {
         return NextResponse.json({ error: error.message }, { status: 409 });
       }

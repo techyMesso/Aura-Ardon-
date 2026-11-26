@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { OrderManager } from "@/components/admin/order-manager";
-import { listAdminOrders } from "@/lib/data";
+import { listAdminOrders, listRiders } from "@/lib/data";
 
 export const metadata = {
   title: "Orders Admin",
@@ -9,11 +9,14 @@ export const metadata = {
 };
 
 export default async function AdminOrdersPage() {
-  const orders = await listAdminOrders();
+  const [orders, riders] = await Promise.all([
+    listAdminOrders(),
+    listRiders()
+  ]);
 
   return (
     <Suspense>
-      <OrderManager initialOrders={orders} />
+      <OrderManager initialOrders={orders} initialRiders={riders} />
     </Suspense>
   );
 }

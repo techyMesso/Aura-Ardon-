@@ -134,9 +134,10 @@ export function toNairobiMonthIso(value: string | Date): string {
 
 /**
  * Daily Cash-Up Report for a chosen EAT date (`YYYY-MM-DD`).
- * Expected = net payable value of non-void invoices issued/delivered on that date
+ * Expected = net payable value of non-void invoices issued or dispatched on that date
  * (or invoices whose payments were collected on that date).
  * Collected = cash + M-Pesa payments recorded with `paid_at` on that EAT date.
+ * Grouped by assigned rider (falling back to payment `received_by` when unassigned).
  */
 export function buildDailyCashupReport(
   dateIso: string,
@@ -152,7 +153,14 @@ export function buildDailyCashupReport(
     payment => toNairobiDateIso(payment.paid_at) === dateIso
   );
 
-  // Expected: non-void invoices belonging to active delivered/returned orders on that date OR issued that date (excluding cancelled/void)
+  const dayPaymentsByInvoice = new Map<string, InvoicePayment[]>();
+  for (const payment of dayPayments) {
+    const list = dayPaymentsByInvoice.get(payment.invoice_id) ?? [];
+    list.push(payment);
+    dayPaymentsByInvoice.set(payment.invoice_id, list);
+  }
+
+  // Expected: non-void invoices belonging to active orders issued or dispatched that date OR paid that date
   const expectedInvoiceIds = new Set<string>();
   for (const inv of invoices) {
     if (inv.status === "void") continue;
@@ -161,38 +169,112 @@ export function buildDailyCashupReport(
       continue;
     }
     const issuedDay = toNairobiDateIso(inv.issued_at);
-    const hasPaymentToday = dayPayments.some(payment => payment.invoice_id === inv.id);
-    if (issuedDay === dateIso || hasPaymentToday) {
+    const dispatchedDay = linkedOrder?.dispatched_at
+      ? toNairobiDateIso(linkedOrder.dispatched_at)
+      : "";
+    const hasPaymentToday = dayPaymentsByInvoice.has(inv.id);
+    if (issuedDay === dateIso || dispatchedDay === dateIso || hasPaymentToday) {
       expectedInvoiceIds.add(inv.id);
     }
   }
 
+  const riderMap = new Map<string, RiderCashupSummary>();
+  const riderDisplayToKey = new Map<string, string>();
+
+  function getOrCreateRiderRow(params: {
+    riderId?: string | null;
+    riderName?: string | null;
+    riderPhone?: string | null;
+    fallbackLabel: string;
+  }): RiderCashupSummary {
+    const label = params.riderName?.trim() || params.fallbackLabel.trim() || "Unassigned";
+    const normalizedLabel = label.toLowerCase();
+    const mapKey = params.riderId
+      ? `id:${params.riderId}`
+      : (riderDisplayToKey.get(normalizedLabel) ?? `name:${normalizedLabel}`);
+
+    if (!riderDisplayToKey.has(normalizedLabel)) {
+      riderDisplayToKey.set(normalizedLabel, mapKey);
+    }
+
+    const existing = riderMap.get(mapKey);
+    if (existing) {
+      if (params.riderId && !existing.riderId) existing.riderId = params.riderId;
+      if (params.riderPhone && !existing.riderPhone) existing.riderPhone = params.riderPhone;
+      return existing;
+    }
+
+    const created: RiderCashupSummary = {
+      receivedBy: label,
+      riderId: params.riderId ?? null,
+      riderPhone: params.riderPhone ?? null,
+      expectedTotal: 0,
+      deliveryCount: 0,
+      riderCostTotal: 0,
+      cashTotal: 0,
+      mpesaTotal: 0,
+      totalCollected: 0,
+      difference: 0,
+      paymentCount: 0,
+      mpesaCodes: []
+    };
+    riderMap.set(mapKey, created);
+    return created;
+  }
+
   let expectedTotal = 0;
+  let totalRiderCost = 0;
+  const countedRiderCostOrders = new Set<string>();
+
   for (const invoiceId of expectedInvoiceIds) {
     const inv = invoiceById.get(invoiceId);
     if (!inv) continue;
-    expectedTotal += Math.max(
+    const netExpected = Math.max(
       0,
-      toMoneyNumber(inv.total) - toMoneyNumber(inv.credited_amount)
+      Math.round((toMoneyNumber(inv.total) - toMoneyNumber(inv.credited_amount)) * 100) / 100
     );
+    expectedTotal = Math.round((expectedTotal + netExpected) * 100) / 100;
+
+    const linkedOrder = orderById.get(inv.order_id);
+    const invDayPayments = dayPaymentsByInvoice.get(inv.id) ?? [];
+    const fallbackCollector =
+      invDayPayments[0]?.received_by?.trim() || "Unassigned";
+
+    const riderRow = getOrCreateRiderRow({
+      riderId: linkedOrder?.rider_id ?? null,
+      riderName: linkedOrder?.rider_name ?? null,
+      riderPhone: linkedOrder?.rider_phone ?? null,
+      fallbackLabel: fallbackCollector
+    });
+
+    riderRow.expectedTotal = Math.round((riderRow.expectedTotal + netExpected) * 100) / 100;
+    riderRow.deliveryCount += 1;
+
+    if (linkedOrder && !countedRiderCostOrders.has(linkedOrder.id)) {
+      countedRiderCostOrders.add(linkedOrder.id);
+      const cost = toMoneyNumber(linkedOrder.rider_cost ?? 0);
+      if (cost > 0) {
+        riderRow.riderCostTotal = Math.round((riderRow.riderCostTotal + cost) * 100) / 100;
+        totalRiderCost = Math.round((totalRiderCost + cost) * 100) / 100;
+      }
+    }
   }
 
   let cashTotal = 0;
   let mpesaTotal = 0;
-  const riderMap = new Map<string, RiderCashupSummary>();
   const mpesaPayments: DailyCashupReport["mpesaPayments"] = [];
 
   for (const payment of dayPayments) {
     const amount = toMoneyNumber(payment.amount);
-    const riderKey = payment.received_by.trim() || "Unassigned";
-    const rider = riderMap.get(riderKey) ?? {
-      receivedBy: riderKey,
-      cashTotal: 0,
-      mpesaTotal: 0,
-      totalCollected: 0,
-      paymentCount: 0,
-      mpesaCodes: []
-    };
+    const linkedOrder = orderById.get(payment.order_id);
+    const collectorLabel = payment.received_by.trim() || "Unassigned";
+
+    const rider = getOrCreateRiderRow({
+      riderId: linkedOrder?.rider_id ?? null,
+      riderName: linkedOrder?.rider_name ?? null,
+      riderPhone: linkedOrder?.rider_phone ?? null,
+      fallbackLabel: collectorLabel
+    });
 
     rider.totalCollected = Math.round((rider.totalCollected + amount) * 100) / 100;
     rider.paymentCount += 1;
@@ -209,7 +291,7 @@ export function buildDailyCashupReport(
             payment.invoice_id.slice(0, 8).toUpperCase(),
           mpesaCode: payment.mpesa_code,
           amount,
-          receivedBy: riderKey,
+          receivedBy: rider.receivedBy,
           paidAt: payment.paid_at
         });
       }
@@ -217,8 +299,10 @@ export function buildDailyCashupReport(
       cashTotal = Math.round((cashTotal + amount) * 100) / 100;
       rider.cashTotal = Math.round((rider.cashTotal + amount) * 100) / 100;
     }
+  }
 
-    riderMap.set(riderKey, rider);
+  for (const row of riderMap.values()) {
+    row.difference = Math.round((row.totalCollected - row.expectedTotal) * 100) / 100;
   }
 
   const collectedTotal = Math.round((cashTotal + mpesaTotal) * 100) / 100;
@@ -232,11 +316,15 @@ export function buildDailyCashupReport(
     difference,
     cashTotal,
     mpesaTotal,
+    totalRiderCost,
     expectedInvoiceCount: expectedInvoiceIds.size,
     paymentCount: dayPayments.length,
     mpesaPayments,
     byRider: Array.from(riderMap.values()).sort(
-      (a, b) => b.totalCollected - a.totalCollected || a.receivedBy.localeCompare(b.receivedBy)
+      (a, b) =>
+        b.expectedTotal - a.expectedTotal ||
+        b.totalCollected - a.totalCollected ||
+        a.receivedBy.localeCompare(b.receivedBy)
     )
   };
 }

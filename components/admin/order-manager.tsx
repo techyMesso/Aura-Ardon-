@@ -48,6 +48,10 @@ import {
   isValidMpesaCode,
   normalizeMpesaCode
 } from "@/lib/invoices";
+import {
+  buildDispatchedWhatsAppUrl,
+  resolveRiderCostForZone
+} from "@/lib/riders";
 import type {
   CanonicalOrderStatus,
   Invoice,
@@ -59,12 +63,14 @@ import type {
   OrderReturnCondition,
   OrderReturnRecord,
   OrderStatusHistoryEntry,
-  PaymentStatus
+  PaymentStatus,
+  Rider
 } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 interface OrderManagerProps {
   initialOrders: Order[];
+  initialRiders?: Rider[];
 }
 
 interface OrderDetailResponse {
@@ -74,6 +80,7 @@ interface OrderDetailResponse {
   returns?: OrderReturnRecord[];
   invoice?: Invoice | null;
   payments?: InvoicePayment[];
+  dispatchedWhatsAppUrl?: string | null;
 }
 
 const STATUS_TABS: Array<{ value: "all" | CanonicalOrderStatus; label: string }> = [
@@ -100,10 +107,18 @@ function formatNairobiDateTime(value: string) {
   }).format(date);
 }
 
-export function OrderManager({ initialOrders }: OrderManagerProps) {
+export function OrderManager({
+  initialOrders,
+  initialRiders = []
+}: OrderManagerProps) {
   const searchParams = useSearchParams();
   const requestedOrderId = searchParams.get("order");
   const [orders, setOrders] = useState(initialOrders);
+  const [riders] = useState<Rider[]>(initialRiders);
+  const activeRiders = useMemo(
+    () => riders.filter(rider => rider.active),
+    [riders]
+  );
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
     initialOrders.some(order => order.id === requestedOrderId)
       ? requestedOrderId
@@ -115,7 +130,18 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
   const [selectedReturns, setSelectedReturns] = useState<OrderReturnRecord[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedPayments, setSelectedPayments] = useState<InvoicePayment[]>([]);
+  const [selectedDispatchedWaUrl, setSelectedDispatchedWaUrl] = useState<string | null>(
+    null
+  );
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Dispatch / assign rider modal state
+  const [riderModalMode, setRiderModalMode] = useState<null | "dispatch" | "assign">(
+    null
+  );
+  const [dispatchRiderId, setDispatchRiderId] = useState("");
+  const [dispatchRiderCost, setDispatchRiderCost] = useState("");
+  const [dispatchReason, setDispatchReason] = useState("");
 
   // Record payment modal state (prompted automatically when marked delivered!)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -162,6 +188,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
       setSelectedReturns([]);
       setSelectedInvoice(null);
       setSelectedPayments([]);
+      setSelectedDispatchedWaUrl(null);
       return;
     }
 
@@ -192,6 +219,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
           setSelectedReturns(payload.returns ?? []);
           setSelectedInvoice(payload.invoice ?? null);
           setSelectedPayments(payload.payments ?? []);
+          setSelectedDispatchedWaUrl(payload.dispatchedWhatsAppUrl ?? null);
         }
       } catch (caughtError) {
         if (!cancelled) {
@@ -228,6 +256,17 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
         : null,
     [selectedOrder, selectedItems]
   );
+
+  const effectiveDispatchedWaUrl = useMemo(() => {
+    if (selectedDispatchedWaUrl) return selectedDispatchedWaUrl;
+    if (!selectedOrder) return null;
+    return buildDispatchedWhatsAppUrl({
+      order: selectedOrder,
+      amountToCollect: selectedInvoice
+        ? computeInvoiceBalanceDue(selectedInvoice)
+        : Number(selectedOrder.total)
+    });
+  }, [selectedDispatchedWaUrl, selectedInvoice, selectedOrder]);
 
   // Compute remaining returnable quantity per order_item_id
   const returnableByItemId = useMemo(() => {
@@ -274,17 +313,131 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
     if (bundle.returns) setSelectedReturns(bundle.returns);
     if ("invoice" in bundle) setSelectedInvoice(bundle.invoice ?? null);
     if ("payments" in bundle) setSelectedPayments(bundle.payments ?? []);
+    if ("dispatchedWhatsAppUrl" in bundle) {
+      setSelectedDispatchedWaUrl(bundle.dispatchedWhatsAppUrl ?? null);
+    }
     setOrders(current =>
       current.map(order => (order.id === bundle.order.id ? bundle.order : order))
     );
   }
 
-  function openRecordPaymentModal(invoice: Invoice) {
+  function openRiderModal(order: Order, mode: "dispatch" | "assign") {
+    const initialRiderId = order.rider_id ?? "";
+    setDispatchRiderId(initialRiderId);
+    if (
+      order.rider_cost !== null &&
+      order.rider_cost !== undefined &&
+      order.rider_cost !== ""
+    ) {
+      setDispatchRiderCost(String(order.rider_cost));
+    } else if (initialRiderId) {
+      const matched = riders.find(r => r.id === initialRiderId);
+      setDispatchRiderCost(
+        matched
+          ? String(resolveRiderCostForZone(matched, order.delivery_zone_id))
+          : ""
+      );
+    } else {
+      setDispatchRiderCost("");
+    }
+    setDispatchReason("");
+    setRiderModalMode(mode);
+  }
+
+  function handleSelectDispatchRider(nextRiderId: string) {
+    setDispatchRiderId(nextRiderId);
+    if (!selectedOrder) return;
+    if (!nextRiderId) {
+      setDispatchRiderCost("");
+      return;
+    }
+    const rider = riders.find(item => item.id === nextRiderId);
+    if (rider) {
+      setDispatchRiderCost(
+        String(resolveRiderCostForZone(rider, selectedOrder.delivery_zone_id))
+      );
+    }
+  }
+
+  async function handleSubmitRiderModal(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedOrder || !riderModalMode) return;
+
+    const trimmedCost = dispatchRiderCost.trim();
+    const parsedCost = trimmedCost === "" ? null : Number(trimmedCost);
+    if (parsedCost !== null && (!Number.isFinite(parsedCost) || parsedCost < 0)) {
+      setError("Rider cost must be 0 or higher.");
+      return;
+    }
+
+    setSavingId(selectedOrder.id);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const endpoint =
+        riderModalMode === "dispatch"
+          ? `/api/admin/orders/${selectedOrder.id}/status`
+          : `/api/admin/orders/${selectedOrder.id}/rider`;
+      const method = riderModalMode === "dispatch" ? "POST" : "PATCH";
+      const body =
+        riderModalMode === "dispatch"
+          ? {
+              status: "dispatched",
+              riderId: dispatchRiderId || null,
+              riderCost: parsedCost,
+              reason: dispatchReason.trim() || null
+            }
+          : {
+              riderId: dispatchRiderId || null,
+              riderCost: parsedCost
+            };
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const payload = (await response.json()) as OrderDetailResponse & {
+        error?: string;
+      };
+
+      if (!response.ok || !payload.order) {
+        throw new Error(
+          payload.error ??
+            (riderModalMode === "dispatch"
+              ? "Unable to dispatch order."
+              : "Unable to update rider assignment.")
+        );
+      }
+
+      syncUpdatedBundle(payload);
+      setRiderModalMode(null);
+      const riderLabel = payload.order.rider_name
+        ? ` with ${payload.order.rider_name} (${payload.order.rider_phone ?? ""})`
+        : "";
+      setSuccess(
+        riderModalMode === "dispatch"
+          ? `Order ${formatOrderDisplayNumber(payload.order)} dispatched${riderLabel}. Send the dispatched WhatsApp update below.`
+          : `Updated delivery rider for ${formatOrderDisplayNumber(payload.order)}.`
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to save rider details."
+      );
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  function openRecordPaymentModal(invoice: Invoice, orderForDefault = selectedOrder) {
     const remaining = computeInvoiceBalanceDue(invoice);
     setPayAmount(remaining > 0 ? String(remaining) : "");
     setPayMethod("mpesa");
     setPayMpesaCode("");
-    setPayReceivedBy("Admin");
+    setPayReceivedBy(orderForDefault?.rider_name?.trim() || "Admin");
     setPayNote("");
     setPaymentModalOpen(true);
   }
@@ -455,7 +608,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
         payload.invoice.status !== "void" &&
         computeInvoiceBalanceDue(payload.invoice) > 0
       ) {
-        openRecordPaymentModal(payload.invoice);
+        openRecordPaymentModal(payload.invoice, payload.order);
       }
     } catch (caughtError) {
       setError(
@@ -842,6 +995,12 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                     </div>
                     <p className="mt-1 text-sm text-muted">{order.customer_name}</p>
                     <p className="text-sm text-muted">{order.customer_phone}</p>
+                    {order.rider_name ? (
+                      <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brass">
+                        <Truck className="h-3 w-3" aria-hidden />
+                        {order.rider_name}
+                      </p>
+                    ) : null}
                   </div>
                   <OrderStatusBadge status={canonical} />
                 </div>
@@ -920,7 +1079,12 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                       <td className="px-4 py-4 text-text">{order.customer_name}</td>
                       <td className="px-4 py-4 text-muted">{order.customer_phone}</td>
                       <td className="hidden px-4 py-4 text-muted xl:table-cell">
-                        {order.delivery_zone_name || order.customer_location}
+                        <p>{order.delivery_zone_name || order.customer_location}</p>
+                        {order.rider_name ? (
+                          <p className="mt-0.5 text-xs text-brass">
+                            Rider: {order.rider_name}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-4 font-medium text-text">
                         {formatCurrency(order.total)}
@@ -1021,7 +1185,7 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                   <Button
                     className="w-full"
                     disabled={savingId === selectedOrder.id}
-                    onClick={() => void transitionOrderStatus(selectedOrder, "dispatched")}
+                    onClick={() => openRiderModal(selectedOrder, "dispatch")}
                   >
                     <Truck className="mr-2 h-4 w-4" aria-hidden />
                     Mark dispatched
@@ -1064,6 +1228,19 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                     <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
                     Mark returned
                   </Button>
+                ) : null}
+
+                {selectedCanonicalStatus === "dispatched" && effectiveDispatchedWaUrl ? (
+                  <a
+                    href={effectiveDispatchedWaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary w-full sm:col-span-2"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden />
+                    Send dispatched WhatsApp
+                    {selectedOrder.rider_name ? ` (${selectedOrder.rider_name})` : ""}
+                  </a>
                 ) : null}
 
                 {activeWhatsAppUrl ? (
@@ -1205,6 +1382,85 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
                   </button>
                 ) : null}
               </div>
+            </div>
+
+            {/* Delivery Rider & Cost */}
+            <div className="rounded-[2px] border border-border bg-stone/50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-brass" aria-hidden />
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brass">
+                    Delivery rider &amp; cost
+                  </p>
+                </div>
+                {selectedCanonicalStatus !== "cancelled" ? (
+                  <button
+                    type="button"
+                    disabled={savingId === selectedOrder.id}
+                    onClick={() => openRiderModal(selectedOrder, "assign")}
+                    className="text-xs font-semibold text-brass underline underline-offset-4 hover:opacity-80 disabled:opacity-50"
+                  >
+                    {selectedOrder.rider_name || selectedOrder.rider_cost != null
+                      ? "Edit rider / cost"
+                      : "Assign rider"}
+                  </button>
+                ) : null}
+              </div>
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                <div>
+                  <p className="text-xs text-muted">Assigned rider</p>
+                  <p className="font-medium text-text">
+                    {selectedOrder.rider_name || "Unassigned"}
+                  </p>
+                  {selectedOrder.rider_phone ? (
+                    <p className="font-mono text-xs text-muted">
+                      {selectedOrder.rider_phone}
+                    </p>
+                  ) : null}
+                </div>
+                <div>
+                  <p className="text-xs text-muted">Rider cost</p>
+                  <p className="font-medium text-text">
+                    {selectedOrder.rider_cost !== null &&
+                    selectedOrder.rider_cost !== undefined &&
+                    selectedOrder.rider_cost !== ""
+                      ? formatCurrency(selectedOrder.rider_cost)
+                      : "Not recorded"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted">Delivery margin</p>
+                  {selectedOrder.rider_cost !== null &&
+                  selectedOrder.rider_cost !== undefined &&
+                  selectedOrder.rider_cost !== "" ? (
+                    (() => {
+                      const margin =
+                        Number(selectedOrder.shipping_fee ?? 0) -
+                        Number(selectedOrder.rider_cost ?? 0);
+                      return (
+                        <p
+                          className={`font-semibold ${
+                            margin >= 0
+                              ? "text-emerald-700 dark:text-emerald-300"
+                              : "text-red-700 dark:text-red-300"
+                          }`}
+                        >
+                          {margin > 0
+                            ? `+${formatCurrency(margin)}`
+                            : formatCurrency(margin)}
+                        </p>
+                      );
+                    })()
+                  ) : (
+                    <p className="text-muted">—</p>
+                  )}
+                </div>
+              </div>
+              {selectedOrder.dispatched_at ? (
+                <p className="mt-2 text-xs text-muted">
+                  Dispatched: {formatNairobiDateTime(selectedOrder.dispatched_at)} EAT
+                </p>
+              ) : null}
             </div>
 
             {/* Items */}
@@ -1656,6 +1912,141 @@ export function OrderManager({ initialOrders }: OrderManagerProps) {
               </Button>
               <Button type="submit" disabled={savingId === selectedOrder.id}>
                 {savingId === selectedOrder.id ? "Recording..." : "Save return"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {/* Dispatch & Rider Assignment Modal */}
+      {riderModalMode && selectedOrder ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dispatch-rider-modal-title"
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+        >
+          <button
+            type="button"
+            aria-label="Close rider dialog"
+            className="absolute inset-0 bg-ink/60 backdrop-blur-[1px]"
+            onClick={() => setRiderModalMode(null)}
+          />
+          <form
+            onSubmit={handleSubmitRiderModal}
+            className="relative z-10 w-full max-w-md space-y-4 border border-border bg-paper p-5 text-text shadow-xl sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brass">
+                  {riderModalMode === "dispatch"
+                    ? "Dispatch order"
+                    : "Assign delivery rider"}
+                </p>
+                <h3
+                  id="dispatch-rider-modal-title"
+                  className="mt-1 font-serif text-2xl text-text"
+                >
+                  {formatOrderDisplayNumber(selectedOrder)}
+                </h3>
+                <p className="mt-1 text-xs text-muted">
+                  Zone:{" "}
+                  {selectedOrder.delivery_zone_name || selectedOrder.customer_location}{" "}
+                  · Delivery fee charged: {formatCurrency(selectedOrder.shipping_fee)}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setRiderModalMode(null)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[2px] text-muted hover:bg-stone hover:text-text"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <label className="block space-y-1.5 text-sm">
+              <span className="font-medium text-text">Rider</span>
+              <select
+                value={dispatchRiderId}
+                onChange={event => handleSelectDispatchRider(event.target.value)}
+                className="h-11 w-full rounded-[2px] border border-text/20 bg-paper px-3.5 text-sm text-text outline-none transition focus:border-brass"
+              >
+                <option value="">Unassigned / Self-delivery</option>
+                {activeRiders.map(rider => {
+                  const zoneRate = resolveRiderCostForZone(
+                    rider,
+                    selectedOrder.delivery_zone_id
+                  );
+                  return (
+                    <option key={rider.id} value={rider.id}>
+                      {rider.name} ({rider.phone}) — {formatCurrency(zoneRate)}
+                    </option>
+                  );
+                })}
+                {selectedOrder.rider_id &&
+                !activeRiders.some(r => r.id === selectedOrder.rider_id) ? (
+                  <option value={selectedOrder.rider_id}>
+                    {selectedOrder.rider_name ?? "Assigned rider"} (inactive)
+                  </option>
+                ) : null}
+              </select>
+              {activeRiders.length === 0 ? (
+                <p className="text-xs text-muted">
+                  No active riders yet.{" "}
+                  <Link
+                    href="/admin/riders"
+                    className="font-semibold text-brass underline"
+                  >
+                    Add riders in Delivery &amp; Riders
+                  </Link>
+                  .
+                </p>
+              ) : null}
+            </label>
+
+            <label className="block space-y-1.5 text-sm">
+              <span className="font-medium text-text">Rider cost for this order (KES)</span>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                placeholder="e.g. 200"
+                value={dispatchRiderCost}
+                onChange={event => setDispatchRiderCost(event.target.value)}
+              />
+              <span className="block text-xs text-muted">
+                Auto-filled from the rider&apos;s zone rate or default cost; adjust if this trip costs more or less.
+              </span>
+            </label>
+
+            {riderModalMode === "dispatch" ? (
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium text-text">Dispatch note (optional)</span>
+                <Input
+                  type="text"
+                  placeholder="e.g. Left boutique at 2:15pm..."
+                  value={dispatchReason}
+                  onChange={event => setDispatchReason(event.target.value)}
+                />
+              </label>
+            ) : null}
+
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setRiderModalMode(null)}
+                disabled={savingId === selectedOrder.id}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingId === selectedOrder.id}>
+                {savingId === selectedOrder.id
+                  ? "Saving..."
+                  : riderModalMode === "dispatch"
+                    ? "Confirm dispatch"
+                    : "Save rider"}
               </Button>
             </div>
           </form>

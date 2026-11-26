@@ -84,7 +84,9 @@ export function InvoiceDetailClient({
   );
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>("mpesa");
   const [mpesaCode, setMpesaCode] = useState("");
-  const [receivedBy, setReceivedBy] = useState(adminEmail || "Admin");
+  const [receivedBy, setReceivedBy] = useState(
+    initialBundle.order?.rider_name || adminEmail || "Admin"
+  );
   const [paymentNote, setPaymentNote] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
 
