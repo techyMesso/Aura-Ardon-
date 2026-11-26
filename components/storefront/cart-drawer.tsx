@@ -28,10 +28,13 @@ export function CartDrawer() {
     closeCart,
     wishlistProducts,
     toggleWishlist,
-    recentlyViewedProducts
+    recentlyViewedProducts,
+    storeSettings
   } = useStorefrontUI();
 
-  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
+  const whatsappNumber =
+    storeSettings.whatsappNumber || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
+  const isStoreOpen = storeSettings.isStoreOpen;
 
   const cartWhatsAppMessage = [
     "Hello Auro Ardon, I would like to order these pieces:",
@@ -71,23 +74,41 @@ export function CartDrawer() {
               <PriceKES amount={total} className="font-medium" />
             </div>
             <div className="grid gap-2">
-              <Link
-                href="/checkout"
-                onClick={closeCart}
-                className="btn-primary w-full"
-              >
-                Checkout
-              </Link>
-              {cartWhatsAppUrl ? (
-                <a
-                  href={cartWhatsAppUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-outline w-full"
-                >
-                  Continue on WhatsApp
-                </a>
-              ) : null}
+              {!isStoreOpen ? (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="btn-primary w-full"
+                  >
+                    Ordering paused — studio closed
+                  </button>
+                  <p className="text-center font-sans text-[12px] text-muted">
+                    {storeSettings.holidayBannerMessage.trim() ||
+                      "Your bag is saved. Sending orders will resume once we reopen."}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Link
+                    href="/checkout"
+                    onClick={closeCart}
+                    className="btn-primary w-full"
+                  >
+                    Checkout
+                  </Link>
+                  {cartWhatsAppUrl ? (
+                    <a
+                      href={cartWhatsAppUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-outline w-full"
+                    >
+                      Continue on WhatsApp
+                    </a>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
         ) : undefined

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 import { formatKES, PriceKES } from "@/components/storefront/price-kes";
+import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +46,8 @@ function generateIdempotencyKey() {
 export function CheckoutPageClient() {
   const { items, clearCart, cartNotice } = useCart();
   const { total, itemCount } = useCartValue();
+  const { storeSettings } = useStorefrontUI();
+  const isStoreOpen = storeSettings.isStoreOpen;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +123,14 @@ export function CheckoutPageClient() {
 
   async function submitCheckout(method: PaymentMethod) {
     if (submittingRef.current || loading) return;
+
+    if (!isStoreOpen) {
+      setError(
+        storeSettings.holidayBannerMessage.trim() ||
+          "Our studio is currently closed for orders. Please check back once we reopen."
+      );
+      return;
+    }
 
     if (!customerName.trim()) {
       setError("Enter your name.");
@@ -481,13 +492,29 @@ export function CheckoutPageClient() {
             </div>
           ) : null}
 
+          {!isStoreOpen ? (
+            <div
+              role="status"
+              className="rounded-[2px] border border-brass/50 bg-stone px-4 py-3 font-sans text-[14px] text-text"
+            >
+              {storeSettings.holidayBannerMessage.trim() ||
+                "Our Nairobi studio is temporarily closed. Browsing stays open, and sending orders will resume when we reopen."}
+            </div>
+          ) : null}
+
           <div className="flex flex-col gap-2.5 pt-2 sm:flex-row">
-            <Button type="submit" disabled={loading} className="flex-1">
+            <Button
+              type="submit"
+              disabled={loading || !isStoreOpen}
+              className="flex-1"
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Placing order...
                 </>
+              ) : !isStoreOpen ? (
+                "Store temporarily closed"
               ) : (
                 "Place order"
               )}
@@ -497,7 +524,7 @@ export function CheckoutPageClient() {
               <Button
                 type="button"
                 variant="secondary"
-                disabled={loading}
+                disabled={loading || !isStoreOpen}
                 onClick={() => void submitCheckout("WHATSAPP")}
                 className="flex-1"
               >

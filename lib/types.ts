@@ -44,6 +44,11 @@ export interface Product {
   material: string | null;
   finish?: string | null;
   size_label?: string | null;
+  water_resistance?: string | null;
+  warranty?: string | null;
+  ingredients?: string | null;
+  net_weight?: string | null;
+  expiry_info?: string | null;
   in_the_box?: string | null;
   care?: string | null;
   images: string[];

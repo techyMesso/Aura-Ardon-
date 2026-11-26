@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { revalidateProductCatalog } from "@/lib/cache";
+import { getStoreSettings } from "@/lib/data";
 import { buildSiteUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { createOrderStatusToken } from "@/lib/order-status-token";
@@ -128,6 +129,19 @@ export async function POST(request: Request) {
     }
 
     const payload = checkoutSchema.parse(await request.json());
+
+    const storeSettings = await getStoreSettings();
+    if (!storeSettings.is_store_open) {
+      return NextResponse.json(
+        {
+          error:
+            storeSettings.holiday_banner_message.trim() ||
+            "Our store is currently closed for orders. Please check back soon."
+        },
+        { status: 503 }
+      );
+    }
+
     const normalizedPhone = normalizeKenyanPhoneNumber(payload.customerPhone);
 
     const phoneRateLimit = await checkRateLimit({

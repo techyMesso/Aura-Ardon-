@@ -296,13 +296,18 @@ export function deriveCategoryRepresentatives(
   });
 
   const representatives = new Map<string, string>();
+  const usedImages = new Set<string>();
+
   for (const record of sorted) {
     if (!record.category_id || representatives.has(record.category_id)) continue;
-    const image = record.images
-      ?.map(getSafeCatalogImageUrl)
-      .find((value): value is string => Boolean(value));
-    if (image) {
-      representatives.set(record.category_id, image);
+    const validImages = (record.images ?? [])
+      .map(getSafeCatalogImageUrl)
+      .filter((value): value is string => Boolean(value));
+    const uniqueImage =
+      validImages.find(url => !usedImages.has(url)) ?? validImages[0];
+    if (uniqueImage) {
+      representatives.set(record.category_id, uniqueImage);
+      usedImages.add(uniqueImage);
     }
   }
 

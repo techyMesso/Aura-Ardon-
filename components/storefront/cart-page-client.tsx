@@ -23,9 +23,11 @@ export function CartPageClient() {
   const { items, updateQuantity, removeItem, cartNotice, dismissCartNotice } =
     useCart();
   const { total, itemCount } = useCartValue();
-  const { recentlyViewedProducts } = useStorefrontUI();
+  const { recentlyViewedProducts, storeSettings } = useStorefrontUI();
+  const isStoreOpen = storeSettings.isStoreOpen;
 
-  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
+  const whatsappNumber =
+    storeSettings.whatsappNumber || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
   const cartWhatsAppMessage = [
     "Hello Auro Ardon, I would like to order these pieces:",
     ...items.map(
@@ -165,19 +167,33 @@ export function CartPageClient() {
             </div>
 
             <div className="flex w-full flex-col gap-2 sm:w-72">
-              <Link href="/checkout" className="btn-primary w-full">
-                Checkout
-              </Link>
-              {cartWhatsAppUrl ? (
-                <a
-                  href={cartWhatsAppUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-outline w-full"
-                >
-                  Continue on WhatsApp
-                </a>
-              ) : null}
+              {!isStoreOpen ? (
+                <>
+                  <button type="button" disabled className="btn-primary w-full">
+                    Ordering paused — studio closed
+                  </button>
+                  <p className="text-right font-sans text-[13px] text-muted">
+                    {storeSettings.holidayBannerMessage.trim() ||
+                      "Our studio is temporarily closed. Your bag is saved for when we reopen."}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Link href="/checkout" className="btn-primary w-full">
+                    Checkout
+                  </Link>
+                  {cartWhatsAppUrl ? (
+                    <a
+                      href={cartWhatsAppUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-outline w-full"
+                    >
+                      Continue on WhatsApp
+                    </a>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
         </div>

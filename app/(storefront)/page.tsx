@@ -5,6 +5,7 @@ import { DEFAULT_PRODUCT_BLUR_DATA_URL } from "@/components/storefront/price-kes
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { ProductTile } from "@/components/storefront/product-tile";
 import {
+  filterNonEmptyCategories,
   formatProductTitle,
   getSafeCatalogImageUrl,
   selectHomepageBestsellers
@@ -38,6 +39,7 @@ export default async function HomePage() {
     getStoreSettings()
   ]);
 
+  const activeCategories = filterNonEmptyCategories(categories, allProducts);
   const featuredProducts = allProducts
     .filter(product => product.is_featured)
     .slice(0, 6);
@@ -45,7 +47,7 @@ export default async function HomePage() {
   const newInProducts = allProducts.slice(0, 8);
   const bestsellers = selectHomepageBestsellers(
     allProducts,
-    categories,
+    activeCategories,
     newInProducts
   );
 
@@ -60,7 +62,18 @@ export default async function HomePage() {
   const representativeMap = new Map(
     representatives.map(item => [item.category_id, item.image_url])
   );
-  const visibleCategories = categories.slice(0, 6);
+  const productCountByCategory = new Map<string, number>();
+  for (const product of allProducts) {
+    if (product.category_id) {
+      productCountByCategory.set(
+        product.category_id,
+        (productCountByCategory.get(product.category_id) ?? 0) + 1
+      );
+    }
+  }
+
+  const visibleCategories = activeCategories.slice(0, 6);
+  const usedTileImages = new Set<string>();
   const organizationJsonLd = buildOrganizationJsonLd(storeSettings);
 
   return (
@@ -72,7 +85,7 @@ export default async function HomePage() {
         }}
       />
 
-      <section className="relative h-[70vh] min-h-[440px] w-full overflow-hidden bg-ink text-white">
+      <section className="relative flex min-h-[460px] w-full items-end overflow-hidden bg-ink text-white sm:min-h-[540px] lg:min-h-[600px]">
         <div className="absolute inset-0 animate-hero-reveal">
           <Image
             src={heroImage}
@@ -84,16 +97,16 @@ export default async function HomePage() {
               heroProduct?.blur_data_url || DEFAULT_PRODUCT_BLUR_DATA_URL
             }
             sizes="100vw"
-            className="object-cover object-center"
+            className="object-cover object-[center_35%] md:object-center"
           />
-          <div className="absolute inset-0 bg-ink/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/45 to-ink/25" />
         </div>
 
-        <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-10 sm:px-6 lg:px-10 lg:pb-14">
-          <h1 className="max-w-4xl font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-white md:text-[72px] lg:text-[84px]">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-12 pt-20 sm:px-6 sm:pb-14 sm:pt-24 lg:px-10 lg:pb-16">
+          <h1 className="max-w-4xl font-serif text-[36px] font-normal leading-[1.04] tracking-[-0.01em] text-white sm:text-[56px] lg:text-[76px]">
             {SITE_CONFIG.heroHeadline}
           </h1>
-          <p className="mt-4 max-w-xl font-sans text-[16px] leading-[1.5] text-white/90">
+          <p className="mt-4 max-w-xl font-sans text-[15px] leading-[1.5] text-white/90 sm:text-[16px]">
             {heroSubline}
           </p>
           <div className="mt-6">
@@ -111,27 +124,46 @@ export default async function HomePage() {
           </h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {visibleCategories.map(category => {
-              const image =
+              const candidateImage =
                 getSafeCatalogImageUrl(category.image_url) ||
-                getSafeCatalogImageUrl(representativeMap.get(category.id)) ||
-                "/hero-jewelry.png";
+                getSafeCatalogImageUrl(representativeMap.get(category.id));
+              const distinctImage =
+                candidateImage && !usedTileImages.has(candidateImage)
+                  ? candidateImage
+                  : null;
+              if (distinctImage) {
+                usedTileImages.add(distinctImage);
+              }
+              const count = productCountByCategory.get(category.id) ?? 0;
+
               return (
                 <Link
                   key={category.id}
                   href={`/shop/${category.slug}`}
                   className="group block"
                 >
-                  <div className="relative aspect-square w-full overflow-hidden rounded-none bg-paper">
-                    <Image
-                      src={image}
-                      alt={`${category.name} collection at ${SITE_CONFIG.brandName}`}
-                      fill
-                      loading="lazy"
-                      placeholder="blur"
-                      blurDataURL={DEFAULT_PRODUCT_BLUR_DATA_URL}
-                      sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 16vw"
-                      className="object-cover object-center"
-                    />
+                  <div className="relative aspect-square w-full overflow-hidden rounded-none border border-text/10 bg-stone">
+                    {distinctImage ? (
+                      <Image
+                        src={distinctImage}
+                        alt={`${category.name} collection at ${SITE_CONFIG.brandName}`}
+                        fill
+                        loading="lazy"
+                        placeholder="blur"
+                        blurDataURL={DEFAULT_PRODUCT_BLUR_DATA_URL}
+                        sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 16vw"
+                        className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
+                        <span className="font-serif text-[28px] leading-none text-brass">
+                          {category.name.slice(0, 2).toUpperCase()}
+                        </span>
+                        <span className="mt-2 font-sans text-[12px] text-muted">
+                          {count === 1 ? "1 piece" : `${count} pieces`}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <p className="mt-2 font-sans text-[14px] leading-[1.5] text-text group-hover:text-brass">
                     {category.name}

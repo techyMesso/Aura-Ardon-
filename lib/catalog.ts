@@ -36,6 +36,22 @@ export function createCategoryMap(categories: Category[]): CategoryMap {
   return new Map(categories.map(category => [category.id, category]));
 }
 
+/**
+ * Returns only categories that have at least one active product linked to them.
+ */
+export function filterNonEmptyCategories(
+  categories: Category[],
+  products: Pick<Product, "category_id" | "active">[]
+): Category[] {
+  const populatedIds = new Set(
+    products
+      .filter(product => product.active && product.category_id)
+      .map(product => product.category_id as string)
+  );
+
+  return categories.filter(category => populatedIds.has(category.id));
+}
+
 export function resolveProductCategory(
   product: Product,
   categories: CategoryMap

@@ -205,7 +205,11 @@ describe("Phase 1 SEO — robots, sitemap, metadata, JSON-LD, and accessibility"
       useCartValue: () => mockUseCartValue()
     }));
     vi.doMock("@/components/storefront/storefront-context", () => ({
-      useStorefrontUI: () => ({ openCart: vi.fn(), openSearch: vi.fn() })
+      useStorefrontUI: () => ({
+        openCart: vi.fn(),
+        openSearch: vi.fn(),
+        wishlistProducts: []
+      })
     }));
     vi.doMock("@/components/theme-toggle", () => ({
       ThemeToggle: () => React.createElement("button", { type: "button" }, "Theme")

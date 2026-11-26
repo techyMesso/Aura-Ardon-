@@ -3,8 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Heart, Minus, Plus, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  Minus,
+  Plus,
+  RotateCcw,
+  X,
+  ZoomIn,
+  ZoomOut
+} from "lucide-react";
 
+import { DeliveryEstimate } from "@/components/storefront/delivery-estimate";
 import {
   DEFAULT_PRODUCT_BLUR_DATA_URL,
   formatKES,
@@ -18,8 +29,7 @@ import {
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
-import { getPublicSiteUrl } from "@/lib/env";
-import { getProductDeliveryLine } from "@/lib/site-config";
+import { resolveSiteUrl } from "@/lib/site";
 import type { Category, Product } from "@/lib/types";
 import { createWhatsAppLink } from "@/lib/utils";
 
@@ -28,6 +38,16 @@ interface ProductDetailClientProps {
   category: Category | null;
   productUrl: string | null;
   whatsappNumber: string | null;
+}
+
+function clampZoom(scale: number) {
+  return Math.min(3, Math.max(1, Number(scale.toFixed(2))));
+}
+
+function touchDistance(touches: React.TouchList): number {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
 }
 
 export function ProductDetailClient({
@@ -42,7 +62,8 @@ export function ProductDetailClient({
     isWishlisted,
     toggleWishlist,
     recordRecentlyViewed,
-    recentlyViewedProducts
+    recentlyViewedProducts,
+    storeSettings
   } = useStorefrontUI();
 
   const displayTitle = formatProductTitle(product.title);
@@ -55,6 +76,7 @@ export function ProductDetailClient({
   const [quantity, setQuantity] = useState(1);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [status, setStatus] = useState("");
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -62,6 +84,9 @@ export function ProductDetailClient({
   const dialogRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const didSwipeRef = useRef(false);
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartScaleRef = useRef<number>(1);
+  const panStartRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
 
   const quantityInCart =
     items.find(item => item.product.id === product.id)?.quantity ?? 0;
@@ -71,17 +96,20 @@ export function ProductDetailClient({
   const wishlisted = isWishlisted(product.id);
 
   const effectiveWhatsAppNumber =
-    whatsappNumber ?? process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
+    storeSettings.whatsappNumber ||
+    whatsappNumber ||
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ||
+    "";
   const effectiveProductUrl =
-    productUrl || `${getPublicSiteUrl()}${productHref(product)}`;
+    productUrl || `${resolveSiteUrl()}${productHref(product)}`;
 
   const askMessage = [
-    `Hello Auro Ardon, I have a question about ${displayTitle} (${formatKES(product.price)}).`,
+    `Hi Auro Ardon! I have a question about ${displayTitle} (${formatKES(product.price)}).`,
     `Link: ${effectiveProductUrl}`
   ].join("\n");
 
   const notifyMessage = [
-    `Hello Auro Ardon, please notify me when ${displayTitle} is back in stock.`,
+    `Hi Auro Ardon! Please notify me on WhatsApp when ${displayTitle} is back in stock.`,
     `Link: ${effectiveProductUrl}`
   ].join("\n");
 
@@ -91,10 +119,16 @@ export function ProductDetailClient({
     notifyMessage
   );
 
+  // Structured specs — only non-empty fields are rendered
   const specRows = [
+    { label: "Dimensions / Case size", value: product.size_label?.trim() },
     { label: "Material", value: product.material?.trim() },
     { label: "Finish", value: product.finish?.trim() },
-    { label: "Length / size", value: product.size_label?.trim() },
+    { label: "Water resistance", value: product.water_resistance?.trim() },
+    { label: "Warranty", value: product.warranty?.trim() },
+    { label: "Ingredients", value: product.ingredients?.trim() },
+    { label: "Net weight / Volume", value: product.net_weight?.trim() },
+    { label: "Expiry / Shelf life", value: product.expiry_info?.trim() },
     { label: "Care", value: product.care?.trim() },
     { label: "In the box", value: product.in_the_box?.trim() }
   ].filter((row): row is { label: string; value: string } => Boolean(row.value));
@@ -110,8 +144,15 @@ export function ProductDetailClient({
   }, [quantity, remaining]);
 
   useEffect(() => {
+    if (zoomScale <= 1) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [zoomScale]);
+
+  useEffect(() => {
     if (!lightboxOpen) {
       setZoomScale(1);
+      setPanOffset({ x: 0, y: 0 });
       return;
     }
     const previousOverflow = document.body.style.overflow;
@@ -122,12 +163,20 @@ export function ProductDetailClient({
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setLightboxOpen(false);
       if (event.key === "ArrowRight") {
+        setZoomScale(1);
         setSelectedIndex(current => (current + 1) % images.length);
       }
       if (event.key === "ArrowLeft") {
+        setZoomScale(1);
         setSelectedIndex(
           current => (current - 1 + images.length) % images.length
         );
+      }
+      if (event.key === "+" || event.key === "=") {
+        setZoomScale(current => clampZoom(current + 0.5));
+      }
+      if (event.key === "-") {
+        setZoomScale(current => clampZoom(current - 0.5));
       }
     }
 
@@ -148,10 +197,12 @@ export function ProductDetailClient({
   }
 
   function showPrevious() {
+    setZoomScale(1);
     setSelectedIndex(current => (current - 1 + images.length) % images.length);
   }
 
   function showNext() {
+    setZoomScale(1);
     setSelectedIndex(current => (current + 1) % images.length);
   }
 
@@ -166,6 +217,45 @@ export function ProductDetailClient({
     window.setTimeout(() => {
       didSwipeRef.current = false;
     }, 0);
+  }
+
+  function handleLightboxTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (event.touches.length === 2) {
+      pinchStartDistRef.current = touchDistance(event.touches);
+      pinchStartScaleRef.current = zoomScale;
+      panStartRef.current = null;
+    } else if (event.touches.length === 1 && zoomScale > 1) {
+      panStartRef.current = {
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY,
+        originX: panOffset.x,
+        originY: panOffset.y
+      };
+    }
+  }
+
+  function handleLightboxTouchMove(event: React.TouchEvent<HTMLDivElement>) {
+    if (event.touches.length === 2 && pinchStartDistRef.current) {
+      const nextDist = touchDistance(event.touches);
+      const ratio = nextDist / pinchStartDistRef.current;
+      setZoomScale(clampZoom(pinchStartScaleRef.current * ratio));
+      return;
+    }
+
+    if (event.touches.length === 1 && panStartRef.current && zoomScale > 1) {
+      const dx = event.touches[0].clientX - panStartRef.current.x;
+      const dy = event.touches[0].clientY - panStartRef.current.y;
+      const maxOffset = (zoomScale - 1) * 160;
+      setPanOffset({
+        x: Math.max(-maxOffset, Math.min(maxOffset, panStartRef.current.originX + dx)),
+        y: Math.max(-maxOffset, Math.min(maxOffset, panStartRef.current.originY + dy))
+      });
+    }
+  }
+
+  function handleLightboxTouchEnd() {
+    pinchStartDistRef.current = null;
+    panStartRef.current = null;
   }
 
   const otherRecentlyViewed = recentlyViewedProducts
@@ -210,7 +300,7 @@ export function ProductDetailClient({
               touchStartX.current = event.touches[0]?.clientX ?? null;
             }}
             onTouchEnd={handleGalleryTouchEnd}
-            className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-none bg-paper [touch-action:pinch-zoom]"
+            className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-none border border-text/10 bg-stone [touch-action:pinch-zoom]"
             style={{ viewTransitionName: `product-image-${product.id}` }}
             aria-label={`Zoom image of ${displayTitle}`}
           >
@@ -224,7 +314,7 @@ export function ProductDetailClient({
                 product.blur_data_url || DEFAULT_PRODUCT_BLUR_DATA_URL
               }
               sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
+              className="object-contain p-2 sm:p-4"
             />
           </button>
 
@@ -240,10 +330,10 @@ export function ProductDetailClient({
                   onClick={() => setSelectedIndex(index)}
                   aria-label={`View photo ${index + 1} of ${displayTitle}`}
                   aria-pressed={selectedIndex === index}
-                  className={`relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-none bg-paper ${
+                  className={`relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-none border border-text/10 bg-stone ${
                     selectedIndex === index
                       ? "ring-2 ring-brass"
-                      : "opacity-70 hover:opacity-100"
+                      : "opacity-75 hover:opacity-100"
                   }`}
                 >
                   <Image
@@ -253,7 +343,7 @@ export function ProductDetailClient({
                     fill
                     loading="lazy"
                     sizes="80px"
-                    className="object-cover"
+                    className="object-contain p-1"
                   />
                 </button>
               ))}
@@ -377,9 +467,13 @@ export function ProductDetailClient({
               </div>
             ) : null}
 
-            <p className="pt-1 font-sans text-[14px] leading-[1.5] text-muted">
-              {getProductDeliveryLine()}
-            </p>
+            <DeliveryEstimate
+              sameDayCutoff={storeSettings.sameDayCutoff}
+              businessHours={storeSettings.businessHours}
+              isStoreOpen={storeSettings.isStoreOpen}
+              holidayBannerMessage={storeSettings.holidayBannerMessage}
+            />
+
             <p className="sr-only" aria-live="polite" aria-atomic="true">
               {status}
             </p>
@@ -388,7 +482,10 @@ export function ProductDetailClient({
           {specRows.length > 0 ? (
             <dl className="mt-8 divide-y divide-text/12 border-y border-text/12 font-sans text-[14px] leading-[1.5]">
               {specRows.map(row => (
-                <div key={row.label} className="grid grid-cols-[130px_1fr] gap-4 py-3">
+                <div
+                  key={row.label}
+                  className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[170px_1fr] sm:gap-4"
+                >
                   <dt className="text-muted">{row.label}</dt>
                   <dd className="text-text">{row.value}</dd>
                 </div>
@@ -415,12 +512,45 @@ export function ProductDetailClient({
           aria-label={`${displayTitle} zoom viewer`}
           onWheel={event => {
             event.preventDefault();
-            setZoomScale(current =>
-              Math.min(2.5, Math.max(1, current - event.deltaY * 0.002))
-            );
+            setZoomScale(current => clampZoom(current - event.deltaY * 0.002));
           }}
           className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/95 p-4"
         >
+          <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setZoomScale(current => clampZoom(current - 0.5))}
+              disabled={zoomScale <= 1}
+              aria-label="Zoom out"
+              className="flex h-10 w-10 items-center justify-center rounded-[2px] bg-paper text-text disabled:opacity-40"
+            >
+              <ZoomOut className="h-4 w-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoomScale(current => clampZoom(current + 0.5))}
+              disabled={zoomScale >= 3}
+              aria-label="Zoom in"
+              className="flex h-10 w-10 items-center justify-center rounded-[2px] bg-paper text-text disabled:opacity-40"
+            >
+              <ZoomIn className="h-4 w-4" aria-hidden />
+            </button>
+            {zoomScale > 1 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setZoomScale(1);
+                  setPanOffset({ x: 0, y: 0 });
+                }}
+                aria-label="Reset zoom"
+                className="flex h-10 items-center gap-1 rounded-[2px] bg-paper px-2.5 text-xs font-medium text-text"
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                {Math.round(zoomScale * 100)}%
+              </button>
+            ) : null}
+          </div>
+
           <button
             ref={closeButtonRef}
             type="button"
@@ -443,17 +573,26 @@ export function ProductDetailClient({
           ) : null}
 
           <div
-            onClick={() => setZoomScale(current => (current > 1 ? 1 : 1.75))}
-            className="relative h-full max-h-[88vh] w-full max-w-4xl cursor-zoom-in overflow-hidden [touch-action:pinch-zoom]"
-            style={{ transform: `scale(${zoomScale})` }}
+            onClick={() => setZoomScale(current => (current > 1 ? 1 : 2))}
+            onTouchStart={handleLightboxTouchStart}
+            onTouchMove={handleLightboxTouchMove}
+            onTouchEnd={handleLightboxTouchEnd}
+            className="relative h-full max-h-[85vh] w-full max-w-4xl cursor-zoom-in overflow-hidden touch-none select-none"
           >
-            <Image
-              src={images[selectedIndex]}
-              alt={`${displayTitle}, enlarged photo ${selectedIndex + 1}`}
-              fill
-              sizes="100vw"
-              className="object-contain"
-            />
+            <div
+              className="relative h-full w-full transition-transform duration-100 ease-out"
+              style={{
+                transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomScale})`
+              }}
+            >
+              <Image
+                src={images[selectedIndex]}
+                alt={`${displayTitle}, enlarged photo ${selectedIndex + 1}`}
+                fill
+                sizes="100vw"
+                className="object-contain"
+              />
+            </div>
           </div>
 
           {images.length > 1 ? (
@@ -471,4 +610,3 @@ export function ProductDetailClient({
     </div>
   );
 }
-

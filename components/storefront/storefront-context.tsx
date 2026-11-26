@@ -9,14 +9,34 @@ import {
   useState
 } from "react";
 
+import { DEFAULT_STORE_CONFIG } from "@/lib/site";
 import type { Product } from "@/lib/types";
 
 const WISHLIST_STORAGE_KEY = "auro-ardon-wishlist";
 const RECENTLY_VIEWED_STORAGE_KEY = "auro-ardon-recently-viewed";
 const MAX_RECENTLY_VIEWED = 8;
 
+export interface StorefrontPublicSettings {
+  isStoreOpen: boolean;
+  holidayBannerMessage: string;
+  whatsappNumber: string;
+  sameDayCutoff: string;
+  businessHours: string;
+  freeDeliveryThreshold: number;
+}
+
+const DEFAULT_PUBLIC_SETTINGS: StorefrontPublicSettings = {
+  isStoreOpen: DEFAULT_STORE_CONFIG.is_store_open,
+  holidayBannerMessage: DEFAULT_STORE_CONFIG.holiday_banner_message,
+  whatsappNumber: DEFAULT_STORE_CONFIG.whatsapp_number,
+  sameDayCutoff: DEFAULT_STORE_CONFIG.same_day_cutoff,
+  businessHours: DEFAULT_STORE_CONFIG.business_hours,
+  freeDeliveryThreshold: DEFAULT_STORE_CONFIG.free_delivery_threshold
+};
+
 interface StorefrontUIContextValue {
   catalogProducts: Product[];
+  storeSettings: StorefrontPublicSettings;
   cartOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -25,6 +45,7 @@ interface StorefrontUIContextValue {
   closeSearch: () => void;
   wishlistIds: string[];
   toggleWishlist: (productId: string) => void;
+  clearWishlist: () => void;
   isWishlisted: (productId: string) => boolean;
   wishlistProducts: Product[];
   recentlyViewedIds: string[];
@@ -36,9 +57,11 @@ const StorefrontUIContext = createContext<StorefrontUIContextValue | null>(null)
 
 export function StorefrontUIProvider({
   products = [],
+  storeSettings = DEFAULT_PUBLIC_SETTINGS,
   children
 }: {
   products?: Product[];
+  storeSettings?: StorefrontPublicSettings;
   children: React.ReactNode;
 }) {
   const [cartOpen, setCartOpen] = useState(false);
@@ -98,6 +121,15 @@ export function StorefrontUIProvider({
     });
   }, []);
 
+  const clearWishlist = useCallback(() => {
+    setWishlistIds([]);
+    try {
+      localStorage.removeItem(WISHLIST_STORAGE_KEY);
+    } catch {
+      // Ignore storage write errors
+    }
+  }, []);
+
   const isWishlisted = useCallback(
     (productId: string) => wishlistIds.includes(productId),
     [wishlistIds]
@@ -142,6 +174,7 @@ export function StorefrontUIProvider({
   const value = useMemo<StorefrontUIContextValue>(
     () => ({
       catalogProducts: products,
+      storeSettings,
       cartOpen,
       openCart,
       closeCart,
@@ -150,6 +183,7 @@ export function StorefrontUIProvider({
       closeSearch,
       wishlistIds,
       toggleWishlist,
+      clearWishlist,
       isWishlisted,
       wishlistProducts,
       recentlyViewedIds,
@@ -158,6 +192,7 @@ export function StorefrontUIProvider({
     }),
     [
       products,
+      storeSettings,
       cartOpen,
       openCart,
       closeCart,
@@ -166,6 +201,7 @@ export function StorefrontUIProvider({
       closeSearch,
       wishlistIds,
       toggleWishlist,
+      clearWishlist,
       isWishlisted,
       wishlistProducts,
       recentlyViewedIds,
@@ -183,6 +219,7 @@ export function StorefrontUIProvider({
 
 const fallbackStorefrontUI: StorefrontUIContextValue = {
   catalogProducts: [],
+  storeSettings: DEFAULT_PUBLIC_SETTINGS,
   cartOpen: false,
   openCart: () => {},
   closeCart: () => {},
@@ -191,6 +228,7 @@ const fallbackStorefrontUI: StorefrontUIContextValue = {
   closeSearch: () => {},
   wishlistIds: [],
   toggleWishlist: () => {},
+  clearWishlist: () => {},
   isWishlisted: () => false,
   wishlistProducts: [],
   recentlyViewedIds: [],

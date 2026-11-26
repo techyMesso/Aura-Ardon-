@@ -1,5 +1,6 @@
 import { CollectionShell } from "@/components/storefront/collection-shell";
 import { ShopPageClient } from "@/components/storefront/shop-page-client";
+import { filterNonEmptyCategories } from "@/lib/catalog";
 import { listCategories, listPublicProducts } from "@/lib/data";
 import { buildPageMetadata } from "@/lib/seo";
 
@@ -18,8 +19,10 @@ export default async function ShopPage() {
     listCategories()
   ]);
 
+  const activeCategories = filterNonEmptyCategories(categories, products);
+
   return (
-    <CollectionShell categories={categories}>
+    <CollectionShell categories={activeCategories}>
       <ShopPageClient products={products} />
     </CollectionShell>
   );

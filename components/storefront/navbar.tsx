@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Search, ShoppingBag } from "lucide-react";
+import { Heart, Menu, Search, ShoppingBag } from "lucide-react";
 
 import { Drawer } from "@/components/storefront/drawer";
 import { useStorefrontUI } from "@/components/storefront/storefront-context";
@@ -12,17 +12,20 @@ import { useCartValue } from "@/lib/cart";
 import type { Category } from "@/lib/types";
 
 const HELP_LINKS = [
+  { label: "Wishlist", href: "/wishlist" },
   { label: "About", href: "/about" },
   { label: "How to order", href: "/how-to-order" },
   { label: "Delivery", href: "/shipping" },
-  { label: "Returns", href: "/returns" }
+  { label: "Returns", href: "/returns" },
+  { label: "FAQ", href: "/faq" }
 ];
 
 export function Navbar({ categories }: { categories: Category[] }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { itemCount } = useCartValue();
-  const { openCart, openSearch } = useStorefrontUI();
+  const { openCart, openSearch, wishlistProducts } = useStorefrontUI();
+  const wishlistCount = wishlistProducts.length;
 
   const sortedCategories = useMemo(
     () =>
@@ -105,6 +108,26 @@ export function Navbar({ categories }: { categories: Category[] }) {
             </button>
 
             <ThemeToggle />
+
+            <Link
+              href="/wishlist"
+              aria-label={
+                wishlistCount === 1
+                  ? "Wishlist with 1 saved item"
+                  : `Wishlist with ${wishlistCount} saved items`
+              }
+              className={`inline-flex h-10 items-center gap-1 rounded-[2px] px-2 font-sans text-[14px] leading-[1.5] transition-colors ${
+                pathname === "/wishlist"
+                  ? "text-brass"
+                  : "text-white hover:text-brass"
+              }`}
+            >
+              <Heart
+                className={`h-4 w-4 ${wishlistCount > 0 ? "fill-brass text-brass" : ""}`}
+                aria-hidden
+              />
+              {wishlistCount > 0 ? <span>{wishlistCount}</span> : null}
+            </Link>
 
             <button
               type="button"
