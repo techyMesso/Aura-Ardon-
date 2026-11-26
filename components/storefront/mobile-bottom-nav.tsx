@@ -60,6 +60,9 @@ export function MobileBottomNav() {
         <button
           type="button"
           onClick={openCart}
+          aria-label={
+            itemCount === 1 ? "Bag with 1 item" : `Bag with ${itemCount} items`
+          }
           className="flex cursor-pointer flex-col items-center justify-center gap-0.5 text-white/80 hover:text-white"
         >
           <ShoppingBag className="h-4 w-4" aria-hidden />

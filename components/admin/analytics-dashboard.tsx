@@ -334,7 +334,7 @@ function TopProducts({
           >
             {image ? (
               <div className="relative h-11 w-9 shrink-0 overflow-hidden bg-stone">
-                <Image src={image} alt="" fill sizes="36px" className="object-cover" />
+                <Image src={image} alt="" aria-hidden="true" fill sizes="36px" className="object-cover" />
               </div>
             ) : (
               <span

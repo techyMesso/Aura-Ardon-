@@ -9,6 +9,7 @@ const HELP_LINKS = [
   { label: "How to order", href: "/how-to-order" },
   { label: "Delivery", href: "/shipping" },
   { label: "Returns", href: "/returns" },
+  { label: "FAQ", href: "/faq" },
   { label: "Contact", href: "/contact" }
 ];
 

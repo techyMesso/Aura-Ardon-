@@ -162,7 +162,8 @@ export function SearchCommandPalette() {
                       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-none bg-paper">
                         <Image
                           src={image}
-                          alt={displayTitle}
+                          alt=""
+                          aria-hidden="true"
                           fill
                           placeholder="blur"
                           blurDataURL={product.blur_data_url || DEFAULT_PRODUCT_BLUR_DATA_URL}

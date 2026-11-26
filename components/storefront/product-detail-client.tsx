@@ -238,7 +238,7 @@ export function ProductDetailClient({
                   key={`${image}-${index}`}
                   type="button"
                   onClick={() => setSelectedIndex(index)}
-                  aria-label={`View photo ${index + 1}`}
+                  aria-label={`View photo ${index + 1} of ${displayTitle}`}
                   aria-pressed={selectedIndex === index}
                   className={`relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-none bg-paper ${
                     selectedIndex === index
@@ -249,6 +249,7 @@ export function ProductDetailClient({
                   <Image
                     src={image}
                     alt=""
+                    aria-hidden="true"
                     fill
                     loading="lazy"
                     sizes="80px"

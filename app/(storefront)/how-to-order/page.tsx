@@ -1,10 +1,13 @@
 import Link from "next/link";
 
-export const metadata = {
-  title: "How to order",
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  title: "How to Order",
   description:
-    "How to order from Auro Ardon online or on WhatsApp without creating an account."
-};
+    "Learn how to order from Auro Ardon on WhatsApp without creating an account and pay cash or M-Pesa on delivery.",
+  pathname: "/how-to-order"
+});
 
 export default function HowToOrderPage() {
   return (

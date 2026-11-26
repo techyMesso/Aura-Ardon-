@@ -109,7 +109,11 @@ export function Navbar({ categories }: { categories: Category[] }) {
             <button
               type="button"
               onClick={openCart}
-              aria-label={`Bag with ${itemCount} items`}
+              aria-label={
+                itemCount === 1
+                  ? "Bag with 1 item"
+                  : `Bag with ${itemCount} items`
+              }
               className="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-[2px] px-2.5 font-sans text-[14px] leading-[1.5] text-white hover:text-brass"
             >
               <ShoppingBag className="h-4 w-4" aria-hidden />

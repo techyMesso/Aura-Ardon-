@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bodoni_Moda, Geist } from "next/font/google";
 
-import { getPublicSiteUrl } from "@/lib/env";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const themeScript = `(() => { try { const saved = localStorage.getItem("auro-ardon-theme"); const theme = saved === "dark" || saved === "light" ? saved : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; document.documentElement.classList.remove("light", "dark"); document.documentElement.classList.add(theme); document.documentElement.style.colorScheme = theme; } catch {} })();`;
@@ -19,19 +19,37 @@ const bodyFont = Geist({
   display: "swap"
 });
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
+    { media: "(prefers-color-scheme: dark)", color: "#141114" }
+  ]
+};
+
 export const metadata: Metadata = {
-  metadataBase: new URL(getPublicSiteUrl()),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Auro Ardon | Nairobi Jewelry & Boutique",
-    template: "%s | Auro Ardon"
+    default: `${SITE_NAME} | Nairobi Jewelry, Watches & Beauty Boutique`,
+    template: `%s | ${SITE_NAME}`
   },
   description:
-    "Bold, giftable jewelry, watches, and beauty picks delivered across Nairobi the same day. Pay on delivery or order on WhatsApp.",
+    "Bold, giftable jewelry, watches, and beauty picks delivered across Nairobi the same day. Order on WhatsApp and pay cash or M-Pesa on delivery.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon", type: "image/png", sizes: "32x32" }
+    ],
+    apple: [{ url: "/apple-icon", type: "image/png", sizes: "180x180" }]
+  },
   openGraph: {
     type: "website",
     locale: "en_KE",
-    siteName: "Auro Ardon"
+    siteName: SITE_NAME,
+    url: SITE_URL
+  },
+  twitter: {
+    card: "summary_large_image"
   }
 };
 

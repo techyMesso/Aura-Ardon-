@@ -5,29 +5,37 @@ import { DEFAULT_PRODUCT_BLUR_DATA_URL } from "@/components/storefront/price-kes
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { ProductTile } from "@/components/storefront/product-tile";
 import {
+  formatProductTitle,
   getSafeCatalogImageUrl,
   selectHomepageBestsellers
 } from "@/lib/catalog";
 import {
   deriveCategoryRepresentatives,
+  getStoreSettings,
   listCategories,
   listPublicProducts
 } from "@/lib/data";
+import {
+  buildOrganizationJsonLd,
+  buildPageMetadata,
+  serializeJsonLd
+} from "@/lib/seo";
 import { formatHeroSubline, SITE_CONFIG } from "@/lib/site-config";
 
 export const revalidate = 300;
 
-export const metadata = {
-  title: {
-    absolute: `${SITE_CONFIG.brandName} | ${SITE_CONFIG.heroHeadline}`
-  },
-  description: `${SITE_CONFIG.heroHeadline} ${SITE_CONFIG.brandLine}`
-};
+export const metadata = buildPageMetadata({
+  title: `${SITE_CONFIG.brandName} | ${SITE_CONFIG.heroHeadline}`,
+  description: `${SITE_CONFIG.heroHeadline} ${SITE_CONFIG.brandLine}`,
+  pathname: "/",
+  absoluteTitle: true
+});
 
 export default async function HomePage() {
-  const [allProducts, categories] = await Promise.all([
+  const [allProducts, categories, storeSettings] = await Promise.all([
     listPublicProducts(),
-    listCategories()
+    listCategories(),
+    getStoreSettings()
   ]);
 
   const featuredProducts = allProducts
@@ -44,20 +52,31 @@ export default async function HomePage() {
   const heroProduct = featuredProducts[0] ?? allProducts[0];
   const heroImage =
     getSafeCatalogImageUrl(heroProduct?.images[0]) || "/hero-jewelry.png";
+  const heroAlt = heroProduct
+    ? `${formatProductTitle(heroProduct.title)} — ${SITE_CONFIG.brandName} Nairobi boutique`
+    : `${SITE_CONFIG.brandName} jewelry, watches, and beauty picks in Nairobi`;
   const heroSubline = formatHeroSubline(allProducts);
 
   const representativeMap = new Map(
     representatives.map(item => [item.category_id, item.image_url])
   );
   const visibleCategories = categories.slice(0, 6);
+  const organizationJsonLd = buildOrganizationJsonLd(storeSettings);
 
   return (
     <div className="bg-paper text-text">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(organizationJsonLd)
+        }}
+      />
+
       <section className="relative h-[70vh] min-h-[440px] w-full overflow-hidden bg-ink text-white">
         <div className="absolute inset-0 animate-hero-reveal">
           <Image
             src={heroImage}
-            alt={SITE_CONFIG.brandName}
+            alt={heroAlt}
             fill
             priority
             placeholder="blur"
@@ -105,7 +124,7 @@ export default async function HomePage() {
                   <div className="relative aspect-square w-full overflow-hidden rounded-none bg-paper">
                     <Image
                       src={image}
-                      alt={category.name}
+                      alt={`${category.name} collection at ${SITE_CONFIG.brandName}`}
                       fill
                       loading="lazy"
                       placeholder="blur"

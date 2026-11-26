@@ -7,6 +7,7 @@ import { formatProductTitle, getSafeCatalogImageUrl } from "@/lib/catalog";
 import { getProductBySlug } from "@/lib/data";
 
 export const runtime = "nodejs";
+export const alt = "Auro Ardon product preview";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

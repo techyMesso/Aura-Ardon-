@@ -421,7 +421,7 @@ export function ProductList({
               }`}
             >
               <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-stone">
-                <Image src={image} alt="" fill sizes="64px" className="object-cover" />
+                <Image src={image} alt="" aria-hidden="true" fill sizes="64px" className="object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-start justify-between gap-2">

@@ -1,11 +1,15 @@
 import { CheckoutPageClient } from "@/components/storefront/checkout-page-client";
+import { buildPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Checkout",
-  description: "Place your order in minutes with cash on delivery or WhatsApp confirmation.",
-};
+  description:
+    "Send your Auro Ardon Nairobi order on WhatsApp and pay cash or M-Pesa on delivery.",
+  pathname: "/checkout",
+  noIndex: true
+});
 
 export default function CheckoutPage() {
   return <CheckoutPageClient />;

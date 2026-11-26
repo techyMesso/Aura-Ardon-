@@ -1,10 +1,13 @@
 import Link from "next/link";
 
-export const metadata = {
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
   title: "Delivery",
   description:
-    "Same-day Nairobi rider delivery and 1–2 day nationwide parcel dispatch across Kenya."
-};
+    "Same-day Nairobi rider delivery and 1–2 day nationwide courier dispatch across Kenya from Auro Ardon.",
+  pathname: "/shipping"
+});
 
 export default function ShippingPage() {
   return (

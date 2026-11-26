@@ -101,7 +101,7 @@ export function ProductTile({
         >
           <Image
             src={coverImage}
-            alt={displayTitle}
+            alt={`${displayTitle} — Auro Ardon Nairobi`}
             fill
             priority={priority}
             loading={priority ? undefined : "lazy"}
@@ -118,7 +118,7 @@ export function ProductTile({
               loading="lazy"
               sizes={sizes}
               className="product-card-secondary object-cover object-center opacity-0 transition-opacity duration-200"
-              aria-hidden
+              aria-hidden="true"
             />
           ) : null}
         </div>

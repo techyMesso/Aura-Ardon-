@@ -1,10 +1,13 @@
 import Link from "next/link";
 
-export const metadata = {
-  title: "Returns",
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  title: "Returns & Exchanges",
   description:
-    "How to request an exchange or report a damaged item within 48 hours of delivery."
-};
+    "How to request an exchange or report a damaged item within 48 hours of delivery at Auro Ardon Nairobi.",
+  pathname: "/returns"
+});
 
 export default function ReturnsPage() {
   return (

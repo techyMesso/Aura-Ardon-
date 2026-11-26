@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { ProductDetailClient } from "@/components/storefront/product-detail-client";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import {
   createCategoryMap,
   formatProductTitle,
-  getSafeCatalogImageUrl,
   productHref,
   resolveProductCategory
 } from "@/lib/catalog";
@@ -15,8 +15,13 @@ import {
   listProductsByCategory,
   listPublicProducts
 } from "@/lib/data";
-import { getPublicSiteUrl } from "@/lib/env";
-import { ProductDetailClient } from "@/components/storefront/product-detail-client";
+import {
+  buildBreadcrumbJsonLd,
+  buildPageMetadata,
+  buildProductJsonLd,
+  serializeJsonLd
+} from "@/lib/seo";
+import { buildCanonicalUrl } from "@/lib/site";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
@@ -35,28 +40,28 @@ export async function generateMetadata({
   params
 }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(decodeURIComponent(slug));
-  if (!product) return { title: "Product not found" };
+  const decodedSlug = decodeURIComponent(slug);
+  const product = await getProductBySlug(decodedSlug);
+  if (!product) {
+    return buildPageMetadata({
+      title: "Product Not Found",
+      description: "The requested Auro Ardon piece could not be found.",
+      pathname: `/p/${encodeURIComponent(decodedSlug)}`,
+      noIndex: true
+    });
+  }
 
   const displayTitle = formatProductTitle(product.title);
   const canonicalPath = productHref(product);
-  const siteUrl = getPublicSiteUrl();
-  const canonicalUrl = `${siteUrl}${canonicalPath}`;
   const description =
     product.description.trim().slice(0, 160) ||
     `${displayTitle} from Auro Ardon in Nairobi.`;
 
-  return {
+  return buildPageMetadata({
     title: displayTitle,
     description,
-    alternates: { canonical: canonicalUrl },
-    openGraph: {
-      type: "website",
-      title: displayTitle,
-      description,
-      url: canonicalUrl
-    }
-  };
+    pathname: canonicalPath
+  });
 }
 
 export default async function CanonicalProductPage({
@@ -86,40 +91,33 @@ export default async function CanonicalProductPage({
     .filter(related => related.id !== product.id)
     .slice(0, 4);
 
-  const siteUrl = getPublicSiteUrl();
-  const productUrl = `${siteUrl}${canonicalPath}`;
-  const safeProductImages = product.images
-    .map(getSafeCatalogImageUrl)
-    .filter((image): image is string => Boolean(image));
-  const structuredImage = safeProductImages.length
-    ? safeProductImages
-    : [`${siteUrl}/hero-jewelry.png`];
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: formatProductTitle(product.title),
-    description: product.description,
-    sku: product.id,
-    ...(structuredImage.length ? { image: structuredImage } : {}),
-    ...(product.material ? { material: product.material } : {}),
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "KES",
-      price: Number(product.price).toFixed(2),
-      availability:
-        product.stock_quantity > 0
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
-      ...(productUrl ? { url: productUrl } : {})
-    }
-  };
+  const productUrl = buildCanonicalUrl(canonicalPath);
+  const productJsonLd = buildProductJsonLd({
+    product,
+    category,
+    productUrl
+  });
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", pathname: "/" },
+    { name: "Shop", pathname: "/shop" },
+    ...(category
+      ? [{ name: category.name, pathname: `/shop/${category.slug}` }]
+      : []),
+    { name: formatProductTitle(product.title), pathname: canonicalPath }
+  ]);
 
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c")
+          __html: serializeJsonLd(productJsonLd)
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(breadcrumbJsonLd)
         }}
       />
       <ProductDetailClient

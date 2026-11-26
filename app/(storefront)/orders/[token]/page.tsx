@@ -3,13 +3,16 @@ import { notFound } from "next/navigation";
 import { OrderTrackingClient } from "@/components/storefront/order-tracking-client";
 import { getOrderWithItems } from "@/lib/data";
 import { verifyOrderStatusToken } from "@/lib/order-status-token";
+import { buildPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Track Order",
-  robots: { index: false, follow: false }
-};
+  description: "View real-time status updates for your Auro Ardon Nairobi order.",
+  pathname: "/orders",
+  noIndex: true
+});
 
 export default async function OrderTrackingPage({
   params

@@ -1,12 +1,14 @@
 import Image from "next/image";
 
 import { DEFAULT_PRODUCT_BLUR_DATA_URL } from "@/components/storefront/price-kes";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "About",
   description:
-    "Auro Ardon is a Nairobi boutique offering bold, giftable jewelry, watches, and beauty essentials with same-day Nairobi delivery."
-};
+    "Auro Ardon is a Nairobi boutique offering bold, giftable jewelry, watches, and beauty essentials with same-day Nairobi delivery.",
+  pathname: "/about"
+});
 
 export default function AboutPage() {
   return (

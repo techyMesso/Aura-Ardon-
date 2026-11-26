@@ -1,13 +1,16 @@
 import { Suspense } from "react";
 
 import { AdminLoginForm } from "@/components/auth/admin-login-form";
+import { buildPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Admin Login",
-  robots: { index: false, follow: false }
-};
+  description: "Sign in to the Auro Ardon store operations console.",
+  pathname: "/login",
+  noIndex: true
+});
 
 export default function LoginPage() {
   const configured = Boolean(process.env.ADMIN_EMAIL?.trim());

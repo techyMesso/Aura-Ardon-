@@ -284,7 +284,8 @@ export function CartDrawer() {
                     <div className="relative aspect-square w-24 overflow-hidden rounded-none bg-paper">
                       <Image
                         src={image}
-                        alt={displayTitle}
+                        alt=""
+                        aria-hidden="true"
                         fill
                         sizes="96px"
                         className="object-cover"

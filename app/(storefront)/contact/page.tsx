@@ -1,11 +1,13 @@
 import { ContactForm } from "@/components/storefront/contact-form";
+import { buildPageMetadata } from "@/lib/seo";
 import { formatWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Contact",
   description:
-    "Contact Auro Ardon in Nairobi by phone or WhatsApp about pieces, sizing, or delivery."
-};
+    "Contact Auro Ardon in Nairobi by phone or WhatsApp about jewelry, watches, lip care, sizing, or delivery.",
+  pathname: "/contact"
+});
 
 export default function ContactPage() {
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? null;

@@ -1,16 +1,25 @@
 import type { MetadataRoute } from "next";
 
-import { getPublicSiteUrl } from "@/lib/env";
+import { resolveSiteUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
-  const siteUrl = getPublicSiteUrl();
+  const siteUrl = resolveSiteUrl();
+
   return {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin", "/login", "/api/", "/orders/", "/checkout", "/cart"]
+      disallow: [
+        "/admin",
+        "/api/",
+        "/checkout",
+        "/cart",
+        "/order/",
+        "/orders/",
+        "/i/",
+        "/login"
+      ]
     },
     sitemap: `${siteUrl}/sitemap.xml`
   };
 }
-
