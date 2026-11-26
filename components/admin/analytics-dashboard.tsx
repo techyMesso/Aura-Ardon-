@@ -20,6 +20,10 @@ import {
   PaymentStatusBadge
 } from "@/components/admin/order-status-badge";
 import type { AdminDashboardOverview } from "@/lib/admin-dashboard";
+import {
+  formatOrderDisplayNumber,
+  resolveCanonicalOrderStatus
+} from "@/lib/admin-orders";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
 import type { AdminAnalytics, Product } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -171,10 +175,10 @@ function RecentOrders({ dashboard }: { dashboard: AdminDashboardOverview }) {
               <div className="min-w-0">
                 <p className="truncate font-medium text-text">{order.customer_name}</p>
                 <p className="mt-1 text-xs text-muted">
-                  #{order.id.slice(0, 8).toUpperCase()} — {formatOrderDate(order.created_at)}
+                  {formatOrderDisplayNumber(order)} — {formatOrderDate(order.created_at)}
                 </p>
               </div>
-              <OrderStatusBadge status={order.order_status} />
+              <OrderStatusBadge status={resolveCanonicalOrderStatus(order)} />
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
               <span className="font-semibold text-text">{formatCurrency(order.total)}</span>
@@ -202,7 +206,7 @@ function RecentOrders({ dashboard }: { dashboard: AdminDashboardOverview }) {
                     href={`/admin/orders?order=${order.id}`}
                     className="rounded hover:text-brass focus:outline-none focus:ring-2 focus:ring-brass"
                   >
-                    #{order.id.slice(0, 8).toUpperCase()}
+                    {formatOrderDisplayNumber(order)}
                   </Link>
                 </td>
                 <td className="px-4 py-4 text-text">{order.customer_name}</td>
@@ -211,7 +215,7 @@ function RecentOrders({ dashboard }: { dashboard: AdminDashboardOverview }) {
                   {formatCurrency(order.total)}
                 </td>
                 <td className="px-4 py-4">
-                  <OrderStatusBadge status={order.order_status} />
+                  <OrderStatusBadge status={resolveCanonicalOrderStatus(order)} />
                 </td>
               </tr>
             ))}
@@ -237,7 +241,7 @@ function SalesOverview({ analytics }: { analytics: AdminAnalytics }) {
           <p className="text-sm font-medium text-brass">Sales overview</p>
           <h2 className="mt-1 font-serif text-3xl text-text">Order activity</h2>
           <p className="mt-1 text-sm text-muted">
-            Active order revenue (excluding cancelled): {formatCurrency(analytics.revenue)}
+            Net revenue (excluding cancelled, after returns): {formatCurrency(analytics.revenue)}
           </p>
         </div>
         <div
@@ -371,7 +375,10 @@ export function AnalyticsDashboard({
     {
       label: "Total revenue",
       value: formatCurrency(dashboard.revenue),
-      detail: "Excluding cancelled orders",
+      detail:
+        dashboard.returnsTotal > 0
+          ? `Net of ${formatCurrency(dashboard.returnsTotal)} in returns (excl. cancelled)`
+          : "Excluding cancelled orders, net of returns",
       icon: WalletCards
     },
     {

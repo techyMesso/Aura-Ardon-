@@ -1,6 +1,10 @@
 import { unstable_cache } from "next/cache";
 
-import { buildAdminOrderSearchFilter } from "@/lib/admin-orders";
+import {
+  buildAdminOrderSearchFilter,
+  mapLegacyStatusToCanonical,
+  resolveCanonicalOrderStatus
+} from "@/lib/admin-orders";
 import { revalidateStoreSettings } from "@/lib/cache";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
 import { hasPublicSupabaseEnv } from "@/lib/env";
@@ -14,13 +18,18 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   AdminAnalytics,
+  CanonicalOrderStatus,
   Category,
   DeliveryZone,
   Order,
   OrderItem,
+  OrderReturnRecord,
   OrderStatus,
+  OrderStatusHistoryEntry,
   PaymentStatus,
   Product,
+  StockIntegrityDiscrepancy,
+  StockMovement,
   StoreMessageTemplates,
   StoreSettings,
   StoreSettingsUpdate
@@ -542,35 +551,47 @@ export async function listAllDeliveryZones(): Promise<DeliveryZone[]> {
 
 // ─── ADMIN ────────────────────────────────────────────────
 
+const ADMIN_ORDER_SELECT =
+  "id, order_number, channel, status, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, cancel_reason, cancel_note, cancelled_at, restocked_at, returned_at, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at";
+
 export async function listAdminDashboardData() {
   const supabase = createAdminSupabaseClient();
 
   const [
     { data: products, error: productsError },
     { data: orders, error: ordersError },
-    { data: categories, error: categoriesError }
+    { data: categories, error: categoriesError },
+    { data: returns, error: returnsError }
   ] = await Promise.all([
     supabase.from("products").select("*").order("created_at", { ascending: false }),
     supabase
       .from("orders")
-      .select(
-        "id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at"
-      )
+      .select(ADMIN_ORDER_SELECT)
       .order("created_at", { ascending: false }),
     supabase
       .from("categories")
       .select("id, name, slug, parent_id, description, image_url, display_order, created_at")
-      .order("display_order", { ascending: true })
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("order_returns")
+      .select("id, order_id, order_item_id, product_id, product_title, quantity, unit_price, refund_amount, condition, note, created_by, created_at")
+      .order("created_at", { ascending: false })
   ]);
 
   if (productsError) throw new Error(productsError.message);
   if (ordersError) throw new Error(ordersError.message);
   if (categoriesError) throw new Error(categoriesError.message);
+  if (returnsError) {
+    logger.warn("Unable to load order_returns for dashboard overview", {
+      error: returnsError.message
+    });
+  }
 
   return {
     products: (products ?? []) as Product[],
     orders: (orders ?? []) as Order[],
-    categories: (categories ?? []) as Category[]
+    categories: (categories ?? []) as Category[],
+    returns: (returns ?? []) as OrderReturnRecord[]
   };
 }
 
@@ -583,9 +604,7 @@ export async function getOrderWithItems(
     await Promise.all([
       supabase
         .from("orders")
-        .select(
-          "id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at"
-        )
+        .select(ADMIN_ORDER_SELECT)
         .eq("id", orderId)
         .maybeSingle(),
       supabase
@@ -600,6 +619,64 @@ export async function getOrderWithItems(
   return { order: order as Order, items: (items ?? []) as OrderItem[] };
 }
 
+export async function getOrderDetailBundle(orderId: string): Promise<{
+  order: Order;
+  items: OrderItem[];
+  history: OrderStatusHistoryEntry[];
+  returns: OrderReturnRecord[];
+} | null> {
+  const supabase = createAdminSupabaseClient();
+
+  const [
+    { data: order, error: orderError },
+    { data: items, error: itemsError },
+    { data: history, error: historyError },
+    { data: returns, error: returnsError }
+  ] = await Promise.all([
+    supabase
+      .from("orders")
+      .select(ADMIN_ORDER_SELECT)
+      .eq("id", orderId)
+      .maybeSingle(),
+    supabase
+      .from("order_items")
+      .select("id, order_id, product_id, product_title, quantity, unit_price, created_at")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("order_status_history")
+      .select("id, order_id, from_status, to_status, changed_by, reason, created_at")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("order_returns")
+      .select("id, order_id, order_item_id, product_id, product_title, quantity, unit_price, refund_amount, condition, note, created_by, created_at")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true })
+  ]);
+
+  if (orderError || !order || itemsError) return null;
+  if (historyError) {
+    logger.warn("Unable to load order_status_history", {
+      orderId,
+      error: historyError.message
+    });
+  }
+  if (returnsError) {
+    logger.warn("Unable to load order_returns", {
+      orderId,
+      error: returnsError.message
+    });
+  }
+
+  return {
+    order: order as Order,
+    items: (items ?? []) as OrderItem[],
+    history: (history ?? []) as OrderStatusHistoryEntry[],
+    returns: (returns ?? []) as OrderReturnRecord[]
+  };
+}
+
 export async function getOrderByNumber(
   orderNumber: string
 ): Promise<{ order: Order; items: OrderItem[] } | null> {
@@ -609,9 +686,7 @@ export async function getOrderByNumber(
   const supabase = createAdminSupabaseClient();
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select(
-      "id, order_number, channel, status, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at"
-    )
+    .select(ADMIN_ORDER_SELECT)
     .eq("order_number", normalized)
     .maybeSingle();
 
@@ -629,12 +704,20 @@ export async function getOrderByNumber(
 }
 
 type ListAdminOrdersParams = {
-  status?: OrderStatus | "ALL";
+  status?: CanonicalOrderStatus | OrderStatus | "ALL" | "all";
   paymentStatus?: PaymentStatus | "ALL";
   search?: string;
   from?: string;
   to?: string;
 };
+
+const LEGACY_STATUS_SET = new Set<string>([
+  "PENDING_CONFIRMATION",
+  "CONFIRMED",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED",
+  "CANCELLED"
+]);
 
 export async function listAdminOrders(
   params: ListAdminOrdersParams = {}
@@ -644,13 +727,14 @@ export async function listAdminOrders(
 
   let query = supabase
     .from("orders")
-    .select(
-      "id, customer_name, customer_email, customer_phone, customer_location, notes, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at"
-    )
+    .select(ADMIN_ORDER_SELECT)
     .order("created_at", { ascending: false });
 
-  if (params.status && params.status !== "ALL") {
-    query = query.eq("order_status", params.status);
+  if (params.status && params.status !== "ALL" && params.status !== "all") {
+    const canonical = LEGACY_STATUS_SET.has(params.status)
+      ? mapLegacyStatusToCanonical(params.status as OrderStatus)
+      : (params.status as CanonicalOrderStatus);
+    query = query.eq("status", canonical);
   }
 
   if (params.paymentStatus && params.paymentStatus !== "ALL") {
@@ -678,17 +762,119 @@ export async function listAdminOrders(
   return (data ?? []) as Order[];
 }
 
+export async function listProductStockMovements(productId: string): Promise<{
+  product: Pick<Product, "id" | "title" | "stock_quantity">;
+  movements: StockMovement[];
+  ledgerSum: number;
+  isConsistent: boolean;
+} | null> {
+  const supabase = createAdminSupabaseClient();
+  const [
+    { data: product, error: productError },
+    { data: movements, error: movementsError }
+  ] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, title, stock_quantity")
+      .eq("id", productId)
+      .maybeSingle(),
+    supabase
+      .from("stock_movements")
+      .select("id, product_id, variant_id, order_id, change, type, note, created_by, created_at")
+      .eq("product_id", productId)
+      .order("created_at", { ascending: false })
+  ]);
+
+  if (productError || !product) return null;
+  if (movementsError) throw new Error(movementsError.message);
+
+  const rawMovements = (movements ?? []) as StockMovement[];
+  const orderIds = Array.from(
+    new Set(
+      rawMovements
+        .map(movement => movement.order_id)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  const orderNumbersById = new Map<string, string>();
+  if (orderIds.length > 0) {
+    const { data: linkedOrders } = await supabase
+      .from("orders")
+      .select("id, order_number")
+      .in("id", orderIds);
+
+    for (const row of (linkedOrders ?? []) as Array<{ id: string; order_number: string | null }>) {
+      orderNumbersById.set(
+        row.id,
+        row.order_number || `#${row.id.slice(0, 8).toUpperCase()}`
+      );
+    }
+  }
+
+  const enriched = rawMovements.map(movement => ({
+    ...movement,
+    order_number: movement.order_id
+      ? (orderNumbersById.get(movement.order_id) ?? `#${movement.order_id.slice(0, 8).toUpperCase()}`)
+      : null
+  }));
+
+  const typedProduct = product as Pick<Product, "id" | "title" | "stock_quantity">;
+  const ledgerSum = enriched.reduce((sum, movement) => sum + Number(movement.change ?? 0), 0);
+
+  return {
+    product: typedProduct,
+    movements: enriched,
+    ledgerSum,
+    isConsistent: typedProduct.stock_quantity === ledgerSum
+  };
+}
+
+export async function runStockIntegrityCheck(): Promise<{
+  ok: boolean;
+  totalProducts: number;
+  discrepancies: StockIntegrityDiscrepancy[];
+  checkedAt: string;
+}> {
+  const supabase = createAdminSupabaseClient();
+  const [rpcRes, countRes] = await Promise.all([
+    supabase.rpc("check_stock_integrity" as never),
+    supabase.from("products").select("id", { count: "exact", head: true })
+  ]);
+
+  if (rpcRes.error) {
+    throw new Error(rpcRes.error.message);
+  }
+
+  const discrepancies = ((rpcRes.data ?? []) as StockIntegrityDiscrepancy[]).map(row => ({
+    product_id: String(row.product_id),
+    product_title: String(row.product_title),
+    recorded_stock: Number(row.recorded_stock),
+    ledger_sum: Number(row.ledger_sum),
+    discrepancy: Number(row.discrepancy)
+  }));
+
+  return {
+    ok: discrepancies.length === 0,
+    totalProducts: countRes.count ?? 0,
+    discrepancies,
+    checkedAt: new Date().toISOString()
+  };
+}
+
 export async function getAdminAnalytics(): Promise<AdminAnalytics> {
   const supabase = createAdminSupabaseClient();
-  const [ordersResponse, itemsResponse] = await Promise.all([
+  const [ordersResponse, itemsResponse, returnsResponse] = await Promise.all([
     supabase
       .from("orders")
-      .select("id, total, order_status, created_at")
-      .neq("order_status", "CANCELLED")
+      .select("id, total, status, order_status, created_at")
       .order("created_at", { ascending: true }),
     supabase
       .from("order_items")
-      .select("order_id, product_title, quantity, unit_price")
+      .select("order_id, product_title, quantity, unit_price"),
+    supabase
+      .from("order_returns")
+      .select("order_id, product_title, quantity, refund_amount")
   ]);
 
   if (ordersResponse.error) {
@@ -697,13 +883,21 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
   if (itemsResponse.error) {
     throw new Error(itemsResponse.error.message);
   }
+  if (returnsResponse.error) {
+    logger.warn("Unable to load order_returns for analytics", {
+      error: returnsResponse.error.message
+    });
+  }
 
-  const orders = (ordersResponse.data ?? []) as Array<{
+  // Revenue rule: cancelled orders NEVER count.
+  const orders = ((ordersResponse.data ?? []) as Array<{
     id: string;
     total: string | number | null;
+    status?: CanonicalOrderStatus | null;
     order_status: OrderStatus;
     created_at: string;
-  }>;
+  }>).filter(order => resolveCanonicalOrderStatus(order) !== "cancelled");
+
   const validOrderIds = new Set(orders.map(order => order.id));
   const items = ((itemsResponse.data ?? []) as Array<{
     order_id: string;
@@ -711,6 +905,13 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
     quantity: number;
     unit_price: string | number;
   }>).filter(item => validOrderIds.has(item.order_id));
+
+  const returns = ((returnsResponse.data ?? []) as Array<{
+    order_id: string;
+    product_title: string;
+    quantity: number;
+    refund_amount: string | number;
+  }>).filter(ret => validOrderIds.has(ret.order_id));
 
   const todayNairobi = toNairobiIsoDate(new Date());
   let revenue = 0;
@@ -733,6 +934,15 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
     }
   }
 
+  // Revenue rule: returns are subtracted when returned.
+  for (const ret of returns) {
+    const refund = Number(ret.refund_amount ?? 0);
+    if (Number.isFinite(refund)) {
+      revenue -= refund;
+    }
+  }
+  revenue = Math.max(0, revenue);
+
   const productMap = new Map<string, { quantity: number; revenue: number }>();
 
   for (const item of items) {
@@ -745,7 +955,16 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
     productMap.set(item.product_title, current);
   }
 
+  for (const ret of returns) {
+    const current = productMap.get(ret.product_title);
+    if (current) {
+      current.quantity = Math.max(0, current.quantity - ret.quantity);
+      current.revenue = Math.max(0, current.revenue - Number(ret.refund_amount ?? 0));
+    }
+  }
+
   const mostOrderedProducts = [...productMap.entries()]
+    .filter(([, values]) => values.quantity > 0 || values.revenue > 0)
     .map(([product_title, values]) => ({
       product_title,
       quantity: values.quantity,

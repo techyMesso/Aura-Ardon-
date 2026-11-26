@@ -56,7 +56,9 @@ export default async function InvoicePage({
             <h1 className="font-serif text-3xl text-text">
               {hidePrices ? "Gift Packing Slip" : "Invoice"}
             </h1>
-            <p className="mt-1 text-muted">Order #{order.id.slice(0, 8).toUpperCase()}</p>
+            <p className="mt-1 text-muted">
+              Order {order.order_number || `#${order.id.slice(0, 8).toUpperCase()}`}
+            </p>
             <p className="text-sm text-muted">
               {new Date(order.created_at).toLocaleDateString("en-KE", {
                 day: "numeric",
@@ -162,7 +164,7 @@ export default async function InvoicePage({
               <span>
                 {Number(order.shipping_fee) > 0
                   ? formatCurrency(order.shipping_fee)
-                  : "Confirmed on dispatch"}
+                  : "Free"}
               </span>
             </div>
             <div className="flex w-full justify-between border-t border-border pt-2 text-lg font-semibold text-text sm:w-52">

@@ -8,11 +8,11 @@ export const metadata = {
 };
 
 export default async function AdminDashboardPage() {
-  const [{ products, orders }, analytics] = await Promise.all([
+  const [{ products, orders, returns }, analytics] = await Promise.all([
     listAdminDashboardData(),
     getAdminAnalytics()
   ]);
-  const dashboard = buildAdminDashboardOverview(products, orders);
+  const dashboard = buildAdminDashboardOverview(products, orders, returns);
 
   return <AnalyticsDashboard dashboard={dashboard} analytics={analytics} products={products} />;
 }

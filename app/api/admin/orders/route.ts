@@ -12,6 +12,13 @@ const ordersQuerySchema = z
     status: z
       .enum([
         "ALL",
+        "all",
+        "pending",
+        "confirmed",
+        "dispatched",
+        "delivered",
+        "cancelled",
+        "returned",
         "PENDING_CONFIRMATION",
         "CONFIRMED",
         "OUT_FOR_DELIVERY",

@@ -36,16 +36,34 @@ export async function PATCH(
     const supabase = createAdminSupabaseClient();
 
     const updates: ProductUpdate = {};
+    const { data: existingProduct } = await supabase
+      .from("products")
+      .select("slug, stock_quantity")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!existingProduct) {
+      return NextResponse.json({ error: "Product not found." }, { status: 404 });
+    }
+
+    const currentStock = (existingProduct as { stock_quantity: number }).stock_quantity;
+    if (
+      payload.stock_quantity !== undefined &&
+      payload.stock_quantity !== currentStock
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Stock cannot be overwritten directly. Use the Stock Ledger adjustment form with a required note."
+        },
+        { status: 400 }
+      );
+    }
+
     if (payload.title !== undefined) {
       updates.title = payload.title;
       // Only backfill slug if the existing product does not have one yet so live /p/[slug] URLs stay stable.
-      const { data: existing } = await supabase
-        .from("products")
-        .select("slug")
-        .eq("id", id)
-        .maybeSingle();
-
-      if (!existing || !(existing as { slug: string | null }).slug) {
+      if (!(existingProduct as { slug: string | null }).slug) {
         const candidateSlug = toCatalogSlug(payload.title);
         if (candidateSlug) {
           updates.slug = candidateSlug;
@@ -54,7 +72,6 @@ export async function PATCH(
     }
     if (payload.description !== undefined) updates.description = payload.description;
     if (payload.price !== undefined) updates.price = toMoneyString(payload.price);
-    if (payload.stock_quantity !== undefined) updates.stock_quantity = payload.stock_quantity;
     if (payload.category_id !== undefined) {
       const category = await getSelectedProductCategory(payload.category_id);
       updates.category = category.name;

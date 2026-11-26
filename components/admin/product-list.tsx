@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { ProductStockStatus } from "@/components/admin/product-stock-status";
+import { StockIntegrityPanel } from "@/components/admin/stock-integrity-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -238,6 +239,8 @@ export function ProductList({
           </Button>
         </Link>
       </div>
+
+      <StockIntegrityPanel />
 
       {qualityWarnings.hasWarnings ? (
         <div

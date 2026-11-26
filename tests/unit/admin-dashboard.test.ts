@@ -117,6 +117,30 @@ describe("admin dashboard inventory", () => {
     expect(dashboard.revenue).toBe(5700);
     expect(dashboard.totalOrders).toBe(2);
   });
+
+  it("subtracts recorded returns from revenue without counting cancelled orders", () => {
+    const dashboard = buildAdminDashboardOverview(
+      products,
+      [
+        ...orders,
+        {
+          ...orders[0],
+          id: "order-cancelled",
+          status: "cancelled",
+          order_status: "CANCELLED",
+          total: "8000"
+        }
+      ],
+      [
+        { order_id: "order-2", refund_amount: "1200.00" },
+        { order_id: "order-cancelled", refund_amount: "500.00" }
+      ]
+    );
+
+    expect(dashboard.grossRevenue).toBe(5700);
+    expect(dashboard.returnsTotal).toBe(1200);
+    expect(dashboard.revenue).toBe(4500);
+  });
 });
 
 describe("admin product filters", () => {

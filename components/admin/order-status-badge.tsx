@@ -1,20 +1,33 @@
 import { Badge } from "@/components/ui/badge";
 import {
-  getOrderStatusBadgeClassName,
-  getOrderStatusLabel,
+  CANONICAL_ORDER_STATUSES,
+  getCanonicalStatusBadgeClassName,
+  getCanonicalStatusLabel,
   getPaymentStatusBadgeClassName,
-  getPaymentStatusLabel
+  getPaymentStatusLabel,
+  mapLegacyStatusToCanonical
 } from "@/lib/admin-orders";
-import type { OrderStatus, PaymentStatus } from "@/lib/types";
+import type { CanonicalOrderStatus, OrderStatus, PaymentStatus } from "@/lib/types";
 
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
+export function OrderStatusBadge({
+  status
+}: {
+  status: CanonicalOrderStatus | OrderStatus;
+}) {
+  const canonical: CanonicalOrderStatus = (
+    CANONICAL_ORDER_STATUSES as readonly string[]
+  ).includes(status)
+    ? (status as CanonicalOrderStatus)
+    : mapLegacyStatusToCanonical(status as OrderStatus);
+
+  const label = getCanonicalStatusLabel(canonical);
+
   return (
-    <span
-      role="status"
-      aria-label={`Order status: ${getOrderStatusLabel(status)}`}
-    >
-      <Badge className={`normal-case tracking-normal ${getOrderStatusBadgeClassName(status)}`}>
-        {getOrderStatusLabel(status)}
+    <span role="status" aria-label={`Order status: ${label}`}>
+      <Badge
+        className={`normal-case tracking-normal ${getCanonicalStatusBadgeClassName(canonical)}`}
+      >
+        {label}
       </Badge>
     </span>
   );

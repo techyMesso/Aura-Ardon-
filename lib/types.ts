@@ -78,6 +78,24 @@ export type CanonicalOrderStatus =
   | "cancelled"
   | "returned";
 
+export type OrderCancelReason =
+  | "customer_no_response"
+  | "customer_cancelled"
+  | "out_of_stock"
+  | "fake_order"
+  | "delivery_failed"
+  | "other";
+
+export type OrderReturnCondition = "resellable" | "damaged";
+
+export type StockMovementType =
+  | "initial_stock"
+  | "order_reserved"
+  | "cancel_restock"
+  | "return_restock"
+  | "manual_adjustment"
+  | "damaged_writeoff";
+
 export interface Order {
   id: string;
   order_number?: string | null;
@@ -99,6 +117,11 @@ export interface Order {
   marketing_opt_in?: boolean;
   discount_code?: string | null;
   discount_amount?: string | number | null;
+  cancel_reason?: OrderCancelReason | null;
+  cancel_note?: string | null;
+  cancelled_at?: string | null;
+  restocked_at?: string | null;
+  returned_at?: string | null;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   order_status: OrderStatus;
@@ -106,6 +129,52 @@ export interface Order {
   shipping_fee: string;
   total: string;
   created_at: string;
+}
+
+export interface OrderStatusHistoryEntry {
+  id: string;
+  order_id: string;
+  from_status: CanonicalOrderStatus | null;
+  to_status: CanonicalOrderStatus;
+  changed_by: string;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface OrderReturnRecord {
+  id: string;
+  order_id: string;
+  order_item_id: string | null;
+  product_id: string | null;
+  product_title: string;
+  quantity: number;
+  unit_price: string;
+  refund_amount: string;
+  condition: OrderReturnCondition;
+  note: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface StockMovement {
+  id: string;
+  product_id: string;
+  variant_id?: string | null;
+  order_id: string | null;
+  order_number?: string | null;
+  change: number;
+  type: StockMovementType;
+  note: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface StockIntegrityDiscrepancy {
+  product_id: string;
+  product_title: string;
+  recorded_stock: number;
+  ledger_sum: number;
+  discrepancy: number;
 }
 
 // ─── OrderItem ───────────────────────────────────────────

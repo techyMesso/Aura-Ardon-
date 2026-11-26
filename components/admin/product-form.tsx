@@ -143,7 +143,7 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       setError("Price must be above zero.");
       return;
     }
-    if (!Number.isInteger(numericStock) || numericStock < 0) {
+    if (!isEdit && (!Number.isInteger(numericStock) || numericStock < 0)) {
       setError("Stock quantity cannot be negative and must be a whole number.");
       return;
     }
@@ -153,11 +153,10 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
     }
 
     setSaving(true);
-    const payload = {
+    const payload: Record<string, unknown> = {
       title: title.trim(),
       description: description.trim(),
       price: numericPrice,
-      stock_quantity: numericStock,
       category_id: categoryId,
       material: material.trim(),
       finish: finish.trim() || null,
@@ -168,6 +167,9 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
       active,
       is_featured: isFeatured
     };
+    if (!isEdit) {
+      payload.stock_quantity = numericStock;
+    }
 
     try {
       const response = await fetch(
@@ -369,8 +371,8 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
             </p>
           </div>
           <div>
-            <FormLabel htmlFor="product-stock" required>
-              Stock quantity
+            <FormLabel htmlFor="product-stock" required={!isEdit}>
+              {isEdit ? "Current stock (ledger managed)" : "Initial stock quantity"}
             </FormLabel>
             <Input
               id="product-stock"
@@ -381,12 +383,15 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
               placeholder="10"
               value={stockQuantity}
               onChange={event => setStockQuantity(event.target.value)}
-              required
-              className="min-h-12 text-base"
+              required={!isEdit}
+              disabled={isEdit}
+              className="min-h-12 text-base disabled:cursor-not-allowed disabled:bg-stone disabled:opacity-80"
               aria-describedby="product-stock-help"
             />
             <p id="product-stock-help" className="mt-1.5 text-xs text-muted">
-              Stock cannot be negative.
+              {isEdit
+                ? "Stock is never overwritten directly. Use the Stock History & Manual Adjustment ledger below (requires a note)."
+                : "Cannot be negative. Saved as an initial_stock entry in the stock ledger."}
             </p>
           </div>
         </div>

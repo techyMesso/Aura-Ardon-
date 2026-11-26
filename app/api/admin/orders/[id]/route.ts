@@ -4,7 +4,7 @@ import { z } from "zod";
 import { isValidOrderStatusTransition } from "@/lib/admin-orders";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
-import { getOrderWithItems } from "@/lib/data";
+import { getOrderDetailBundle } from "@/lib/data";
 import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import type { Order, OrderStatus, PaymentStatus } from "@/lib/types";
@@ -84,7 +84,7 @@ export async function GET(
   try {
     await assertAdminRequest();
     const { id } = idParamSchema.parse(await context.params);
-    const result = await getOrderWithItems(id);
+    const result = await getOrderDetailBundle(id);
 
     if (!result) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
@@ -101,6 +101,13 @@ export async function GET(
     const status = message === "UNAUTHORIZED" ? 401 : 400;
     return NextResponse.json({ error: message }, { status });
   }
+}
+
+export async function DELETE() {
+  return NextResponse.json(
+    { error: "Orders cannot be deleted. Cancel the order instead." },
+    { status: 405 }
+  );
 }
 
 export async function PATCH(
