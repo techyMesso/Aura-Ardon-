@@ -12,6 +12,7 @@ import {
   Minus,
   Plus,
   RotateCcw,
+  Star,
   X,
   ZoomIn,
   ZoomOut
@@ -33,8 +34,14 @@ import {
 } from "@/lib/catalog";
 import { resolveProductImageAlt } from "@/lib/image-processing";
 import { trackStorefrontEvent } from "@/lib/events-client";
+import type { ProductReviewAggregate } from "@/lib/seo";
 import { resolveSiteUrl } from "@/lib/site";
-import type { Category, Product, ProductVariant } from "@/lib/types";
+import type {
+  Category,
+  Product,
+  ProductVariant,
+  PublicProductReview
+} from "@/lib/types";
 import { createWhatsAppLink } from "@/lib/utils";
 
 interface ProductDetailClientProps {
@@ -42,6 +49,8 @@ interface ProductDetailClientProps {
   category: Category | null;
   productUrl: string | null;
   whatsappNumber: string | null;
+  approvedReviews?: PublicProductReview[];
+  reviewStats?: ProductReviewAggregate | null;
 }
 
 function clampZoom(scale: number) {
@@ -58,7 +67,9 @@ export function ProductDetailClient({
   product,
   category,
   productUrl,
-  whatsappNumber
+  whatsappNumber,
+  approvedReviews = [],
+  reviewStats = null
 }: ProductDetailClientProps) {
   const { addItem, items } = useCart();
   const {
@@ -560,6 +571,25 @@ export function ProductDetailClient({
             ) : null}
           </div>
 
+          {reviewStats && reviewStats.reviewCount > 0 ? (
+            <a
+              href="#reviews"
+              className="mt-2 inline-flex w-fit items-center gap-1.5 font-sans text-[13px] text-text transition-colors hover:text-brass"
+            >
+              <Star className="h-4 w-4 fill-brass text-brass" aria-hidden />
+              <span className="font-medium">
+                {reviewStats.ratingValue.toFixed(1)}
+              </span>
+              <span className="text-muted underline underline-offset-4">
+                ({reviewStats.reviewCount}{" "}
+                {reviewStats.reviewCount === 1
+                  ? "verified review"
+                  : "verified reviews"}
+                )
+              </span>
+            </a>
+          ) : null}
+
           {hasVariants ? (
             <div className="mt-5 space-y-2.5">
               <div className="flex items-baseline justify-between gap-2">
@@ -788,6 +818,131 @@ export function ProductDetailClient({
           ) : null}
         </section>
       </div>
+
+      {approvedReviews.length > 0 && reviewStats ? (
+        <section
+          id="reviews"
+          aria-labelledby="verified-reviews-heading"
+          className="mt-14 border-t border-text/12 pt-10"
+        >
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-brass">
+                Verified buyers
+              </p>
+              <h2
+                id="verified-reviews-heading"
+                className="mt-1 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text"
+              >
+                Customer reviews
+              </h2>
+              <div className="mt-2 flex items-center gap-2 font-sans text-[14px] text-text">
+                <span className="inline-flex items-center gap-0.5" aria-hidden>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <Star
+                      key={star}
+                      className={`h-4 w-4 ${
+                        star <= Math.round(reviewStats.ratingValue)
+                          ? "fill-brass text-brass"
+                          : "text-muted/35"
+                      }`}
+                    />
+                  ))}
+                </span>
+                <span className="font-medium">
+                  {reviewStats.ratingValue.toFixed(1)} out of 5
+                </span>
+                <span className="text-muted">
+                  · {reviewStats.reviewCount}{" "}
+                  {reviewStats.reviewCount === 1
+                    ? "verified review"
+                    : "verified reviews"}
+                </span>
+              </div>
+            </div>
+
+            <Link
+              href="/review"
+              className="font-sans text-[13px] text-text underline underline-offset-4 hover:text-brass"
+            >
+              Ordered this piece? Leave a verified review
+            </Link>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {approvedReviews.map(review => (
+              <article
+                key={review.id}
+                className="flex flex-col justify-between gap-4 border border-text/12 bg-paper p-5"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div
+                      className="inline-flex items-center gap-0.5"
+                      aria-label={`Rated ${review.rating} out of 5 stars`}
+                    >
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Star
+                          key={star}
+                          className={`h-3.5 w-3.5 ${
+                            star <= review.rating
+                              ? "fill-brass text-brass"
+                              : "text-muted/35"
+                          }`}
+                          aria-hidden
+                        />
+                      ))}
+                    </div>
+                    <time
+                      dateTime={review.created_at}
+                      className="font-sans text-[12px] text-muted"
+                    >
+                      {new Intl.DateTimeFormat("en-KE", {
+                        timeZone: "Africa/Nairobi",
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric"
+                      }).format(new Date(review.created_at))}
+                    </time>
+                  </div>
+
+                  <p className="whitespace-pre-line font-sans text-[14px] leading-[1.6] text-text">
+                    {review.comment}
+                  </p>
+
+                  {review.photo_url ? (
+                    <a
+                      href={review.photo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block h-28 w-28 overflow-hidden border border-text/12 bg-stone"
+                      aria-label={`Open full review photo by ${review.display_name}`}
+                    >
+                      <Image
+                        src={review.photo_url}
+                        alt={`Verified buyer photo by ${review.display_name}`}
+                        fill
+                        loading="lazy"
+                        sizes="112px"
+                        className="object-cover"
+                      />
+                    </a>
+                  ) : null}
+                </div>
+
+                <footer className="flex items-center justify-between border-t border-text/10 pt-3 font-sans text-[12px]">
+                  <span className="font-medium text-text">
+                    {review.display_name}
+                  </span>
+                  <span className="uppercase tracking-[0.12em] text-brass">
+                    Verified buyer
+                  </span>
+                </footer>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {otherRecentlyViewed.length > 0 ? (
         <section className="mt-14 border-t border-text/12 pt-10">

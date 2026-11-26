@@ -24,6 +24,10 @@ import {
   sanitizeZoneCosts
 } from "@/lib/riders";
 import {
+  computeApprovedReviewAggregate,
+  formatReviewerDisplayName
+} from "@/lib/reviews";
+import {
   DEFAULT_DELIVERY_ZONES,
   DEFAULT_MESSAGE_TEMPLATES,
   DEFAULT_STORE_CONFIG,
@@ -31,9 +35,11 @@ import {
 } from "@/lib/site";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
+import { normalizeKenyanPhoneNumber } from "@/lib/utils";
 import type {
   AdminAnalytics,
   AdminPushSubscription,
+  AdminReviewRecord,
   AnalyticsDashboardReport,
   BackInStockAlert,
   BackInStockAlertStatus,
@@ -62,7 +68,9 @@ import type {
   PaymentStatus,
   Product,
   ProductVariant,
+  PublicProductReview,
   RedirectRecord,
+  ReviewStatus,
   Rider,
   StockIntegrityDiscrepancy,
   StockMovement,
@@ -107,34 +115,114 @@ export const PUBLIC_VARIANT_SELECT: string =
 export const OWNER_VARIANT_SELECT: string =
   "id, product_id, name, option_values, sku, price_override, compare_at_price, cost_price, stock_quantity, image_url, image_alt, sort_order, active, created_at, updated_at";
 
+function hasUsableServiceRoleKey(): boolean {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  return Boolean(key && key !== "staging-build-check-placeholder");
+}
+
+async function fetchApprovedReviewStatsMapUncached(): Promise<
+  Record<string, { avg: number; count: number }>
+> {
+  if (!hasPublicSupabaseEnv() || !hasUsableServiceRoleKey()) {
+    return {};
+  }
+
+  const supabase = createAdminSupabaseClient();
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("product_id, rating")
+    .eq("status", "approved");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const grouped = new Map<string, Array<{ rating: number }>>();
+  for (const row of (data ?? []) as Array<{ product_id: string; rating: number }>) {
+    const list = grouped.get(row.product_id) ?? [];
+    list.push({ rating: Number(row.rating) });
+    grouped.set(row.product_id, list);
+  }
+
+  const stats: Record<string, { avg: number; count: number }> = {};
+  for (const [productId, ratings] of grouped.entries()) {
+    const aggregate = computeApprovedReviewAggregate(ratings);
+    if (aggregate) {
+      stats[productId] = {
+        avg: aggregate.ratingValue,
+        count: aggregate.reviewCount
+      };
+    }
+  }
+  return stats;
+}
+
+const getCachedApprovedReviewStatsMap = unstable_cache(
+  fetchApprovedReviewStatsMapUncached,
+  ["approved-review-stats"],
+  {
+    tags: ["reviews"],
+    revalidate: 300
+  }
+);
+
+async function getApprovedReviewStatsMap(): Promise<
+  Record<string, { avg: number; count: number }>
+> {
+  if (!hasPublicSupabaseEnv() || !hasUsableServiceRoleKey()) {
+    return {};
+  }
+  try {
+    return await getCachedApprovedReviewStatsMap();
+  } catch (err) {
+    logger.warn("Unable to attach approved review stats", {
+      error: err instanceof Error ? err.message : String(err)
+    });
+    return {};
+  }
+}
+
 async function attachPublicVariants(products: Product[]): Promise<Product[]> {
   if (products.length === 0) return products;
   const supabase = createPublicServerSupabaseClient();
   const productIds = products.map(product => product.id);
-  const { data: variantRows, error } = await supabase
-    .from("product_variants")
-    .select(PUBLIC_VARIANT_SELECT)
-    .in("product_id", productIds)
-    .eq("active", true)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
+  const [{ data: variantRows, error }, reviewStatsMap] = await Promise.all([
+    supabase
+      .from("product_variants")
+      .select(PUBLIC_VARIANT_SELECT)
+      .in("product_id", productIds)
+      .eq("active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+    getApprovedReviewStatsMap()
+  ]);
 
   if (error) {
     logger.warn("Unable to attach product variants", { error: error.message });
-    return products;
   }
 
   const byProductId = new Map<string, ProductVariant[]>();
-  for (const variant of (variantRows ?? []) as unknown as ProductVariant[]) {
-    const list = byProductId.get(variant.product_id) ?? [];
-    list.push(variant);
-    byProductId.set(variant.product_id, list);
+  if (!error) {
+    for (const variant of (variantRows ?? []) as unknown as ProductVariant[]) {
+      const list = byProductId.get(variant.product_id) ?? [];
+      list.push(variant);
+      byProductId.set(variant.product_id, list);
+    }
   }
 
-  return products.map(product => ({
-    ...product,
-    variants: byProductId.get(product.id) ?? []
-  }));
+  return products.map(product => {
+    const stats = reviewStatsMap[product.id];
+    return {
+      ...product,
+      variants: error ? (product.variants ?? []) : (byProductId.get(product.id) ?? []),
+      ...(stats && stats.count > 0
+        ? {
+            review_rating_avg: stats.avg,
+            review_count: stats.count
+          }
+        : {})
+    };
+  });
 }
 
 async function fetchPublicProductsUncached(): Promise<Product[]> {
@@ -156,7 +244,7 @@ const getCachedPublicProducts = unstable_cache(
   fetchPublicProductsUncached,
   ["public-products"],
   {
-    tags: ["products"],
+    tags: ["products", "reviews"],
     revalidate: 300
   }
 );
@@ -204,6 +292,12 @@ export async function listPublicProductIndex(): Promise<Product[]> {
     status: product.status ?? "active",
     blur_data_url: product.blur_data_url ?? null,
     variants: product.variants ?? [],
+    ...(product.review_count && product.review_count > 0 && product.review_rating_avg != null
+      ? {
+          review_rating_avg: product.review_rating_avg,
+          review_count: product.review_count
+        }
+      : {}),
     created_at: product.created_at
   }));
 }
@@ -233,7 +327,7 @@ export async function listFeaturedProducts(limit = 6): Promise<Product[]> {
       () => fetchFeaturedProductsUncached(limit),
       ["featured-products", String(limit)],
       {
-        tags: ["products", "featured-products"],
+        tags: ["products", "featured-products", "reviews"],
         revalidate: 300
       }
     )();
@@ -283,7 +377,7 @@ export async function listProductsByCategory(categorySlug: string): Promise<Prod
     return await unstable_cache(
       () => fetchProductsByCategoryUncached(categorySlug),
       ["products-by-category", categorySlug],
-      { tags: ["products", "categories"], revalidate: 300 }
+      { tags: ["products", "categories", "reviews"], revalidate: 300 }
     )();
   } catch (err) {
     logger.error("Failed to list products by category", {
@@ -343,7 +437,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     return await unstable_cache(
       () => fetchProductBySlugUncached(slug),
       ["product-by-slug", slug],
-      { tags: ["products", "categories"], revalidate: 300 }
+      { tags: ["products", "categories", "reviews"], revalidate: 300 }
     )();
   } catch (err) {
     logger.error("Failed to fetch product by slug", {
@@ -1865,4 +1959,257 @@ export async function getAnalyticsDashboardData(params: {
   }
 
   return data as unknown as AnalyticsDashboardReport;
+}
+
+// ─── REAL VERIFIED REVIEWS (Phase 12) ────────────────────
+
+async function fetchApprovedProductReviewsUncached(
+  productId: string
+): Promise<PublicProductReview[]> {
+  if (!hasPublicSupabaseEnv() || !hasUsableServiceRoleKey()) {
+    return [];
+  }
+
+  const supabase = createAdminSupabaseClient();
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id, product_id, customer_name, rating, comment, photo_url, created_at")
+    .eq("product_id", productId)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (
+    (data ?? []) as Array<{
+      id: string;
+      product_id: string;
+      customer_name: string;
+      rating: number;
+      comment: string;
+      photo_url: string | null;
+      created_at: string;
+    }>
+  ).map(row => ({
+    id: row.id,
+    product_id: row.product_id,
+    display_name: formatReviewerDisplayName(row.customer_name),
+    rating: Number(row.rating),
+    comment: row.comment,
+    photo_url: row.photo_url ?? null,
+    created_at: row.created_at
+  }));
+}
+
+export async function listApprovedProductReviews(
+  productId: string
+): Promise<PublicProductReview[]> {
+  if (!hasPublicSupabaseEnv() || !hasUsableServiceRoleKey()) {
+    return [];
+  }
+  try {
+    return await unstable_cache(
+      () => fetchApprovedProductReviewsUncached(productId),
+      ["approved-product-reviews", productId],
+      {
+        tags: ["reviews"],
+        revalidate: 300
+      }
+    )();
+  } catch (err) {
+    logger.warn("Unable to load approved product reviews", {
+      productId,
+      error: err instanceof Error ? err.message : String(err)
+    });
+    return [];
+  }
+}
+
+export type VerifyOrderForReviewResult =
+  | {
+      ok: true;
+      orderId: string;
+      orderNumber: string;
+      matchedPhone: string;
+      reviewerDisplayName: string;
+      items: Array<{
+        productId: string;
+        title: string;
+        variantName: string | null;
+        alreadyReviewed: boolean;
+      }>;
+    }
+  | {
+      ok: false;
+      reason: "not_found" | "not_delivered";
+      message: string;
+    };
+
+export async function verifyDeliveredOrderForReview(
+  orderNumber: string,
+  normalizedPhone: string
+): Promise<VerifyOrderForReviewResult> {
+  const cleanOrderNumber = orderNumber.trim().toUpperCase();
+  const record = await getOrderByNumber(cleanOrderNumber);
+
+  if (!record) {
+    return {
+      ok: false,
+      reason: "not_found",
+      message: "No order found matching that order number and phone number."
+    };
+  }
+
+  let storedNormalized = record.order.customer_phone.trim();
+  try {
+    storedNormalized = normalizeKenyanPhoneNumber(record.order.customer_phone);
+  } catch {
+    // Keep stored string if non-standard legacy format
+  }
+
+  if (storedNormalized !== normalizedPhone) {
+    return {
+      ok: false,
+      reason: "not_found",
+      message: "No order found matching that order number and phone number."
+    };
+  }
+
+  const canonicalStatus = resolveCanonicalOrderStatus(record.order);
+  if (canonicalStatus !== "delivered") {
+    return {
+      ok: false,
+      reason: "not_delivered",
+      message: "Reviews can only be submitted after your order has been delivered."
+    };
+  }
+
+  const supabase = createAdminSupabaseClient();
+  const { data: existingReviews } = await supabase
+    .from("reviews")
+    .select("product_id")
+    .eq("order_id", record.order.id);
+
+  const reviewedProductIds = new Set(
+    ((existingReviews ?? []) as Array<{ product_id: string }>).map(r => r.product_id)
+  );
+
+  const uniqueItems = new Map<
+    string,
+    {
+      productId: string;
+      title: string;
+      variantName: string | null;
+      alreadyReviewed: boolean;
+    }
+  >();
+
+  for (const item of record.items) {
+    if (!item.product_id || uniqueItems.has(item.product_id)) continue;
+    uniqueItems.set(item.product_id, {
+      productId: item.product_id,
+      title: item.product_title,
+      variantName: item.variant_name ?? null,
+      alreadyReviewed: reviewedProductIds.has(item.product_id)
+    });
+  }
+
+  return {
+    ok: true,
+    orderId: record.order.id,
+    orderNumber: record.order.order_number || cleanOrderNumber,
+    matchedPhone: record.order.customer_phone,
+    reviewerDisplayName: formatReviewerDisplayName(record.order.customer_name),
+    items: Array.from(uniqueItems.values())
+  };
+}
+
+export async function listAdminReviews(
+  statusFilter: ReviewStatus | "all" = "all"
+): Promise<{
+  reviews: AdminReviewRecord[];
+  counts: {
+    pending: number;
+    approved: number;
+    rejected: number;
+    total: number;
+  };
+}> {
+  const supabase = createAdminSupabaseClient();
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(
+      "id, product_id, order_id, order_number, customer_name, customer_phone, rating, comment, photo_url, status, moderated_by, moderated_at, moderation_note, created_at, updated_at"
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as Array<{
+    id: string;
+    product_id: string;
+    order_id: string;
+    order_number: string;
+    customer_name: string;
+    customer_phone: string;
+    rating: number;
+    comment: string;
+    photo_url: string | null;
+    status: ReviewStatus;
+    moderated_by: string | null;
+    moderated_at: string | null;
+    moderation_note: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
+
+  const counts = {
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    total: rows.length
+  };
+
+  for (const row of rows) {
+    if (row.status === "pending") counts.pending += 1;
+    else if (row.status === "approved") counts.approved += 1;
+    else if (row.status === "rejected") counts.rejected += 1;
+  }
+
+  const filtered =
+    statusFilter === "all"
+      ? rows
+      : rows.filter(row => row.status === statusFilter);
+
+  if (filtered.length === 0) {
+    return { reviews: [], counts };
+  }
+
+  const productIds = Array.from(new Set(filtered.map(row => row.product_id)));
+  const { data: productRows } = await supabase
+    .from("products")
+    .select("id, title, slug")
+    .in("id", productIds);
+
+  const productMap = new Map(
+    ((productRows ?? []) as Array<{ id: string; title: string; slug: string | null }>).map(
+      product => [product.id, product]
+    )
+  );
+
+  const reviews: AdminReviewRecord[] = filtered.map(row => {
+    const product = productMap.get(row.product_id);
+    return {
+      ...row,
+      rating: Number(row.rating),
+      product_title: product?.title ?? "Product",
+      product_slug: product?.slug ?? null
+    };
+  });
+
+  return { reviews, counts };
 }

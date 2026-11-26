@@ -521,9 +521,21 @@ export function AnalyticsDashboard({
               {attention.reviews_pending_moderation_count}
             </p>
             <p className="mt-1 text-xs text-muted">
-              {attention.reviews_pending_moderation_count > 0
-                ? "Verified customer reviews ready to approve"
-                : "No pending reviews"}
+              {attention.reviews_pending_moderation_count > 0 ? (
+                <>
+                  Verified reviews ready{" "}
+                  <Link href="/admin/reviews" className="font-medium text-brass underline">
+                    Moderate
+                  </Link>
+                </>
+              ) : (
+                <>
+                  No pending reviews ·{" "}
+                  <Link href="/admin/reviews" className="text-brass hover:underline">
+                    Open queue
+                  </Link>
+                </>
+              )}
             </p>
           </article>
         </div>

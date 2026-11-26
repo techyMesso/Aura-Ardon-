@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, Lock, MessageCircle } from "lucide-react";
 
 import { DeliveryEstimate } from "@/components/storefront/delivery-estimate";
 import { formatKES, PriceKES } from "@/components/storefront/price-kes";
+import { VerifiedReviewForm } from "@/components/storefront/verified-review-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatProductTitle } from "@/lib/catalog";
@@ -27,6 +28,7 @@ export interface ConfirmedOrderSummary {
   giftNote: string | null;
   items: Array<{
     id: string;
+    productId?: string | null;
     title: string;
     quantity: number;
     unitPrice: number;
@@ -56,6 +58,7 @@ export function OrderConfirmationClient({
 }: OrderConfirmationClientProps) {
   const [order, setOrder] = useState<ConfirmedOrderSummary | null>(initialOrder);
   const [phone, setPhone] = useState("");
+  const [verifiedPhone, setVerifiedPhone] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const launchedRef = useRef(false);
@@ -103,6 +106,7 @@ export function OrderConfirmationClient({
       }
 
       setOrder(payload);
+      setVerifiedPhone(phone.trim());
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -178,11 +182,17 @@ export function OrderConfirmationClient({
       </div>
 
       <h1 className="mt-4 font-serif text-[34px] font-normal leading-[1.08] tracking-[-0.01em] text-text sm:text-[44px]">
-        Your order is ready — send the WhatsApp message to confirm it.
+        {order.status === "delivered"
+          ? "Your order has been delivered — thank you for shopping with Auro Ardon."
+          : "Your order is ready — send the WhatsApp message to confirm it."}
       </h1>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        {order.whatsappUrl ? (
+        {order.status === "delivered" ? (
+          <a href="#review" className="btn-primary inline-flex items-center gap-2">
+            Leave a verified review
+          </a>
+        ) : order.whatsappUrl ? (
           <a
             href={order.whatsappUrl}
             onClick={event => {
@@ -284,6 +294,23 @@ export function OrderConfirmationClient({
           ) : null}
         </dl>
       </section>
+
+      {order.status === "delivered" ? (
+        <section id="review" className="mt-8 border-t border-text/12 pt-8">
+          <VerifiedReviewForm
+            initialOrderNumber={order.orderNumber}
+            initialPhone={verifiedPhone}
+            initialItems={order.items
+              .filter((item): item is typeof item & { productId: string } =>
+                Boolean(item.productId)
+              )
+              .map(item => ({
+                productId: item.productId,
+                title: item.title
+              }))}
+          />
+        </section>
+      ) : null}
 
       <section className="mt-8 space-y-4 border-t border-text/12 pt-6">
         <h2 className="font-sans text-[14px] font-medium uppercase tracking-[0.12em] text-muted">

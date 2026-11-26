@@ -113,6 +113,7 @@ export default async function OrderConfirmationPage({
         giftNote: order.gift_note ?? null,
         items: items.map(item => ({
           id: item.id,
+          productId: item.product_id,
           title: item.product_title,
           quantity: item.quantity,
           unitPrice: Number(item.unit_price),

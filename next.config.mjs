@@ -34,7 +34,7 @@ export default function createNextConfig(phase) {
     output: "standalone",
     poweredByHeader: false,
     reactStrictMode: true,
-    serverExternalPackages: ["@react-pdf/renderer", "web-push"],
+    serverExternalPackages: ["@react-pdf/renderer", "web-push", "sharp"],
     images: {
       formats: ["image/avif", "image/webp"],
       remotePatterns: [

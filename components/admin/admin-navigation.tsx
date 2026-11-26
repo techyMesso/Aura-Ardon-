@@ -15,6 +15,7 @@ import {
   Package,
   Plus,
   Settings,
+  Star,
   Store,
   Tag,
   Truck,
@@ -32,7 +33,8 @@ const PRIMARY_ITEMS = [
   { href: "/admin/orders", label: "Orders", Icon: ClipboardList },
   { href: "/admin/riders", label: "Delivery & Riders", Icon: Truck },
   { href: "/admin/customers", label: "Customers", Icon: Users },
-  { href: "/admin/discounts", label: "Discounts", Icon: Tag }
+  { href: "/admin/discounts", label: "Discounts", Icon: Tag },
+  { href: "/admin/reviews", label: "Reviews", Icon: Star }
 ];
 
 const REPORT_ITEMS = [
@@ -49,6 +51,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/riders": "Delivery & Riders",
   "/admin/customers": "Customers",
   "/admin/discounts": "Discounts",
+  "/admin/reviews": "Reviews",
   "/admin/invoices": "Invoices",
   "/admin/settings": "Settings & Alerts"
 };
@@ -347,7 +350,8 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
             item.label !== "Categories" &&
             item.label !== "Discounts" &&
             item.label !== "Customers" &&
-            item.label !== "Delivery & Riders"
+            item.label !== "Delivery & Riders" &&
+            item.label !== "Reviews"
         ).map(
           ({ href, label, Icon }) => {
             const active = matchesRoute(pathname, href);

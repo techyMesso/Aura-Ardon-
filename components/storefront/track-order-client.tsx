@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Loader2, MessageCircle, Search } from "lucide-react";
 
 import { formatKES, PriceKES } from "@/components/storefront/price-kes";
+import { VerifiedReviewForm } from "@/components/storefront/verified-review-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatProductTitle } from "@/lib/catalog";
@@ -26,6 +27,7 @@ interface TrackedOrderData {
   total: number;
   items: Array<{
     id: string;
+    productId?: string | null;
     title: string;
     quantity: number;
     unitPrice: number;
@@ -317,6 +319,23 @@ export function TrackOrderClient({ whatsappNumber }: { whatsappNumber: string })
               </a>
             ) : null}
           </div>
+          {tracked.status === "delivered" ? (
+            <div id="review" className="border-t border-text/12 pt-6">
+              <VerifiedReviewForm
+                compact
+                initialOrderNumber={tracked.orderNumber}
+                initialPhone={phone.trim()}
+                initialItems={tracked.items
+                  .filter((item): item is typeof item & { productId: string } =>
+                    Boolean(item.productId)
+                  )
+                  .map(item => ({
+                    productId: item.productId,
+                    title: item.title
+                  }))}
+              />
+            </div>
+          ) : null}
         </section>
       ) : null}
     </div>

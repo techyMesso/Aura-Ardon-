@@ -12,10 +12,12 @@ import {
 import {
   getActiveRedirect,
   getProductBySlug,
+  listApprovedProductReviews,
   listCategories,
   listProductsByCategory,
   listPublicProducts
 } from "@/lib/data";
+import { computeApprovedReviewAggregate } from "@/lib/reviews";
 import {
   buildBreadcrumbJsonLd,
   buildPageMetadata,
@@ -91,18 +93,24 @@ export default async function CanonicalProductPage({
   const categoryMap = createCategoryMap(categories);
   const category = resolveProductCategory(product, categoryMap);
 
-  const candidateRelated = category
-    ? await listProductsByCategory(category.slug)
-    : await listPublicProducts();
+  const [candidateRelated, approvedReviews] = await Promise.all([
+    category
+      ? listProductsByCategory(category.slug)
+      : listPublicProducts(),
+    listApprovedProductReviews(product.id)
+  ]);
   const relatedProducts = candidateRelated
     .filter(related => related.id !== product.id)
     .slice(0, 4);
+
+  const reviewStats = computeApprovedReviewAggregate(approvedReviews);
 
   const productUrl = buildCanonicalUrl(canonicalPath);
   const productJsonLd = buildProductJsonLd({
     product,
     category,
-    productUrl
+    productUrl,
+    reviewStats
   });
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: "Home", pathname: "/" },
@@ -132,6 +140,8 @@ export default async function CanonicalProductPage({
         category={category}
         productUrl={productUrl}
         whatsappNumber={process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? null}
+        approvedReviews={approvedReviews}
+        reviewStats={reviewStats}
       />
       {relatedProducts.length > 0 ? (
         <section className="mx-auto max-w-7xl px-4 pb-14 pt-6 sm:px-6 lg:px-10">

@@ -82,6 +82,8 @@ export interface Product {
   status?: ProductStatus;
   blur_data_url?: string | null;
   variants?: ProductVariant[];
+  review_rating_avg?: number | null;
+  review_count?: number;
   created_at: string;
 }
 
@@ -1002,6 +1004,40 @@ export interface AnalyticsDashboardReport {
   inventory: AnalyticsInventoryTracker;
   needs_attention: AnalyticsNeedsAttention;
   recent_orders: AnalyticsRecentOrder[];
+}
+
+// ─── Real Verified Reviews (Phase 12) ────────────────────
+
+export type ReviewStatus = "pending" | "approved" | "rejected";
+
+export interface PublicProductReview {
+  id: string;
+  product_id: string;
+  display_name: string;
+  rating: number;
+  comment: string;
+  photo_url: string | null;
+  created_at: string;
+}
+
+export interface AdminReviewRecord {
+  id: string;
+  product_id: string;
+  product_title: string;
+  product_slug: string | null;
+  order_id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  rating: number;
+  comment: string;
+  photo_url: string | null;
+  status: ReviewStatus;
+  moderated_by: string | null;
+  moderated_at: string | null;
+  moderation_note: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type StoreSettingsUpdate = Partial<Omit<StoreSettings, "id" | "updated_at">>;

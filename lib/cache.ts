@@ -31,3 +31,7 @@ export function revalidateStoreSettings() {
 export function revalidateDeliveryZones() {
   safelyRevalidate(["delivery-zones"]);
 }
+
+export function revalidateReviews() {
+  safelyRevalidate(["reviews", "products", "featured-products"]);
+}

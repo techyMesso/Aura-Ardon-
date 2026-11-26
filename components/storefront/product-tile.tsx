@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart } from "lucide-react";
+import { Heart, Star } from "lucide-react";
 
 import {
   DEFAULT_PRODUCT_BLUR_DATA_URL,
@@ -174,6 +174,19 @@ export function ProductTile({
               </span>
             ) : null}
           </div>
+
+          {(product.review_count ?? 0) > 0 && product.review_rating_avg != null ? (
+            <div
+              className="mt-1 flex items-center gap-1 font-sans text-[12px] text-text"
+              aria-label={`Rated ${product.review_rating_avg.toFixed(1)} out of 5 from ${product.review_count} ${
+                product.review_count === 1 ? "review" : "reviews"
+              }`}
+            >
+              <Star className="h-3.5 w-3.5 fill-brass text-brass" aria-hidden />
+              <span>{product.review_rating_avg.toFixed(1)}</span>
+              <span className="text-muted">({product.review_count})</span>
+            </div>
+          ) : null}
         </div>
       </Link>
 
