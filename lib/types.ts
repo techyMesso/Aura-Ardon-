@@ -699,7 +699,63 @@ export interface StoreSettings {
   invoice_footer: string;
   payment_instructions: string;
   message_templates: StoreMessageTemplates;
+  sms_notifications_enabled: boolean;
   updated_at: string;
+}
+
+export interface AdminPushSubscription {
+  id: string;
+  user_id: string;
+  user_email: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string | null;
+  active: boolean;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderTemplateWhatsAppUrls {
+  confirmed: string | null;
+  dispatched: string | null;
+  delivered: string | null;
+  cancelled: string | null;
+  unpaid_reminder: string | null;
+}
+
+export interface DailySummaryLowStockItem {
+  productId: string;
+  variantId: string | null;
+  title: string;
+  stockQuantity: number;
+}
+
+export interface DailySummaryReport {
+  date: string;
+  ordersTodayCount: number;
+  ordersTodayByStatus: {
+    pending: number;
+    confirmed: number;
+    dispatched: number;
+    delivered: number;
+    cancelled: number;
+    returned: number;
+  };
+  bookedRevenue: number;
+  collectedRevenue: number;
+  collectedCash: number;
+  collectedMpesa: number;
+  pendingOrdersCount: number;
+  pendingOrdersTotal: number;
+  overduePending24hCount: number;
+  lowStockThreshold: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  lowStockItems: DailySummaryLowStockItem[];
+  cashStillToCollectCount: number;
+  cashStillToCollectTotal: number;
 }
 
 export type StoreSettingsUpdate = Partial<Omit<StoreSettings, "id" | "updated_at">>;

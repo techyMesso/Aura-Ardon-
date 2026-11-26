@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { OrderManager } from "@/components/admin/order-manager";
-import { listAdminOrders, listRiders } from "@/lib/data";
+import { getStoreSettings, listAdminOrders, listRiders } from "@/lib/data";
 
 export const metadata = {
   title: "Orders Admin",
@@ -9,14 +9,19 @@ export const metadata = {
 };
 
 export default async function AdminOrdersPage() {
-  const [orders, riders] = await Promise.all([
+  const [orders, riders, settings] = await Promise.all([
     listAdminOrders(),
-    listRiders()
+    listRiders(),
+    getStoreSettings()
   ]);
 
   return (
     <Suspense>
-      <OrderManager initialOrders={orders} initialRiders={riders} />
+      <OrderManager
+        initialOrders={orders}
+        initialRiders={riders}
+        messageTemplates={settings.message_templates}
+      />
     </Suspense>
   );
 }

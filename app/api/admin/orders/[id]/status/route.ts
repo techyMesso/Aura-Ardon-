@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { assertAdminRequest } from "@/lib/auth";
-import { getOrderDetailBundle } from "@/lib/data";
+import { getOrderDetailBundle, getStoreSettings } from "@/lib/data";
+import { getAfricasTalkingSmsEnv } from "@/lib/env";
+import { formatOrderDisplayNumber } from "@/lib/admin-orders";
+import { renderWhatsAppTemplate } from "@/lib/message-templates";
+import { sendAfricasTalkingSms } from "@/lib/notifications";
+import { computeOrderAmountToCollect } from "@/lib/riders";
+import { SITE_URL } from "@/lib/site";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -74,6 +80,39 @@ export async function POST(
     const detail = await getOrderDetailBundle(id);
     if (!detail) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    }
+
+    // Optional Africa's Talking status SMS (off by default — gated by env flag + store setting)
+    if (getAfricasTalkingSmsEnv().enabledFlag) {
+      try {
+        const settings = await getStoreSettings();
+        if (settings.sms_notifications_enabled) {
+          const orderNum = formatOrderDisplayNumber(detail.order);
+          const smsMessage = renderWhatsAppTemplate(
+            settings.message_templates[payload.status],
+            {
+              name: detail.order.customer_name,
+              order: orderNum,
+              total: computeOrderAmountToCollect(detail.order, detail.invoice),
+              rider: detail.order.rider_name,
+              rider_phone: detail.order.rider_phone,
+              track_link: `${SITE_URL}/track`,
+              invoice_link: detail.invoice?.share_token
+                ? `${SITE_URL}/i/${detail.invoice.share_token}`
+                : `${SITE_URL}/track`,
+              review_link: `${SITE_URL}/track`
+            },
+            payload.status
+          );
+          await sendAfricasTalkingSms({
+            to: detail.order.customer_phone,
+            message: smsMessage,
+            enabledInStoreSettings: true
+          });
+        }
+      } catch {
+        // Optional SMS must never fail a status transition
+      }
     }
 
     return NextResponse.json({ ok: true, ...detail });

@@ -14,12 +14,12 @@ import {
   isShareTokenActive
 } from "@/lib/invoices";
 import { logger } from "@/lib/logger";
+import { buildOrderTemplateLinks } from "@/lib/message-templates";
+import { buildDailySummaryReport } from "@/lib/notifications";
 import { createOrderNumberToken } from "@/lib/order-status-token";
 import {
   buildDeliveryMarginReport,
   buildDispatchSheetReport,
-  buildDispatchedWhatsAppUrl,
-  computeOrderAmountToCollect,
   sanitizeZoneCosts
 } from "@/lib/riders";
 import {
@@ -32,6 +32,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   AdminAnalytics,
+  AdminPushSubscription,
   BackInStockAlert,
   BackInStockAlertStatus,
   CanonicalOrderStatus,
@@ -40,6 +41,7 @@ import type {
   Customer,
   CustomerDetailBundle,
   DailyCashupReport,
+  DailySummaryReport,
   DeliveryMarginReport,
   DeliveryZone,
   DispatchSheetReport,
@@ -54,6 +56,7 @@ import type {
   OrderReturnRecord,
   OrderStatus,
   OrderStatusHistoryEntry,
+  OrderTemplateWhatsAppUrls,
   PaymentStatus,
   Product,
   ProductVariant,
@@ -518,6 +521,7 @@ function normalizeStoreSettingsRow(row: Record<string, unknown>): StoreSettings 
       ...DEFAULT_MESSAGE_TEMPLATES,
       ...rawTemplates
     },
+    sms_notifications_enabled: Boolean(row.sms_notifications_enabled ?? false),
     updated_at: typeof row.updated_at === "string" ? row.updated_at : fallback.updated_at
   };
 }
@@ -745,6 +749,7 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
   payments: InvoicePayment[];
   creditNotes: CreditNote[];
   dispatchedWhatsAppUrl: string | null;
+  templateWhatsAppUrls: OrderTemplateWhatsAppUrls;
 } | null> {
   const supabase = createAdminSupabaseClient();
 
@@ -820,11 +825,19 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
     }
   }
 
-  const dispatchedWhatsAppUrl = buildDispatchedWhatsAppUrl({
+  const invoiceLink =
+    typedInvoice && isShareTokenActive(typedInvoice)
+      ? `${SITE_URL}/i/${typedInvoice.share_token}`
+      : trackLink;
+  const reviewLink = `${trackLink}#review`;
+
+  const templateWhatsAppUrls = buildOrderTemplateLinks({
     order: typedOrder,
-    template: settings.message_templates?.dispatched,
+    invoice: typedInvoice,
+    templates: settings.message_templates,
     trackLink,
-    amountToCollect: computeOrderAmountToCollect(typedOrder, typedInvoice)
+    invoiceLink,
+    reviewLink
   });
 
   return {
@@ -835,7 +848,8 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
     invoice: typedInvoice,
     payments: (payments ?? []) as unknown as InvoicePayment[],
     creditNotes: (creditNotes ?? []) as unknown as CreditNote[],
-    dispatchedWhatsAppUrl
+    dispatchedWhatsAppUrl: templateWhatsAppUrls.dispatched,
+    templateWhatsAppUrls
   };
 }
 
@@ -1736,4 +1750,79 @@ export async function getDeliveryMarginReportData(
     toIso,
     (orders ?? []) as unknown as Order[]
   );
+}
+
+// ─── NOTIFICATIONS & DAILY SUMMARY (Phase 10) ────────────
+
+export async function listAdminPushSubscriptions(
+  userId?: string
+): Promise<AdminPushSubscription[]> {
+  const supabase = createAdminSupabaseClient();
+  let query = supabase
+    .from("admin_push_subscriptions")
+    .select(
+      "id, user_id, user_email, endpoint, p256dh, auth, user_agent, active, last_used_at, created_at, updated_at"
+    )
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as AdminPushSubscription[];
+}
+
+export async function getDailySummaryReportData(
+  dateIso: string
+): Promise<DailySummaryReport> {
+  const supabase = createAdminSupabaseClient();
+  const [
+    settings,
+    { data: orders, error: ordersError },
+    { data: invoices },
+    { data: payments },
+    { data: returns },
+    { data: products },
+    { data: variants }
+  ] = await Promise.all([
+    getStoreSettings(),
+    supabase.from("orders").select(ADMIN_ORDER_SELECT),
+    supabase.from("invoices").select("*"),
+    supabase.from("payments").select("*").order("paid_at", { ascending: true }),
+    supabase
+      .from("order_returns")
+      .select(
+        "id, order_id, order_item_id, product_id, product_title, quantity, unit_price, refund_amount, condition, note, created_by, created_at"
+      ),
+    supabase.from("products").select("id, title, stock_quantity, status, active"),
+    supabase
+      .from("product_variants")
+      .select("id, product_id, name, stock_quantity, active")
+  ]);
+
+  if (ordersError) {
+    throw new Error(ordersError.message);
+  }
+
+  return buildDailySummaryReport(dateIso, {
+    orders: (orders ?? []) as unknown as Order[],
+    invoices: (invoices ?? []) as unknown as Invoice[],
+    payments: (payments ?? []) as unknown as InvoicePayment[],
+    returns: (returns ?? []) as unknown as OrderReturnRecord[],
+    products: (products ?? []) as unknown as Pick<
+      Product,
+      "id" | "title" | "stock_quantity" | "status" | "active"
+    >[],
+    variants: (variants ?? []) as unknown as Pick<
+      ProductVariant,
+      "id" | "product_id" | "name" | "stock_quantity" | "active"
+    >[],
+    lowStockThreshold: settings.low_stock_default
+  });
 }

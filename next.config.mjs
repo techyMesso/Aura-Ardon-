@@ -34,7 +34,7 @@ export default function createNextConfig(phase) {
     output: "standalone",
     poweredByHeader: false,
     reactStrictMode: true,
-    serverExternalPackages: ["@react-pdf/renderer"],
+    serverExternalPackages: ["@react-pdf/renderer", "web-push"],
     images: {
       formats: ["image/avif", "image/webp"],
       remotePatterns: [
@@ -60,6 +60,13 @@ export default function createNextConfig(phase) {
     },
     async headers() {
       return [
+        {
+          source: "/admin-sw.js",
+          headers: [
+            { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+            { key: "Service-Worker-Allowed", value: "/admin" }
+          ]
+        },
         {
           source: "/(.*)",
           headers: securityHeaders

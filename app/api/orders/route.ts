@@ -4,8 +4,10 @@ import { z } from "zod";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { getStoreSettings, listDeliveryZones } from "@/lib/data";
 import { logger } from "@/lib/logger";
+import { notifyNewOrder } from "@/lib/notifications";
 import { createOrderNumberToken } from "@/lib/order-status-token";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { SITE_URL } from "@/lib/site";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { normalizeKenyanPhoneNumber } from "@/lib/utils";
 import { buildWhatsAppCheckoutUrl } from "@/lib/whatsapp-order";
@@ -272,6 +274,39 @@ export async function POST(request: Request) {
       giftNote: payload.isGift ? payload.giftNote : null,
       notes: payload.notes
     });
+
+    // Phase 10: Non-blocking new-order alerts (Resend email, Admin Web Push, optional SMS).
+    // Never fails or blocks order creation.
+    if (!data.replayed) {
+      try {
+        await notifyNewOrder({
+          orderId: data.order_id,
+          orderNumber: data.order_number,
+          customerName: payload.fullName,
+          customerPhone: normalizedPhone,
+          deliveryZoneName: data.delivery_zone_name || selectedZone.name,
+          deliveryAddress: payload.buildingLandmark,
+          townCounty: selectedZone.is_outside_nairobi ? payload.townCounty : null,
+          subtotal: Number(data.subtotal),
+          discountCode: data.discount_code,
+          discountAmount: Number(data.discount_amount ?? 0),
+          shippingFee: Number(data.shipping_fee),
+          total: Number(data.total),
+          isGift: payload.isGift,
+          giftNote: payload.isGift ? payload.giftNote : null,
+          notes: payload.notes,
+          items: itemsSummary,
+          trackUrl: `${SITE_URL}${confirmationPath}`,
+          smsNotificationsEnabled: Boolean(storeSettings.sms_notifications_enabled)
+        });
+      } catch (notifyError) {
+        logger.warn("New-order notification dispatch failed (order still saved)", {
+          orderNumber: data.order_number,
+          error:
+            notifyError instanceof Error ? notifyError.message : String(notifyError)
+        });
+      }
+    }
 
     return NextResponse.json(
       {

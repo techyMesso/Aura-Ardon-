@@ -144,3 +144,49 @@ export function getUpstashRedisEnv() {
 
   return { url, token };
 }
+
+export function getResendEnv() {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const toEmail = process.env.ORDER_NOTIFY_EMAIL?.trim();
+  if (!apiKey || !toEmail) {
+    return null;
+  }
+  const fromEmail =
+    process.env.RESEND_FROM_EMAIL?.trim() || "Auro Ardon <onboarding@resend.dev>";
+  return { apiKey, toEmail, fromEmail };
+}
+
+export function getWebPushVapidEnv() {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+  const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
+  if (!publicKey || !privateKey) {
+    return null;
+  }
+  const fallbackEmail =
+    process.env.ORDER_NOTIFY_EMAIL?.trim() ||
+    process.env.ADMIN_EMAIL?.trim() ||
+    "admin@aura-ardon.vercel.app";
+  const subject = process.env.VAPID_SUBJECT?.trim() || `mailto:${fallbackEmail}`;
+  return { publicKey, privateKey, subject };
+}
+
+export function getAfricasTalkingSmsEnv() {
+  const enabledFlag =
+    (process.env.AFRICAS_TALKING_SMS_ENABLED?.trim().toLowerCase() ?? "false") ===
+    "true";
+  const apiKey = process.env.AFRICAS_TALKING_API_KEY?.trim() || null;
+  const username = process.env.AFRICAS_TALKING_USERNAME?.trim() || null;
+  const senderId = process.env.AFRICAS_TALKING_SENDER_ID?.trim() || null;
+  const sandbox =
+    (process.env.AFRICAS_TALKING_SANDBOX?.trim().toLowerCase() ?? "") === "true" ||
+    username?.toLowerCase() === "sandbox";
+
+  return {
+    enabledFlag,
+    configured: Boolean(apiKey && username),
+    apiKey,
+    username,
+    senderId,
+    sandbox
+  };
+}

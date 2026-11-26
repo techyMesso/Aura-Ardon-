@@ -35,6 +35,7 @@ export interface DefaultStoreSettings {
   invoice_footer: string;
   payment_instructions: string;
   message_templates: StoreMessageTemplates;
+  sms_notifications_enabled: boolean;
 }
 
 export interface DefaultDeliveryZone {
@@ -82,7 +83,8 @@ export const DEFAULT_STORE_CONFIG: DefaultStoreSettings = {
   invoice_footer:
     "Thank you for shopping with Auro Ardon. Payment is cash or M-Pesa on delivery.",
   payment_instructions: "Pay cash or M-Pesa on delivery.",
-  message_templates: DEFAULT_MESSAGE_TEMPLATES
+  message_templates: DEFAULT_MESSAGE_TEMPLATES,
+  sms_notifications_enabled: false
 };
 
 // TODO(owner): replace with real delivery fees per zone in Store Settings / Delivery Zones

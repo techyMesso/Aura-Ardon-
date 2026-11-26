@@ -49,9 +49,10 @@ import {
   normalizeMpesaCode
 } from "@/lib/invoices";
 import {
-  buildDispatchedWhatsAppUrl,
-  resolveRiderCostForZone
-} from "@/lib/riders";
+  buildOrderTemplateLinks,
+  getOrderStatusTemplateButtons
+} from "@/lib/message-templates";
+import { resolveRiderCostForZone } from "@/lib/riders";
 import type {
   CanonicalOrderStatus,
   Invoice,
@@ -63,14 +64,17 @@ import type {
   OrderReturnCondition,
   OrderReturnRecord,
   OrderStatusHistoryEntry,
+  OrderTemplateWhatsAppUrls,
   PaymentStatus,
-  Rider
+  Rider,
+  StoreMessageTemplates
 } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 interface OrderManagerProps {
   initialOrders: Order[];
   initialRiders?: Rider[];
+  messageTemplates?: Partial<StoreMessageTemplates>;
 }
 
 interface OrderDetailResponse {
@@ -81,6 +85,7 @@ interface OrderDetailResponse {
   invoice?: Invoice | null;
   payments?: InvoicePayment[];
   dispatchedWhatsAppUrl?: string | null;
+  templateWhatsAppUrls?: OrderTemplateWhatsAppUrls;
 }
 
 const STATUS_TABS: Array<{ value: "all" | CanonicalOrderStatus; label: string }> = [
@@ -109,7 +114,8 @@ function formatNairobiDateTime(value: string) {
 
 export function OrderManager({
   initialOrders,
-  initialRiders = []
+  initialRiders = [],
+  messageTemplates
 }: OrderManagerProps) {
   const searchParams = useSearchParams();
   const requestedOrderId = searchParams.get("order");
@@ -130,9 +136,8 @@ export function OrderManager({
   const [selectedReturns, setSelectedReturns] = useState<OrderReturnRecord[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedPayments, setSelectedPayments] = useState<InvoicePayment[]>([]);
-  const [selectedDispatchedWaUrl, setSelectedDispatchedWaUrl] = useState<string | null>(
-    null
-  );
+  const [selectedTemplateUrls, setSelectedTemplateUrls] =
+    useState<OrderTemplateWhatsAppUrls | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Dispatch / assign rider modal state
@@ -188,7 +193,7 @@ export function OrderManager({
       setSelectedReturns([]);
       setSelectedInvoice(null);
       setSelectedPayments([]);
-      setSelectedDispatchedWaUrl(null);
+      setSelectedTemplateUrls(null);
       return;
     }
 
@@ -219,7 +224,7 @@ export function OrderManager({
           setSelectedReturns(payload.returns ?? []);
           setSelectedInvoice(payload.invoice ?? null);
           setSelectedPayments(payload.payments ?? []);
-          setSelectedDispatchedWaUrl(payload.dispatchedWhatsAppUrl ?? null);
+          setSelectedTemplateUrls(payload.templateWhatsAppUrls ?? null);
         }
       } catch (caughtError) {
         if (!cancelled) {
@@ -257,16 +262,23 @@ export function OrderManager({
     [selectedOrder, selectedItems]
   );
 
-  const effectiveDispatchedWaUrl = useMemo(() => {
-    if (selectedDispatchedWaUrl) return selectedDispatchedWaUrl;
-    if (!selectedOrder) return null;
-    return buildDispatchedWhatsAppUrl({
+  const statusTemplateButtons = useMemo(() => {
+    if (!selectedOrder) {
+      return { primary: null, unpaidReminderUrl: null };
+    }
+    const urls =
+      selectedTemplateUrls ??
+      buildOrderTemplateLinks({
+        order: selectedOrder,
+        invoice: selectedInvoice,
+        templates: messageTemplates
+      });
+    return getOrderStatusTemplateButtons({
       order: selectedOrder,
-      amountToCollect: selectedInvoice
-        ? computeInvoiceBalanceDue(selectedInvoice)
-        : Number(selectedOrder.total)
+      invoice: selectedInvoice,
+      urls
     });
-  }, [selectedDispatchedWaUrl, selectedInvoice, selectedOrder]);
+  }, [messageTemplates, selectedInvoice, selectedOrder, selectedTemplateUrls]);
 
   // Compute remaining returnable quantity per order_item_id
   const returnableByItemId = useMemo(() => {
@@ -313,8 +325,8 @@ export function OrderManager({
     if (bundle.returns) setSelectedReturns(bundle.returns);
     if ("invoice" in bundle) setSelectedInvoice(bundle.invoice ?? null);
     if ("payments" in bundle) setSelectedPayments(bundle.payments ?? []);
-    if ("dispatchedWhatsAppUrl" in bundle) {
-      setSelectedDispatchedWaUrl(bundle.dispatchedWhatsAppUrl ?? null);
+    if ("templateWhatsAppUrls" in bundle) {
+      setSelectedTemplateUrls(bundle.templateWhatsAppUrls ?? null);
     }
     setOrders(current =>
       current.map(order => (order.id === bundle.order.id ? bundle.order : order))
@@ -1230,16 +1242,27 @@ export function OrderManager({
                   </Button>
                 ) : null}
 
-                {selectedCanonicalStatus === "dispatched" && effectiveDispatchedWaUrl ? (
+                {statusTemplateButtons.primary ? (
                   <a
-                    href={effectiveDispatchedWaUrl}
+                    href={statusTemplateButtons.primary.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-primary w-full sm:col-span-2"
                   >
                     <MessageCircle className="h-4 w-4" aria-hidden />
-                    Send dispatched WhatsApp
-                    {selectedOrder.rider_name ? ` (${selectedOrder.rider_name})` : ""}
+                    {statusTemplateButtons.primary.label}
+                  </a>
+                ) : null}
+
+                {statusTemplateButtons.unpaidReminderUrl ? (
+                  <a
+                    href={statusTemplateButtons.unpaidReminderUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-outline w-full"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden />
+                    Send unpaid reminder
                   </a>
                 ) : null}
 

@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   Package,
   Plus,
+  Settings,
   Store,
   Tag,
   Truck,
@@ -36,7 +37,8 @@ const PRIMARY_ITEMS = [
 
 const REPORT_ITEMS = [
   { href: "/admin#sales-overview", label: "Analytics", Icon: BarChart3 },
-  { href: "/admin/invoices", label: "Invoices", Icon: FileText }
+  { href: "/admin/invoices", label: "Invoices", Icon: FileText },
+  { href: "/admin/settings", label: "Settings & Alerts", Icon: Settings }
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -47,7 +49,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/riders": "Delivery & Riders",
   "/admin/customers": "Customers",
   "/admin/discounts": "Discounts",
-  "/admin/invoices": "Invoices"
+  "/admin/invoices": "Invoices",
+  "/admin/settings": "Settings & Alerts"
 };
 
 function matchesRoute(pathname: string, href: string) {
@@ -161,7 +164,7 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
         ))}
       </div>
       <p className="mb-2 mt-6 px-3 text-xs font-medium uppercase tracking-[0.14em] text-muted">
-        Reports
+        Reports &amp; Settings
       </p>
       <div className="space-y-1">
         {REPORT_ITEMS.map(item => (
