@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { resolveUserAdminRole } from "@/lib/auth";
 import { getSupabaseEnv } from "@/lib/env";
+import { OWNER_MFA_SKIP_SESSION_COOKIE } from "@/lib/owner-mfa";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   ADMIN_ACTIVITY_COOKIE,
@@ -111,6 +113,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await recordAuditLog({
+      actor: {
+        id: user.id,
+        email: user.email ?? "owner",
+        role
+      },
+      action: "owner_mfa.verified",
+      entity: "admin_user",
+      entityId: user.id,
+      after: {
+        factor_id: payload.factorId,
+        aal: "aal2"
+      }
+    });
+
     const response = NextResponse.json({ ok: true, role });
     for (const cookie of pendingCookies) {
       response.cookies.set(cookie.name, cookie.value, cookie.options);
@@ -122,6 +139,7 @@ export async function POST(request: NextRequest) {
       activityToken,
       buildAdminActivityCookieOptions(isSecure)
     );
+    response.cookies.delete(OWNER_MFA_SKIP_SESSION_COOKIE);
 
     return response;
   } catch (caughtError) {

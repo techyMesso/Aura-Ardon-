@@ -34,6 +34,7 @@ import {
   OrderStatusBadge,
   PaymentStatusBadge
 } from "@/components/admin/order-status-badge";
+import { SetupChecklistCard } from "@/components/admin/setup-checklist-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCancelReasonLabel } from "@/lib/admin-orders";
@@ -55,12 +56,14 @@ import type {
   AnalyticsDatePreset,
   OrderCancelReason
 } from "@/lib/types";
+import type { SetupChecklistSummary } from "@/lib/setup-checklist";
 import { formatCurrency } from "@/lib/utils";
 
 interface AnalyticsDashboardProps {
   initialPreset: AnalyticsDatePreset;
   initialReport: AnalyticsDashboardReport;
   alertHealth?: AlertHealthStatus;
+  setupChecklist?: SetupChecklistSummary | null;
 }
 
 type InventoryTab = "out_of_stock" | "low_stock" | "at_risk" | "dead_stock" | "sell_through";
@@ -161,7 +164,8 @@ function formatNairobiDate(value: string) {
 export function AnalyticsDashboard({
   initialPreset,
   initialReport,
-  alertHealth
+  alertHealth,
+  setupChecklist
 }: AnalyticsDashboardProps) {
   const [preset, setPreset] = useState<AnalyticsDatePreset>(initialPreset);
   const [customFrom, setCustomFrom] = useState(initialReport.range.from);
@@ -497,6 +501,11 @@ export function AnalyticsDashboard({
           </p>
         ) : null}
       </section>
+
+      {/* ─── OWNER SETUP CHECKLIST (SHOWN UNTIL COMPLETE) ──── */}
+      {setupChecklist && !setupChecklist.isComplete ? (
+        <SetupChecklistCard checklist={setupChecklist} />
+      ) : null}
 
       {/* ─── NEEDS ATTENTION BOX ────────────────────────────── */}
       <section
@@ -1865,7 +1874,15 @@ export function AnalyticsDashboard({
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-1.5">
                           <OrderStatusBadge status={order.status} />
-                          <PaymentStatusBadge status={order.payment_status} />
+                          <PaymentStatusBadge
+                            status={order.payment_status}
+                            orderStatus={order.status}
+                            amountPaid={order.amount_paid}
+                            creditedAmount={order.credited_amount}
+                            creditNoteCount={order.credit_note_count}
+                            invoiceStatus={order.invoice_status}
+                            orderTotal={order.total}
+                          />
                         </div>
                       </td>
                     </tr>

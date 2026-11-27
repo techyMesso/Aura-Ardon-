@@ -5,6 +5,7 @@ import {
   mapLegacyStatusToCanonical,
   resolveCanonicalOrderStatus
 } from "@/lib/admin-orders";
+import { getCatalogQualityWarnings } from "@/lib/admin-product-filters";
 import { buildEmptyAnalyticsDashboardReport } from "@/lib/analytics";
 import { revalidateStoreSettings } from "@/lib/cache";
 import { getSafeCatalogImageUrl } from "@/lib/catalog";
@@ -27,6 +28,11 @@ import {
   computeApprovedReviewAggregate,
   formatReviewerDisplayName
 } from "@/lib/reviews";
+import {
+  buildSetupChecklist,
+  countUniqueProductsWithCatalogWarnings,
+  type SetupChecklistSummary
+} from "@/lib/setup-checklist";
 import {
   DEFAULT_DELIVERY_ZONES,
   DEFAULT_MESSAGE_TEMPLATES,
@@ -619,6 +625,8 @@ function normalizeStoreSettingsRow(row: Record<string, unknown>): StoreSettings 
       ...rawTemplates
     },
     sms_notifications_enabled: Boolean(row.sms_notifications_enabled ?? false),
+    legal_reviewed_at:
+      typeof row.legal_reviewed_at === "string" ? row.legal_reviewed_at : null,
     updated_at: typeof row.updated_at === "string" ? row.updated_at : fallback.updated_at
   };
 }
@@ -795,6 +803,111 @@ export async function listAdminDeliveryZonesWithCounts(): Promise<AdminDeliveryZ
 const ADMIN_ORDER_SELECT: string =
   "id, order_number, channel, status, is_test, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, cancel_reason, cancel_note, cancelled_at, restocked_at, returned_at, needs_review, review_reason, rider_id, rider_name, rider_phone, rider_cost, dispatched_at, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at";
 
+interface OrderPaymentSummary {
+  amount_paid: number;
+  credited_amount: number;
+  credit_note_count: number;
+  invoice_status: InvoiceStatus | null;
+}
+
+const VALID_INVOICE_STATUSES = new Set<string>([
+  "unpaid",
+  "partially_paid",
+  "paid",
+  "void"
+]);
+
+function normalizeInvoiceStatus(raw: unknown): InvoiceStatus | null {
+  return typeof raw === "string" && VALID_INVOICE_STATUSES.has(raw)
+    ? (raw as InvoiceStatus)
+    : null;
+}
+
+async function fetchOrderPaymentSummaryMap(
+  supabase: ReturnType<typeof createAdminSupabaseClient>,
+  orderIds: string[]
+): Promise<Map<string, OrderPaymentSummary>> {
+  const uniqueIds = Array.from(new Set(orderIds.filter(Boolean)));
+  const summaryMap = new Map<string, OrderPaymentSummary>();
+  if (uniqueIds.length === 0) return summaryMap;
+
+  if (typeof supabase.rpc === "function") {
+    try {
+      const { data, error } = await supabase.rpc(
+        "get_order_payment_summaries" as never,
+        { p_order_ids: uniqueIds } as never
+      );
+      if (!error && Array.isArray(data)) {
+        for (const row of data as Array<Record<string, unknown>>) {
+          const id = typeof row.order_id === "string" ? row.order_id : null;
+          if (!id) continue;
+          summaryMap.set(id, {
+            amount_paid: Number(row.amount_paid ?? 0) || 0,
+            credited_amount: Number(row.credited_amount ?? 0) || 0,
+            credit_note_count: Number(row.credit_note_count ?? 0) || 0,
+            invoice_status: normalizeInvoiceStatus(row.invoice_status)
+          });
+        }
+        return summaryMap;
+      }
+    } catch {
+      // Fallback to direct table queries below when RPC is unavailable or mocked
+    }
+  }
+
+  try {
+    const invoicesTable = supabase.from("invoices");
+    const creditNotesTable = supabase.from("credit_notes");
+    if (
+      !invoicesTable ||
+      typeof invoicesTable.select !== "function" ||
+      !creditNotesTable ||
+      typeof creditNotesTable.select !== "function"
+    ) {
+      return summaryMap;
+    }
+
+    const [invoicesRes, creditNotesRes] = await Promise.all([
+      invoicesTable
+        .select("order_id, status, amount_paid, credited_amount")
+        .in("order_id", uniqueIds),
+      creditNotesTable
+        .select("order_id, amount")
+        .in("order_id", uniqueIds)
+    ]);
+
+    for (const row of (invoicesRes.data ?? []) as Array<Record<string, unknown>>) {
+      const id = typeof row.order_id === "string" ? row.order_id : null;
+      if (!id) continue;
+      summaryMap.set(id, {
+        amount_paid: Number(row.amount_paid ?? 0) || 0,
+        credited_amount: Number(row.credited_amount ?? 0) || 0,
+        credit_note_count: 0,
+        invoice_status: normalizeInvoiceStatus(row.status)
+      });
+    }
+
+    for (const row of (creditNotesRes.data ?? []) as Array<Record<string, unknown>>) {
+      const id = typeof row.order_id === "string" ? row.order_id : null;
+      if (!id) continue;
+      const existing = summaryMap.get(id) ?? {
+        amount_paid: 0,
+        credited_amount: 0,
+        credit_note_count: 0,
+        invoice_status: null
+      };
+      const cnAmount = Number(row.amount ?? 0) || 0;
+      existing.credit_note_count += 1;
+      existing.credited_amount = Math.max(existing.credited_amount, cnAmount);
+      summaryMap.set(id, existing);
+    }
+  } catch {
+    // Gracefully return empty summary map in lightweight test mocks
+  }
+
+  return summaryMap;
+}
+
 export async function listAdminDashboardData() {
   const supabase = createAdminSupabaseClient();
 
@@ -936,10 +1049,49 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
 
   const typedOrder = order as unknown as Order;
   const typedInvoice = (invoice as unknown as Invoice | null) ?? null;
+  const typedPayments = (payments ?? []) as unknown as InvoicePayment[];
+  const typedCreditNotes = (creditNotes ?? []) as unknown as CreditNote[];
+
+  let deliveryZoneIsOutsideNairobi: boolean | null = null;
+  if (typedOrder.delivery_zone_id) {
+    try {
+      const { data: zoneRow } = await supabase
+        .from("delivery_zones")
+        .select("is_outside_nairobi")
+        .eq("id", typedOrder.delivery_zone_id)
+        .maybeSingle();
+      if (zoneRow && typeof (zoneRow as { is_outside_nairobi?: unknown }).is_outside_nairobi === "boolean") {
+        deliveryZoneIsOutsideNairobi = (zoneRow as { is_outside_nairobi: boolean }).is_outside_nairobi;
+      }
+    } catch {
+      // Ignore optional zone lookup errors
+    }
+  }
+
+  const paidSum = typedPayments.reduce(
+    (sum, payment) => sum + (Number(payment.amount ?? 0) || 0),
+    0
+  );
+  const creditSum = typedCreditNotes.reduce(
+    (sum, cn) => sum + (Number(cn.amount ?? 0) || 0),
+    0
+  );
+
+  const enrichedOrder: Order = {
+    ...typedOrder,
+    amount_paid: Math.max(paidSum, Number(typedInvoice?.amount_paid ?? 0) || 0),
+    credited_amount: Math.max(
+      creditSum,
+      Number(typedInvoice?.credited_amount ?? 0) || 0
+    ),
+    credit_note_count: typedCreditNotes.length,
+    invoice_status: typedInvoice?.status ?? null,
+    delivery_zone_is_outside_nairobi: deliveryZoneIsOutsideNairobi
+  };
 
   let trackLink = `${SITE_URL}/track`;
-  if (typedOrder.order_number?.trim()) {
-    const cleanCode = typedOrder.order_number.trim().toUpperCase();
+  if (enrichedOrder.order_number?.trim()) {
+    const cleanCode = enrichedOrder.order_number.trim().toUpperCase();
     try {
       const token = createOrderNumberToken(cleanCode);
       trackLink = `${SITE_URL}/order/${encodeURIComponent(cleanCode)}?t=${encodeURIComponent(token)}`;
@@ -955,7 +1107,7 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
   const reviewLink = `${trackLink}#review`;
 
   const templateWhatsAppUrls = buildOrderTemplateLinks({
-    order: typedOrder,
+    order: enrichedOrder,
     invoice: typedInvoice,
     templates: settings.message_templates,
     trackLink,
@@ -964,13 +1116,13 @@ export async function getOrderDetailBundle(orderId: string): Promise<{
   });
 
   return {
-    order: typedOrder,
+    order: enrichedOrder,
     items: (items ?? []) as unknown as OrderItem[],
     history: (history ?? []) as unknown as OrderStatusHistoryEntry[],
     returns: (returns ?? []) as unknown as OrderReturnRecord[],
     invoice: typedInvoice,
-    payments: (payments ?? []) as unknown as InvoicePayment[],
-    creditNotes: (creditNotes ?? []) as unknown as CreditNote[],
+    payments: typedPayments,
+    creditNotes: typedCreditNotes,
     dispatchedWhatsAppUrl: templateWhatsAppUrls.dispatched,
     templateWhatsAppUrls
   };
@@ -1065,7 +1217,27 @@ export async function listAdminOrders(
     throw new Error(error.message);
   }
 
-  return (data ?? []) as unknown as Order[];
+  const orders = (data ?? []) as unknown as Order[];
+  if (orders.length === 0) {
+    return orders;
+  }
+
+  const summaryMap = await fetchOrderPaymentSummaryMap(
+    supabase,
+    orders.map(order => order.id)
+  );
+
+  return orders.map(order => {
+    const summary = summaryMap.get(order.id);
+    if (!summary) return order;
+    return {
+      ...order,
+      amount_paid: summary.amount_paid,
+      credited_amount: summary.credited_amount,
+      credit_note_count: summary.credit_note_count,
+      invoice_status: summary.invoice_status
+    };
+  });
 }
 
 export async function listProductStockMovements(productId: string): Promise<{
@@ -2014,7 +2186,94 @@ export async function getAnalyticsDashboardData(params: {
     );
   }
 
-  return data as unknown as AnalyticsDashboardReport;
+  const report = data as unknown as AnalyticsDashboardReport;
+  if (Array.isArray(report.recent_orders) && report.recent_orders.length > 0) {
+    const summaryMap = await fetchOrderPaymentSummaryMap(
+      supabase,
+      report.recent_orders.map(order => order.id)
+    );
+    if (summaryMap.size > 0) {
+      report.recent_orders = report.recent_orders.map(order => {
+        const summary = summaryMap.get(order.id);
+        if (!summary) return order;
+        return {
+          ...order,
+          amount_paid: summary.amount_paid,
+          credited_amount: summary.credited_amount,
+          credit_note_count: summary.credit_note_count,
+          invoice_status: summary.invoice_status
+        };
+      });
+    }
+  }
+
+  return report;
+}
+
+export async function getOwnerSetupChecklistData(params: {
+  alertsConfigured: boolean;
+  ownerMfaEnabled: boolean;
+}): Promise<SetupChecklistSummary> {
+  const supabase = createAdminSupabaseClient();
+
+  const [
+    ridersRes,
+    activeProductsRes,
+    zoneAuditRes,
+    zonesRes,
+    settings
+  ] = await Promise.all([
+    supabase
+      .from("riders")
+      .select("id", { count: "exact", head: true })
+      .eq("active", true),
+    supabase
+      .from("products")
+      .select(`${PUBLIC_PRODUCT_SELECT}, cost_price`)
+      .eq("status", "active")
+      .eq("active", true),
+    supabase
+      .from("audit_log")
+      .select("id")
+      .eq("entity", "delivery_zone")
+      .limit(1),
+    supabase
+      .from("delivery_zones")
+      .select("created_at, updated_at"),
+    getStoreSettings()
+  ]);
+
+  const activeProducts = (activeProductsRes.data ?? []) as unknown as Product[];
+  const activeProductsMissingCostCount = activeProducts.filter(
+    product =>
+      product.cost_price === null ||
+      product.cost_price === undefined ||
+      String(product.cost_price).trim() === ""
+  ).length;
+  const catalogWarnings = getCatalogQualityWarnings(activeProducts);
+  const catalogWarningsProductCount =
+    countUniqueProductsWithCatalogWarnings(catalogWarnings);
+
+  const hasZoneAuditEntry = Array.isArray(zoneAuditRes.data) && zoneAuditRes.data.length > 0;
+  const hasEditedZoneTimestamp = (
+    (zonesRes.data ?? []) as Array<{ created_at?: string; updated_at?: string }>
+  ).some(zone => {
+    if (!zone.created_at || !zone.updated_at) return false;
+    const createdMs = Date.parse(zone.created_at);
+    const updatedMs = Date.parse(zone.updated_at);
+    return Number.isFinite(createdMs) && Number.isFinite(updatedMs) && updatedMs - createdMs >= 1000;
+  });
+
+  return buildSetupChecklist({
+    alertsConfigured: params.alertsConfigured,
+    activeRidersCount: ridersRes.count ?? 0,
+    activeProductsCount: activeProducts.length,
+    activeProductsMissingCostCount,
+    catalogWarningsProductCount,
+    deliveryFeesReviewed: hasZoneAuditEntry || hasEditedZoneTimestamp,
+    legalReviewedAt: settings.legal_reviewed_at ?? null,
+    ownerMfaEnabled: params.ownerMfaEnabled
+  });
 }
 
 // ─── REAL VERIFIED REVIEWS (Phase 12) ────────────────────

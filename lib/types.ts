@@ -195,6 +195,11 @@ export interface Order {
   dispatched_at?: string | null;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
+  amount_paid?: number | string | null;
+  credited_amount?: number | string | null;
+  credit_note_count?: number;
+  invoice_status?: InvoiceStatus | null;
+  delivery_zone_is_outside_nairobi?: boolean | null;
   order_status: OrderStatus;
   subtotal: string;
   shipping_fee: string;
@@ -706,6 +711,7 @@ export interface StoreSettings {
   payment_instructions: string;
   message_templates: StoreMessageTemplates;
   sms_notifications_enabled: boolean;
+  legal_reviewed_at: string | null;
   updated_at: string;
 }
 
@@ -980,6 +986,10 @@ export interface AnalyticsRecentOrder {
   customer_name: string;
   status: CanonicalOrderStatus;
   payment_status: PaymentStatus;
+  amount_paid?: number | null;
+  credited_amount?: number | null;
+  credit_note_count?: number | null;
+  invoice_status?: InvoiceStatus | null;
   total: number;
   delivery_zone_name: string;
   created_at: string;

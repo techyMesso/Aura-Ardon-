@@ -1,10 +1,15 @@
 import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard";
 import { evaluateAlertHealth } from "@/lib/alert-health";
 import { resolveAnalyticsDateRange } from "@/lib/analytics";
-import { isOwnerUser, requireAdminPage } from "@/lib/auth";
+import {
+  getCurrentOwnerMfaState,
+  isOwnerUser,
+  requireAdminPage
+} from "@/lib/auth";
 import {
   countActiveAdminPushSubscriptions,
-  getAnalyticsDashboardData
+  getAnalyticsDashboardData,
+  getOwnerSetupChecklistData
 } from "@/lib/data";
 import { getResendEnv, getWebPushVapidEnv } from "@/lib/env";
 
@@ -18,13 +23,16 @@ export default async function AdminDashboardPage() {
   const includeOwnerMetrics = isOwnerUser(adminUser);
   const initialRange = resolveAnalyticsDateRange("30d");
 
-  const [initialReport, activePushDevices] = await Promise.all([
+  const [initialReport, activePushDevices, ownerMfaState] = await Promise.all([
     getAnalyticsDashboardData({
       from: initialRange.from,
       to: initialRange.to,
       includeOwnerMetrics
     }),
-    countActiveAdminPushSubscriptions()
+    countActiveAdminPushSubscriptions(),
+    includeOwnerMetrics
+      ? getCurrentOwnerMfaState(adminUser)
+      : Promise.resolve(null)
   ]);
 
   const alertHealth = evaluateAlertHealth({
@@ -33,11 +41,19 @@ export default async function AdminDashboardPage() {
     activePushDevices
   });
 
+  const setupChecklist = includeOwnerMetrics
+    ? await getOwnerSetupChecklistData({
+        alertsConfigured: alertHealth.hasActiveChannel,
+        ownerMfaEnabled: Boolean(ownerMfaState?.hasVerifiedFactor)
+      })
+    : null;
+
   return (
     <AnalyticsDashboard
       initialPreset="30d"
       initialReport={initialReport}
       alertHealth={alertHealth}
+      setupChecklist={setupChecklist}
     />
   );
 }

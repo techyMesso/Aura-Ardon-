@@ -9,6 +9,7 @@ import {
   INTERNAL_TRAFFIC_COOKIE,
   INTERNAL_TRAFFIC_COOKIE_VALUE
 } from "@/lib/internal-traffic";
+import { OWNER_MFA_SKIP_SESSION_COOKIE } from "@/lib/owner-mfa";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   ADMIN_ACTIVITY_COOKIE,
@@ -150,21 +151,26 @@ export async function POST(request: NextRequest) {
     let mfaStatus: "verified" | "verify" | "enroll" = "verified";
     let factorId: string | null = null;
 
-    if (role === "owner" && isOwnerMfaEnforced()) {
+    if (role === "owner") {
       const [{ data: aalData }, { data: factorsData }] = await Promise.all([
         supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
         supabase.auth.mfa.listFactors()
       ]);
 
       if (aalData?.currentLevel !== "aal2") {
-        mfaRequired = true;
         const verifiedTotp = (factorsData?.totp ?? []).find(
           factor => factor.status === "verified"
         );
         if (verifiedTotp) {
-          mfaStatus = "verify";
-          factorId = verifiedTotp.id;
+          if (isOwnerMfaEnforced()) {
+            mfaRequired = true;
+            mfaStatus = "verify";
+            factorId = verifiedTotp.id;
+          }
         } else {
+          // Owner has no verified TOTP factor yet: let them into /admin where the blocking
+          // two-step login banner handles enrollment (and tracks the max 3 skips).
+          mfaRequired = false;
           mfaStatus = "enroll";
         }
       }
@@ -188,6 +194,9 @@ export async function POST(request: NextRequest) {
       activityToken,
       buildAdminActivityCookieOptions(isSecure)
     );
+
+    // Clear any prior session-scoped MFA skip dismissal so every fresh login prompts cleanly
+    response.cookies.delete(OWNER_MFA_SKIP_SESSION_COOKIE);
 
     // Mark this browser as internal admin/staff traffic for 1 year so own visits stay excluded even when logged out
     response.cookies.set(

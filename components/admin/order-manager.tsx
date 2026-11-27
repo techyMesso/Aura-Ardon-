@@ -42,6 +42,7 @@ import {
   PAYMENT_STATUSES,
   resolveCanonicalOrderStatus
 } from "@/lib/admin-orders";
+import { checkOrderAddressSanity } from "@/lib/address-sanity";
 import {
   computeInvoiceBalanceDue,
   getInvoiceStatusBadgeClassName,
@@ -56,6 +57,7 @@ import {
 import { resolveRiderCostForZone } from "@/lib/riders";
 import type {
   CanonicalOrderStatus,
+  CreditNote,
   Invoice,
   InvoicePayment,
   InvoicePaymentMethod,
@@ -86,6 +88,7 @@ interface OrderDetailResponse {
   returns?: OrderReturnRecord[];
   invoice?: Invoice | null;
   payments?: InvoicePayment[];
+  creditNotes?: CreditNote[];
   dispatchedWhatsAppUrl?: string | null;
   templateWhatsAppUrls?: OrderTemplateWhatsAppUrls;
 }
@@ -139,6 +142,7 @@ export function OrderManager({
   const [selectedReturns, setSelectedReturns] = useState<OrderReturnRecord[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedPayments, setSelectedPayments] = useState<InvoicePayment[]>([]);
+  const [selectedCreditNotes, setSelectedCreditNotes] = useState<CreditNote[]>([]);
   const [selectedTemplateUrls, setSelectedTemplateUrls] =
     useState<OrderTemplateWhatsAppUrls | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -198,6 +202,7 @@ export function OrderManager({
       setSelectedReturns([]);
       setSelectedInvoice(null);
       setSelectedPayments([]);
+      setSelectedCreditNotes([]);
       setSelectedTemplateUrls(null);
       return;
     }
@@ -229,6 +234,7 @@ export function OrderManager({
           setSelectedReturns(payload.returns ?? []);
           setSelectedInvoice(payload.invoice ?? null);
           setSelectedPayments(payload.payments ?? []);
+          setSelectedCreditNotes(payload.creditNotes ?? []);
           setSelectedTemplateUrls(payload.templateWhatsAppUrls ?? null);
         }
       } catch (caughtError) {
@@ -330,6 +336,7 @@ export function OrderManager({
     if (bundle.returns) setSelectedReturns(bundle.returns);
     if ("invoice" in bundle) setSelectedInvoice(bundle.invoice ?? null);
     if ("payments" in bundle) setSelectedPayments(bundle.payments ?? []);
+    if ("creditNotes" in bundle) setSelectedCreditNotes(bundle.creditNotes ?? []);
     if ("templateWhatsAppUrls" in bundle) {
       setSelectedTemplateUrls(bundle.templateWhatsAppUrls ?? null);
     }
@@ -509,16 +516,22 @@ export function OrderManager({
       setSelectedInvoice(payload.invoice);
       setSelectedPayments(payload.payments ?? []);
       const isNowPaid = payload.invoice.status === "paid";
+      const updatedPaymentFields = {
+        payment_status: (isNowPaid ? "PAID" : "PENDING") as PaymentStatus,
+        amount_paid: payload.invoice.amount_paid,
+        credited_amount: payload.invoice.credited_amount,
+        invoice_status: payload.invoice.status
+      };
       setOrders(current =>
         current.map(item =>
           item.id === selectedOrder.id
-            ? { ...item, payment_status: isNowPaid ? "PAID" : "PENDING" }
+            ? { ...item, ...updatedPaymentFields }
             : item
         )
       );
       setSelectedOrder(current =>
         current
-          ? { ...current, payment_status: isNowPaid ? "PAID" : "PENDING" }
+          ? { ...current, ...updatedPaymentFields }
           : current
       );
       setPaymentModalOpen(false);
@@ -853,6 +866,45 @@ export function OrderManager({
   const selectedOverdue24h = selectedOrder
     ? isPendingOrderOverdue24h(selectedOrder)
     : false;
+  const selectedAddressWarning = useMemo(
+    () =>
+      selectedOrder
+        ? checkOrderAddressSanity({
+            deliveryZoneName: selectedOrder.delivery_zone_name,
+            isOutsideNairobi: selectedOrder.delivery_zone_is_outside_nairobi,
+            deliveryAddress: selectedOrder.delivery_address,
+            customerLocation: selectedOrder.customer_location,
+            townCounty: selectedOrder.town_county
+          })
+        : null,
+    [selectedOrder]
+  );
+  const selectedPaidAmount = useMemo(() => {
+    const paymentsSum = selectedPayments.reduce(
+      (sum, payment) => sum + Number(payment.amount ?? 0),
+      0
+    );
+    return Math.max(
+      paymentsSum,
+      Number(selectedInvoice?.amount_paid ?? 0),
+      Number(selectedOrder?.amount_paid ?? 0)
+    );
+  }, [selectedInvoice, selectedOrder, selectedPayments]);
+  const selectedCreditedAmount = useMemo(() => {
+    const cnSum = selectedCreditNotes.reduce(
+      (sum, cn) => sum + Number(cn.amount ?? 0),
+      0
+    );
+    return Math.max(
+      cnSum,
+      Number(selectedInvoice?.credited_amount ?? 0),
+      Number(selectedOrder?.credited_amount ?? 0)
+    );
+  }, [selectedCreditNotes, selectedInvoice, selectedOrder]);
+  const selectedCreditNoteCount = Math.max(
+    selectedCreditNotes.length,
+    Number(selectedOrder?.credit_note_count ?? 0)
+  );
 
   return (
     <div className="grid min-w-0 gap-4 md:gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(380px,1.05fr)]">
@@ -1089,7 +1141,15 @@ export function OrderManager({
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-sm">
                   <span className="font-medium text-text">{formatCurrency(order.total)}</span>
-                  <PaymentStatusBadge status={order.payment_status} />
+                  <PaymentStatusBadge
+                    status={order.payment_status}
+                    orderStatus={canonical}
+                    amountPaid={order.amount_paid}
+                    creditedAmount={order.credited_amount}
+                    creditNoteCount={order.credit_note_count}
+                    invoiceStatus={order.invoice_status}
+                    orderTotal={order.total}
+                  />
                   <span className="text-muted">
                     {formatNairobiDateTime(order.created_at)}
                   </span>
@@ -1180,7 +1240,15 @@ export function OrderManager({
                         {formatCurrency(order.total)}
                       </td>
                       <td className="px-4 py-4">
-                        <PaymentStatusBadge status={order.payment_status} />
+                        <PaymentStatusBadge
+                          status={order.payment_status}
+                          orderStatus={canonical}
+                          amountPaid={order.amount_paid}
+                          creditedAmount={order.credited_amount}
+                          creditNoteCount={order.credit_note_count}
+                          invoiceStatus={order.invoice_status}
+                          orderTotal={order.total}
+                        />
                       </td>
                       <td className="px-4 py-4">
                         <OrderStatusBadge status={canonical} />
@@ -1445,6 +1513,19 @@ export function OrderManager({
                     Town/County: {selectedOrder.town_county}
                   </p>
                 ) : null}
+                {selectedAddressWarning ? (
+                  <div
+                    role="note"
+                    aria-label="Address sanity warning"
+                    className="mt-3 flex items-start gap-2 rounded-[2px] border border-amber-400/60 bg-amber-100/60 p-2.5 text-xs text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-200"
+                  >
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <p>
+                      <strong className="font-semibold">Address check (advisory):</strong>{" "}
+                      {selectedAddressWarning.message}
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
               <div className="rounded-[2px] border border-border bg-stone/50 p-4">
@@ -1455,6 +1536,15 @@ export function OrderManager({
                   {getPaymentMethodLabel(selectedOrder.payment_method)}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <PaymentStatusBadge
+                    status={selectedOrder.payment_status}
+                    orderStatus={selectedCanonicalStatus}
+                    amountPaid={selectedPaidAmount}
+                    creditedAmount={selectedCreditedAmount}
+                    creditNoteCount={selectedCreditNoteCount}
+                    invoiceStatus={selectedInvoice?.status ?? selectedOrder.invoice_status}
+                    orderTotal={selectedOrder.total}
+                  />
                   {selectedInvoice ? (
                     <span
                       className={`rounded-[2px] border px-2 py-0.5 text-xs font-semibold ${getInvoiceStatusBadgeClassName(
@@ -1464,10 +1554,16 @@ export function OrderManager({
                       {selectedInvoice.invoice_number} ·{" "}
                       {getInvoiceStatusLabel(selectedInvoice.status)}
                     </span>
-                  ) : (
-                    <PaymentStatusBadge status={selectedOrder.payment_status} />
-                  )}
+                  ) : null}
                 </div>
+
+                {selectedCreditNotes.length > 0 ? (
+                  <p className="mt-2 text-xs text-muted">
+                    Credit {selectedCreditNotes.length === 1 ? "note" : "notes"}:{" "}
+                    {selectedCreditNotes.map(cn => cn.credit_note_number).join(", ")} (
+                    {formatCurrency(selectedCreditedAmount)})
+                  </p>
+                ) : null}
 
                 {selectedInvoice ? (
                   <div className="mt-3 space-y-2">

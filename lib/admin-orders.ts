@@ -1,6 +1,7 @@
 import { formatProductTitle } from "@/lib/catalog";
 import type {
   CanonicalOrderStatus,
+  InvoiceStatus,
   Order,
   OrderCancelReason,
   OrderItem,
@@ -208,6 +209,170 @@ export function getPaymentStatusBadgeClassName(status: PaymentStatus) {
   return status === "PAID"
     ? "border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/60 dark:text-emerald-200"
     : "border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-200";
+}
+
+export type OrderPaymentDisplayState =
+  | "paid"
+  | "partially_paid"
+  | "pending"
+  | "not_applicable"
+  | "refunded"
+  | "credited";
+
+export interface OrderPaymentDisplayInput {
+  orderStatus?: CanonicalOrderStatus | OrderStatus | null;
+  paymentStatus: PaymentStatus;
+  amountPaid?: number | string | null;
+  creditedAmount?: number | string | null;
+  creditNoteCount?: number | null;
+  hasCreditNote?: boolean;
+  invoiceStatus?: InvoiceStatus | null;
+  orderTotal?: number | string | null;
+}
+
+export interface OrderPaymentDisplay {
+  state: OrderPaymentDisplayState;
+  label: string;
+  className: string;
+}
+
+const PAYMENT_DISPLAY_BADGE_CLASSES: Record<OrderPaymentDisplayState, string> = {
+  paid: "border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/60 dark:text-emerald-200",
+  partially_paid:
+    "border-blue-300 bg-blue-100 text-blue-950 dark:border-blue-500/40 dark:bg-blue-950/60 dark:text-blue-200",
+  pending:
+    "border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-200",
+  not_applicable:
+    "border-border bg-stone text-muted",
+  refunded:
+    "border-purple-300 bg-purple-100 text-purple-950 dark:border-purple-500/40 dark:bg-purple-950/60 dark:text-purple-200",
+  credited:
+    "border-sky-300 bg-sky-100 text-sky-950 dark:border-sky-500/40 dark:bg-sky-950/60 dark:text-sky-200"
+};
+
+function parsePositiveAmount(value: number | string | null | undefined): number {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+}
+
+function normalizeDisplayOrderStatus(
+  status: CanonicalOrderStatus | OrderStatus | null | undefined
+): CanonicalOrderStatus {
+  if (!status) return "pending";
+  if ((CANONICAL_ORDER_STATUSES as readonly string[]).includes(status)) {
+    return status as CanonicalOrderStatus;
+  }
+  return mapLegacyStatusToCanonical(status as OrderStatus);
+}
+
+/**
+ * Resolves the human-readable payment status label and muted/semantic badge styling:
+ * - Cancelled orders with no payments -> "Not applicable" (muted)
+ * - Returned or credited orders -> "Refunded" (when payments were collected) or "Credited" (based on credit notes)
+ * - Active orders -> "Paid", "Partially paid", or "Pending payment" (unpaid active orders only)
+ */
+export function resolveOrderPaymentDisplay(
+  input: OrderPaymentDisplayInput
+): OrderPaymentDisplay {
+  const canonicalStatus = normalizeDisplayOrderStatus(input.orderStatus);
+  const paidAmount = parsePositiveAmount(input.amountPaid);
+  const creditedAmount = parsePositiveAmount(input.creditedAmount);
+  const creditNoteCount = Math.max(
+    0,
+    Math.floor(Number(input.creditNoteCount ?? 0) || 0)
+  );
+  const hasCreditNote =
+    Boolean(input.hasCreditNote) || creditedAmount > 0 || creditNoteCount > 0;
+  const hasPayment =
+    paidAmount > 0 ||
+    input.paymentStatus === "PAID" ||
+    input.invoiceStatus === "paid" ||
+    input.invoiceStatus === "partially_paid";
+
+  if (canonicalStatus === "cancelled") {
+    if (!hasPayment) {
+      return {
+        state: "not_applicable",
+        label: "Not applicable",
+        className: PAYMENT_DISPLAY_BADGE_CLASSES.not_applicable
+      };
+    }
+    if (hasCreditNote) {
+      return {
+        state: "refunded",
+        label: "Refunded",
+        className: PAYMENT_DISPLAY_BADGE_CLASSES.refunded
+      };
+    }
+    return {
+      state: "paid",
+      label: "Paid",
+      className: PAYMENT_DISPLAY_BADGE_CLASSES.paid
+    };
+  }
+
+  if (canonicalStatus === "returned") {
+    if (hasPayment) {
+      return {
+        state: "refunded",
+        label: "Refunded",
+        className: PAYMENT_DISPLAY_BADGE_CLASSES.refunded
+      };
+    }
+    if (hasCreditNote) {
+      return {
+        state: "credited",
+        label: "Credited",
+        className: PAYMENT_DISPLAY_BADGE_CLASSES.credited
+      };
+    }
+    return {
+      state: "refunded",
+      label: "Refunded",
+      className: PAYMENT_DISPLAY_BADGE_CLASSES.refunded
+    };
+  }
+
+  if (hasCreditNote) {
+    const orderTotal = parsePositiveAmount(input.orderTotal);
+    const fullyCredited =
+      input.invoiceStatus === "void" ||
+      (orderTotal > 0 && creditedAmount >= orderTotal);
+    if (hasPayment && (fullyCredited || (paidAmount > 0 && creditedAmount >= paidAmount))) {
+      return {
+        state: "refunded",
+        label: "Refunded",
+        className: PAYMENT_DISPLAY_BADGE_CLASSES.refunded
+      };
+    }
+    return {
+      state: "credited",
+      label: "Credited",
+      className: PAYMENT_DISPLAY_BADGE_CLASSES.credited
+    };
+  }
+
+  if (input.paymentStatus === "PAID" || input.invoiceStatus === "paid") {
+    return {
+      state: "paid",
+      label: "Paid",
+      className: PAYMENT_DISPLAY_BADGE_CLASSES.paid
+    };
+  }
+
+  if (input.invoiceStatus === "partially_paid" || paidAmount > 0) {
+    return {
+      state: "partially_paid",
+      label: "Partially paid",
+      className: PAYMENT_DISPLAY_BADGE_CLASSES.partially_paid
+    };
+  }
+
+  return {
+    state: "pending",
+    label: "Pending payment",
+    className: PAYMENT_DISPLAY_BADGE_CLASSES.pending
+  };
 }
 
 function isUuid(value: string) {
