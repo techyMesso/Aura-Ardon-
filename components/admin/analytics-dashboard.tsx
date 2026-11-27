@@ -47,7 +47,8 @@ import {
 import {
   buildCsvContent,
   computePercentDelta,
-  formatHoursDuration
+  formatHoursDuration,
+  formatOrdersCardHeadline
 } from "@/lib/analytics";
 import type {
   AnalyticsDashboardReport,
@@ -169,6 +170,13 @@ export function AnalyticsDashboard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inventoryTab, setInventoryTab] = useState<InventoryTab>("out_of_stock");
+  const [includeInternal, setIncludeInternal] = useState<boolean>(
+    Boolean(initialReport.include_internal)
+  );
+  const [clearEventsDate, setClearEventsDate] = useState<string>(() =>
+    getNairobiDateKey()
+  );
+  const [clearingEvents, setClearingEvents] = useState(false);
   const [alertWarningDismissed, setAlertWarningDismissed] = useState(false);
 
   useEffect(() => {
@@ -211,7 +219,8 @@ export function AnalyticsDashboard({
   async function fetchReport(
     nextPreset: AnalyticsDatePreset,
     nextFrom = customFrom,
-    nextTo = customTo
+    nextTo = customTo,
+    nextIncludeInternal = includeInternal
   ) {
     setLoading(true);
     setError(null);
@@ -220,6 +229,9 @@ export function AnalyticsDashboard({
       if (nextPreset === "custom") {
         params.set("from", nextFrom);
         params.set("to", nextTo);
+      }
+      if (nextIncludeInternal) {
+        params.set("includeInternal", "1");
       }
       const response = await fetch(`/api/admin/analytics?${params.toString()}`);
       const payload = (await response.json()) as {
@@ -244,7 +256,56 @@ export function AnalyticsDashboard({
   function handleSelectPreset(nextPreset: AnalyticsDatePreset) {
     setPreset(nextPreset);
     if (nextPreset !== "custom") {
-      void fetchReport(nextPreset);
+      void fetchReport(nextPreset, customFrom, customTo, includeInternal);
+    }
+  }
+
+  function handleToggleIncludeInternal(checked: boolean) {
+    setIncludeInternal(checked);
+    void fetchReport(preset, customFrom, customTo, checked);
+  }
+
+  async function handleClearEventsBeforeDate() {
+    if (!clearEventsDate) {
+      setError("Choose a date before clearing storefront events.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Permanently clear all storefront analytics events recorded before ${clearEventsDate} (00:00 EAT)? This action is recorded in the audit log.`
+    );
+    if (!confirmed) return;
+
+    setClearingEvents(true);
+    setError(null);
+    setStockSuccess(null);
+
+    try {
+      const response = await fetch("/api/admin/events/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ beforeDate: clearEventsDate })
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        deletedCount?: number;
+        error?: string;
+      };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "Unable to clear storefront events.");
+      }
+      setStockSuccess(
+        `Cleared ${payload.deletedCount ?? 0} storefront event(s) recorded before ${clearEventsDate}.`
+      );
+      await fetchReport(preset, customFrom, customTo, includeInternal);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to clear storefront events."
+      );
+    } finally {
+      setClearingEvents(false);
     }
   }
 
@@ -364,7 +425,9 @@ export function AnalyticsDashboard({
               type="button"
               variant="ghost"
               disabled={loading}
-              onClick={() => void fetchReport(preset, customFrom, customTo)}
+              onClick={() =>
+                void fetchReport(preset, customFrom, customTo, includeInternal)
+              }
               aria-label="Refresh analytics"
             >
               <RefreshCw
@@ -372,6 +435,16 @@ export function AnalyticsDashboard({
                 aria-hidden
               />
             </Button>
+            <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-[2px] border border-border bg-paper px-2.5 text-xs text-muted hover:border-brass hover:text-text">
+              <input
+                type="checkbox"
+                checked={includeInternal}
+                disabled={loading}
+                onChange={event => handleToggleIncludeInternal(event.target.checked)}
+                className="h-3.5 w-3.5 accent-brass"
+              />
+              <span>Include internal traffic</span>
+            </label>
           </div>
         </div>
 
@@ -379,7 +452,7 @@ export function AnalyticsDashboard({
           <form
             onSubmit={event => {
               event.preventDefault();
-              void fetchReport("custom", customFrom, customTo);
+              void fetchReport("custom", customFrom, customTo, includeInternal);
             }}
             className="flex flex-wrap items-end gap-3 border border-border bg-stone/40 p-3.5"
           >
@@ -722,11 +795,17 @@ export function AnalyticsDashboard({
               <p className="text-xs uppercase tracking-[0.12em] text-muted">
                 Orders &amp; AOV
               </p>
-              <p className="mt-2 font-serif text-2xl text-text">
-                {kpis.orders_total}{" "}
-                <span className="font-sans text-sm font-normal text-muted">
-                  ({formatCurrency(kpis.aov)} AOV)
-                </span>
+              <p className="mt-2 font-serif text-xl leading-snug text-text">
+                {formatOrdersCardHeadline(
+                  kpis.orders_total,
+                  kpis.orders_by_status.cancelled
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-muted">
+                AOV:{" "}
+                <strong className="font-medium text-text">
+                  {kpis.aov !== null ? formatCurrency(kpis.aov) : "—"}
+                </strong>
               </p>
               <div className="mt-2 flex flex-col gap-0.5">
                 <DeltaBadge
@@ -910,8 +989,33 @@ export function AnalyticsDashboard({
           {loading ? (
             <ChartSkeleton heightClass="h-72" />
           ) : (
-            <ConversionFunnelChart funnel={report.funnel} />
+            <ConversionFunnelChart
+              funnel={report.funnel}
+              ordersCreated={report.funnel.orders_created ?? kpis.orders_total}
+            />
           )}
+          {report.include_owner_metrics ? (
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-2 border-t border-border pt-3 text-xs">
+              <label className="space-y-1 text-muted">
+                <span>Clear storefront events before date (EAT)</span>
+                <Input
+                  type="date"
+                  value={clearEventsDate}
+                  onChange={event => setClearEventsDate(event.target.value)}
+                  className="h-9 w-40 text-xs"
+                />
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={clearingEvents || !clearEventsDate}
+                className="h-9 px-3 text-xs text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400"
+                onClick={() => void handleClearEventsBeforeDate()}
+              >
+                {clearingEvents ? "Clearing..." : "Clear events before date"}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </section>
 

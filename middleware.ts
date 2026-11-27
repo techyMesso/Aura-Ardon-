@@ -2,6 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 import {
+  buildInternalTrafficCookieOptions,
+  INTERNAL_TRAFFIC_COOKIE,
+  INTERNAL_TRAFFIC_COOKIE_VALUE
+} from "@/lib/internal-traffic";
+import {
   ADMIN_ACTIVITY_COOKIE,
   buildAdminActivityCookieOptions,
   createAdminActivityToken,
@@ -241,6 +246,15 @@ export async function middleware(request: NextRequest) {
     freshToken,
     buildAdminActivityCookieOptions(isSecure)
   );
+
+  // Keep the 1-year internal-traffic exclusion cookie present on admin devices
+  if (request.cookies.get(INTERNAL_TRAFFIC_COOKIE)?.value !== INTERNAL_TRAFFIC_COOKIE_VALUE) {
+    response.cookies.set(
+      INTERNAL_TRAFFIC_COOKIE,
+      INTERNAL_TRAFFIC_COOKIE_VALUE,
+      buildInternalTrafficCookieOptions(isSecure)
+    );
+  }
 
   return response;
 }

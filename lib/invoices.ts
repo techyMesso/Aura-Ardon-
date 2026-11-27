@@ -27,6 +27,15 @@ export function isValidMpesaCode(value: string): boolean {
   return MPESA_CODE_REGEX.test(normalizeMpesaCode(value));
 }
 
+export function isTestInvoice(
+  invoice: Pick<Invoice, "invoice_number" | "is_test">
+): boolean {
+  return (
+    Boolean(invoice.is_test) ||
+    invoice.invoice_number.toUpperCase().startsWith("TEST-INV-")
+  );
+}
+
 /**
  * Document title is strictly "Invoice" or "Receipt" — NEVER "Tax Invoice".
  */
@@ -145,12 +154,25 @@ export function buildDailyCashupReport(
   invoices: Invoice[],
   payments: InvoicePayment[]
 ): DailyCashupReport {
-  const invoiceById = new Map(invoices.map(inv => [inv.id, inv]));
-  const orderById = new Map(orders.map(order => [order.id, order]));
+  const realOrders = orders.filter(order => !order.is_test);
+  const testOrderIds = new Set(
+    orders.filter(order => Boolean(order.is_test)).map(order => order.id)
+  );
+  const realInvoices = invoices.filter(
+    inv => !isTestInvoice(inv) && !testOrderIds.has(inv.order_id)
+  );
+  const realInvoiceIds = new Set(realInvoices.map(inv => inv.id));
 
-  // Payments collected on the selected EAT date
+  const invoiceById = new Map(realInvoices.map(inv => [inv.id, inv]));
+  const orderById = new Map(realOrders.map(order => [order.id, order]));
+
+  // Payments collected on the selected EAT date (excluding test orders/invoices)
   const dayPayments = payments.filter(
-    payment => toNairobiDateIso(payment.paid_at) === dateIso
+    payment =>
+      !testOrderIds.has(payment.order_id) &&
+      (realInvoiceIds.size === 0 ||
+        !invoices.some(inv => inv.id === payment.invoice_id && isTestInvoice(inv))) &&
+      toNairobiDateIso(payment.paid_at) === dateIso
   );
 
   const dayPaymentsByInvoice = new Map<string, InvoicePayment[]>();
@@ -160,9 +182,9 @@ export function buildDailyCashupReport(
     dayPaymentsByInvoice.set(payment.invoice_id, list);
   }
 
-  // Expected: non-void invoices belonging to active orders issued or dispatched that date OR paid that date
+  // Expected: non-void, non-test invoices belonging to active orders issued or dispatched that date OR paid that date
   const expectedInvoiceIds = new Set<string>();
-  for (const inv of invoices) {
+  for (const inv of realInvoices) {
     if (inv.status === "void") continue;
     const linkedOrder = orderById.get(inv.order_id);
     if (linkedOrder && resolveCanonicalOrderStatus(linkedOrder) === "cancelled") {
@@ -338,14 +360,19 @@ export function buildMonthlySummaryReport(
   payments: InvoicePayment[],
   creditNotes: CreditNote[]
 ): MonthlySummaryReport {
+  const testInvoiceIds = new Set(
+    invoices.filter(inv => isTestInvoice(inv)).map(inv => inv.id)
+  );
   const monthInvoices = invoices.filter(
-    inv => toNairobiMonthIso(inv.issued_at) === monthIso
+    inv => !isTestInvoice(inv) && toNairobiMonthIso(inv.issued_at) === monthIso
   );
   const monthCreditNotes = creditNotes.filter(
-    cn => toNairobiMonthIso(cn.created_at) === monthIso
+    cn => !testInvoiceIds.has(cn.invoice_id) && toNairobiMonthIso(cn.created_at) === monthIso
   );
   const monthPayments = payments.filter(
-    payment => toNairobiMonthIso(payment.paid_at) === monthIso
+    payment =>
+      !testInvoiceIds.has(payment.invoice_id) &&
+      toNairobiMonthIso(payment.paid_at) === monthIso
   );
 
   const grossSales = Math.round(

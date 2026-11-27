@@ -793,7 +793,7 @@ export async function listAdminDeliveryZonesWithCounts(): Promise<AdminDeliveryZ
 // ─── ADMIN ────────────────────────────────────────────────
 
 const ADMIN_ORDER_SELECT: string =
-  "id, order_number, channel, status, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, cancel_reason, cancel_note, cancelled_at, restocked_at, returned_at, needs_review, review_reason, rider_id, rider_name, rider_phone, rider_cost, dispatched_at, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at";
+  "id, order_number, channel, status, is_test, customer_id, customer_name, customer_email, customer_phone, customer_location, delivery_zone_id, delivery_zone_name, delivery_address, town_county, notes, is_gift, gift_note, hide_prices, marketing_opt_in, discount_code, discount_amount, cancel_reason, cancel_note, cancelled_at, restocked_at, returned_at, needs_review, review_reason, rider_id, rider_name, rider_phone, rider_cost, dispatched_at, payment_method, payment_status, order_status, subtotal, shipping_fee, total, created_at";
 
 export async function listAdminDashboardData() {
   const supabase = createAdminSupabaseClient();
@@ -1005,6 +1005,7 @@ export async function getOrderByNumber(
 type ListAdminOrdersParams = {
   status?: CanonicalOrderStatus | OrderStatus | "ALL" | "all";
   paymentStatus?: PaymentStatus | "ALL";
+  testFilter?: "all" | "real" | "test";
   search?: string;
   from?: string;
   to?: string;
@@ -1038,6 +1039,12 @@ export async function listAdminOrders(
 
   if (params.paymentStatus && params.paymentStatus !== "ALL") {
     query = query.eq("payment_status", params.paymentStatus);
+  }
+
+  if (params.testFilter === "real") {
+    query = query.eq("is_test", false);
+  } else if (params.testFilter === "test") {
+    query = query.eq("is_test", true);
   }
 
   if (params.from) {
@@ -1181,7 +1188,7 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
   const [ordersResponse, itemsResponse, returnsResponse] = await Promise.all([
     supabase
       .from("orders")
-      .select("id, total, status, order_status, created_at")
+      .select("id, total, status, order_status, is_test, created_at")
       .order("created_at", { ascending: true }),
     supabase
       .from("order_items")
@@ -1203,14 +1210,17 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
     });
   }
 
-  // Revenue rule: cancelled orders NEVER count.
+  // Revenue rule: cancelled and test orders NEVER count.
   const orders = ((ordersResponse.data ?? []) as Array<{
     id: string;
     total: string | number | null;
     status?: CanonicalOrderStatus | null;
     order_status: OrderStatus;
+    is_test?: boolean | null;
     created_at: string;
-  }>).filter(order => resolveCanonicalOrderStatus(order) !== "cancelled");
+  }>).filter(
+    order => !order.is_test && resolveCanonicalOrderStatus(order) !== "cancelled"
+  );
 
   const validOrderIds = new Set(orders.map(order => order.id));
   const items = ((itemsResponse.data ?? []) as Array<{
@@ -1973,12 +1983,14 @@ export async function getAnalyticsDashboardData(params: {
   from: string;
   to: string;
   includeOwnerMetrics: boolean;
+  includeInternal?: boolean;
 }): Promise<AnalyticsDashboardReport> {
   const supabase = createAdminSupabaseClient();
   const { data, error } = await supabase.rpc("get_analytics_dashboard" as never, {
     p_from: params.from,
     p_to: params.to,
-    p_include_owner_metrics: params.includeOwnerMetrics
+    p_include_owner_metrics: params.includeOwnerMetrics,
+    p_include_internal: Boolean(params.includeInternal)
   } as never);
 
   if (error) {

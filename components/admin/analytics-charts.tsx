@@ -181,7 +181,13 @@ export function RevenueOrdersChart({
   );
 }
 
-export function ConversionFunnelChart({ funnel }: { funnel: AnalyticsFunnel }) {
+export function ConversionFunnelChart({
+  funnel,
+  ordersCreated
+}: {
+  funnel: AnalyticsFunnel;
+  ordersCreated?: number;
+}) {
   const steps = [
     { key: "product_views", label: "Product views", count: funnel.product_views },
     { key: "add_to_bag", label: "Add to bag", count: funnel.add_to_bag },
@@ -195,14 +201,21 @@ export function ConversionFunnelChart({ funnel }: { funnel: AnalyticsFunnel }) {
     { key: "delivered", label: "Delivered", count: funnel.delivered }
   ];
 
-  const maxCount = Math.max(...steps.map(step => step.count), 0);
+  const resolvedOrdersCreated = ordersCreated ?? funnel.orders_created ?? 0;
+  const hasMismatch = funnel.whatsapp_order_sent !== resolvedOrdersCreated;
+  const maxCount = Math.max(...steps.map(step => step.count), resolvedOrdersCreated, 0);
 
   if (maxCount === 0) {
     return (
-      <ChartEmpty
-        title="Funnel awaiting traffic"
-        subtitle="Anonymous product views, bag additions, checkout starts, and order milestones appear here automatically."
-      />
+      <div className="space-y-3">
+        <ChartEmpty
+          title="Funnel awaiting traffic"
+          subtitle="Anonymous product views, bag additions, checkout starts, and order milestones appear here automatically."
+        />
+        <p className="text-xs text-muted">
+          WhatsApp order sent should match orders created (0 sent · 0 created).
+        </p>
+      </div>
     );
   }
 
@@ -234,6 +247,33 @@ export function ConversionFunnelChart({ funnel }: { funnel: AnalyticsFunnel }) {
           </div>
         );
       })}
+      <div
+        role={hasMismatch ? "status" : undefined}
+        className={`rounded-[2px] border px-3 py-2 text-xs ${
+          hasMismatch
+            ? "border-amber-400/70 bg-amber-50/70 text-amber-950 dark:border-amber-500/50 dark:bg-amber-950/30 dark:text-amber-200"
+            : "border-emerald-400/40 bg-emerald-500/5 text-muted"
+        }`}
+      >
+        <p className="font-medium text-text">
+          WhatsApp order sent should match orders created
+        </p>
+        <p className="mt-0.5">
+          {hasMismatch ? (
+            <>
+              <strong>Mismatch flagged:</strong>{" "}
+              {funnel.whatsapp_order_sent.toLocaleString("en-KE")} WhatsApp order sent
+              event(s) vs {resolvedOrdersCreated.toLocaleString("en-KE")} order(s) created in
+              this period.
+            </>
+          ) : (
+            <>
+              In sync: {funnel.whatsapp_order_sent.toLocaleString("en-KE")} sent ·{" "}
+              {resolvedOrdersCreated.toLocaleString("en-KE")} created.
+            </>
+          )}
+        </p>
+      </div>
       <p className="pt-1 text-xs text-muted">
         Product WhatsApp inquiries in this period:{" "}
         <strong className="text-text">{funnel.whatsapp_questions}</strong>

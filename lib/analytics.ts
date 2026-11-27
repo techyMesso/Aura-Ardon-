@@ -99,6 +99,40 @@ export function formatHoursDuration(hours: number | null | undefined): string {
   return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
 }
 
+/**
+ * Average order value = booked revenue / non-cancelled orders.
+ * Returns null when there are no non-cancelled orders so the UI renders "—" instead of "KES 0".
+ */
+export function computeAverageOrderValue(
+  bookedRevenue: number,
+  nonCancelledOrders: number
+): number | null {
+  if (!Number.isFinite(nonCancelledOrders) || nonCancelledOrders <= 0) {
+    return null;
+  }
+  if (!Number.isFinite(bookedRevenue)) {
+    return 0;
+  }
+  return Math.round((bookedRevenue / nonCancelledOrders) * 100) / 100;
+}
+
+/**
+ * Formats the dashboard Orders KPI headline so cancelled orders are immediately clear
+ * (e.g. "1 order · 1 cancelled" instead of just "1").
+ */
+export function formatOrdersCardHeadline(
+  totalOrders: number,
+  cancelledOrders: number
+): string {
+  const safeTotal = Math.max(0, Math.floor(totalOrders || 0));
+  const safeCancelled = Math.max(0, Math.floor(cancelledOrders || 0));
+  const orderWord = safeTotal === 1 ? "order" : "orders";
+  if (safeCancelled > 0) {
+    return `${safeTotal} ${orderWord} · ${safeCancelled} cancelled`;
+  }
+  return `${safeTotal} ${orderWord}`;
+}
+
 function escapeCsvCell(value: string | number | boolean | null | undefined): string {
   const str = value === null || value === undefined ? "" : String(value);
   if (/[",\n\r]/.test(str)) {
@@ -145,7 +179,7 @@ export function buildEmptyPeriodKpis(includeOwnerMetrics: boolean): AnalyticsPer
       cancelled: 0,
       returned: 0
     },
-    aov: 0,
+    aov: null,
     confirmation_rate: 0,
     cancellation_rate: 0,
     return_rate: 0,
@@ -180,6 +214,7 @@ export function buildEmptyAnalyticsDashboardReport(
       granularity: days <= 31 ? "day" : "week"
     },
     include_owner_metrics: includeOwnerMetrics,
+    include_internal: false,
     kpis: buildEmptyPeriodKpis(includeOwnerMetrics),
     previous_kpis: buildEmptyPeriodKpis(includeOwnerMetrics),
     revenue_series: [],
@@ -188,6 +223,7 @@ export function buildEmptyAnalyticsDashboardReport(
       add_to_bag: 0,
       begin_checkout: 0,
       whatsapp_order_sent: 0,
+      orders_created: 0,
       confirmed: 0,
       delivered: 0,
       whatsapp_questions: 0

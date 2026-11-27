@@ -4,6 +4,11 @@ import { z } from "zod";
 
 import { isOwnerMfaEnforced, resolveUserAdminRole } from "@/lib/auth";
 import { getAdminEmail, getSupabaseEnv } from "@/lib/env";
+import {
+  buildInternalTrafficCookieOptions,
+  INTERNAL_TRAFFIC_COOKIE,
+  INTERNAL_TRAFFIC_COOKIE_VALUE
+} from "@/lib/internal-traffic";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   ADMIN_ACTIVITY_COOKIE,
@@ -182,6 +187,13 @@ export async function POST(request: NextRequest) {
       ADMIN_ACTIVITY_COOKIE,
       activityToken,
       buildAdminActivityCookieOptions(isSecure)
+    );
+
+    // Mark this browser as internal admin/staff traffic for 1 year so own visits stay excluded even when logged out
+    response.cookies.set(
+      INTERNAL_TRAFFIC_COOKIE,
+      INTERNAL_TRAFFIC_COOKIE_VALUE,
+      buildInternalTrafficCookieOptions(isSecure)
     );
 
     return response;

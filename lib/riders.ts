@@ -232,6 +232,7 @@ export function buildDispatchSheetReport(
   const rows: DispatchSheetRow[] = [];
 
   for (const order of orders) {
+    if (order.is_test) continue;
     const canonical = resolveCanonicalOrderStatus(order);
     if (canonical === "cancelled" || canonical === "pending") {
       continue;
@@ -382,6 +383,7 @@ export function buildDeliveryMarginReport(
   let ordersMissingRiderCost = 0;
 
   for (const order of orders) {
+    if (order.is_test) continue;
     const canonical = resolveCanonicalOrderStatus(order);
     if (canonical === "cancelled") continue;
 

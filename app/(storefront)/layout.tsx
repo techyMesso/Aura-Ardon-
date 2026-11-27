@@ -5,6 +5,7 @@ import { Navbar } from "@/components/storefront/navbar";
 import { SearchCommandPalette } from "@/components/storefront/search-command-palette";
 import { StoreClosedBanner } from "@/components/storefront/store-closed-banner";
 import { StorefrontUIProvider } from "@/components/storefront/storefront-context";
+import { StorefrontTelemetry } from "@/components/storefront/storefront-telemetry";
 import { CartProvider } from "@/lib/cart";
 import { filterNonEmptyCategories } from "@/lib/catalog";
 import {
@@ -53,6 +54,7 @@ export default async function StorefrontLayout({
         <CartDrawer />
         <SearchCommandPalette />
         <MobileBottomNav />
+        <StorefrontTelemetry />
       </StorefrontUIProvider>
     </CartProvider>
   );

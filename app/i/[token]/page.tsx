@@ -9,6 +9,7 @@ import {
   getInvoiceDocumentTitle,
   getInvoiceStatusBadgeClassName,
   getInvoiceStatusLabel,
+  isTestInvoice,
   NAIROBI_TIME_ZONE,
   toMoneyNumber
 } from "@/lib/invoices";
@@ -63,6 +64,7 @@ export default async function PublicInvoiceSharePage({
 
   const { invoice, payments, creditNotes } = bundle;
   const docTitle = getInvoiceDocumentTitle(invoice);
+  const testWatermark = isTestInvoice(invoice);
   const business = invoice.business_snapshot;
   const customer = invoice.customer_snapshot;
   const lines = invoice.lines_snapshot ?? [];
@@ -100,6 +102,16 @@ export default async function PublicInvoiceSharePage({
 
         {/* Document sheet */}
         <article className="relative overflow-hidden border border-border bg-paper p-5 shadow-sm sm:p-8 print:border-none print:p-0 print:shadow-none">
+          {testWatermark ? (
+            <div
+              aria-label="Test invoice watermark"
+              className="pointer-events-none absolute inset-0 z-10 flex select-none items-center justify-center overflow-hidden"
+            >
+              <span className="-rotate-30 border-4 border-purple-600/35 px-10 py-3 font-serif text-7xl font-bold tracking-[0.35em] text-purple-600/25 sm:text-8xl">
+                TEST
+              </span>
+            </div>
+          ) : null}
           {invoice.status === "paid" ? (
             <div
               aria-label="Paid stamp"
@@ -138,7 +150,12 @@ export default async function PublicInvoiceSharePage({
               <p className="mt-1 font-serif text-2xl font-semibold text-text">
                 {invoice.invoice_number}
               </p>
-              <div className="mt-2 inline-flex">
+              <div className="mt-2 inline-flex flex-wrap items-center gap-1.5">
+                {testWatermark ? (
+                  <span className="rounded-[2px] border border-purple-400/70 bg-purple-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-[0.14em] text-purple-900 dark:border-purple-500/50 dark:bg-purple-950/70 dark:text-purple-200">
+                    TEST
+                  </span>
+                ) : null}
                 <span
                   className={`rounded-[2px] border px-2.5 py-0.5 text-xs font-semibold ${getInvoiceStatusBadgeClassName(
                     invoice.status

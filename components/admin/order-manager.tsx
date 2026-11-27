@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  FlaskConical,
   History,
   MessageCircle,
   RotateCcw,
@@ -75,6 +76,7 @@ interface OrderManagerProps {
   initialOrders: Order[];
   initialRiders?: Rider[];
   messageTemplates?: Partial<StoreMessageTemplates>;
+  isOwner?: boolean;
 }
 
 interface OrderDetailResponse {
@@ -115,7 +117,8 @@ function formatNairobiDateTime(value: string) {
 export function OrderManager({
   initialOrders,
   initialRiders = [],
-  messageTemplates
+  messageTemplates,
+  isOwner = false
 }: OrderManagerProps) {
   const searchParams = useSearchParams();
   const requestedOrderId = searchParams.get("order");
@@ -162,12 +165,14 @@ export function OrderManager({
   const [filters, setFilters] = useState<{
     status: "all" | CanonicalOrderStatus;
     paymentStatus: "ALL" | PaymentStatus;
+    testFilter: "all" | "real" | "test";
     search: string;
     from: string;
     to: string;
   }>({
     status: "all",
     paymentStatus: "ALL",
+    testFilter: "all",
     search: "",
     from: "",
     to: ""
@@ -549,6 +554,9 @@ export function OrderManager({
       if (nextFilters.paymentStatus && nextFilters.paymentStatus !== "ALL") {
         params.set("paymentStatus", nextFilters.paymentStatus);
       }
+      if (nextFilters.testFilter && nextFilters.testFilter !== "all") {
+        params.set("testFilter", nextFilters.testFilter);
+      }
       if (nextFilters.search.trim()) {
         params.set("search", nextFilters.search.trim());
       }
@@ -669,6 +677,42 @@ export function OrderManager({
         caughtError instanceof Error
           ? caughtError.message
           : "Unable to update payment status."
+      );
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function handleToggleTestOrder(order: Order, nextIsTest: boolean) {
+    setSavingId(order.id);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}/test`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isTest: nextIsTest })
+      });
+      const payload = (await response.json()) as OrderDetailResponse & {
+        error?: string;
+      };
+
+      if (!response.ok || !payload.order) {
+        throw new Error(payload.error ?? "Unable to update test-order flag.");
+      }
+
+      syncUpdatedBundle(payload);
+      setSuccess(
+        nextIsTest
+          ? `Order ${formatOrderDisplayNumber(payload.order)} marked as a TEST order (excluded from analytics, LTV, and real invoice sequence).`
+          : `Order ${formatOrderDisplayNumber(payload.order)} unmarked as a test order.`
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to update test-order flag."
       );
     } finally {
       setSavingId(null);
@@ -862,7 +906,7 @@ export function OrderManager({
         </div>
 
         {/* Search & Date Filters */}
-        <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <label className="space-y-1.5 text-sm text-muted">
             <span>Order no. / name / phone</span>
             <div className="relative">
@@ -906,6 +950,27 @@ export function OrderManager({
           </label>
 
           <label className="space-y-1.5 text-sm text-muted">
+            <span>Order type</span>
+            <select
+              aria-label="Filter test orders"
+              className="h-11 w-full rounded-[2px] border border-text/20 bg-paper px-3.5 text-sm text-text outline-none transition focus:border-brass"
+              value={filters.testFilter}
+              onChange={event => {
+                const next = {
+                  ...filters,
+                  testFilter: event.target.value as "all" | "real" | "test"
+                };
+                setFilters(next);
+                void refreshOrders(next);
+              }}
+            >
+              <option value="all">All orders</option>
+              <option value="real">Real orders only</option>
+              <option value="test">Test orders only</option>
+            </select>
+          </label>
+
+          <label className="space-y-1.5 text-sm text-muted">
             <span>From</span>
             <Input
               type="date"
@@ -938,6 +1003,7 @@ export function OrderManager({
               const cleared = {
                 status: "all" as const,
                 paymentStatus: "ALL" as const,
+                testFilter: "all" as const,
                 search: "",
                 from: "",
                 to: ""
@@ -992,6 +1058,11 @@ export function OrderManager({
                       <p className="font-semibold text-text">
                         {formatOrderDisplayNumber(order)}
                       </p>
+                      {order.is_test ? (
+                        <span className="inline-flex items-center gap-1 rounded-[2px] border border-purple-400/70 bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-purple-900 dark:border-purple-500/50 dark:bg-purple-950/70 dark:text-purple-200">
+                          TEST
+                        </span>
+                      ) : null}
                       {overdue ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950/70 dark:text-amber-200">
                           <Clock className="h-3 w-3" aria-hidden />
@@ -1066,14 +1137,21 @@ export function OrderManager({
                     >
                       <td className="px-4 py-4 font-medium text-text">
                         <div className="flex flex-col items-start gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOrderId(order.id)}
-                            className="rounded text-left font-semibold text-text underline-offset-4 transition hover:text-brass hover:underline focus:outline-none focus:ring-2 focus:ring-brass"
-                            aria-pressed={selectedOrderId === order.id}
-                          >
-                            {formatOrderDisplayNumber(order)}
-                          </button>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderId(order.id)}
+                              className="rounded text-left font-semibold text-text underline-offset-4 transition hover:text-brass hover:underline focus:outline-none focus:ring-2 focus:ring-brass"
+                              aria-pressed={selectedOrderId === order.id}
+                            >
+                              {formatOrderDisplayNumber(order)}
+                            </button>
+                            {order.is_test ? (
+                              <span className="inline-flex items-center rounded-[2px] border border-purple-400/70 bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-purple-900 dark:border-purple-500/50 dark:bg-purple-950/70 dark:text-purple-200">
+                                TEST
+                              </span>
+                            ) : null}
+                          </div>
                           {overdue ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950/80 dark:text-amber-200">
                               <Clock className="h-3 w-3" aria-hidden />
@@ -1139,15 +1217,35 @@ export function OrderManager({
             <div className="flex min-w-0 items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-brass">Order details</p>
-                <h3 className="mt-1 font-serif text-2xl text-text">
-                  {formatOrderDisplayNumber(selectedOrder)}
-                </h3>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <h3 className="font-serif text-2xl text-text">
+                    {formatOrderDisplayNumber(selectedOrder)}
+                  </h3>
+                  {selectedOrder.is_test ? (
+                    <span className="inline-flex items-center gap-1 rounded-[2px] border border-purple-400/70 bg-purple-100 px-2 py-0.5 text-xs font-bold uppercase tracking-[0.14em] text-purple-900 dark:border-purple-500/50 dark:bg-purple-950/70 dark:text-purple-200">
+                      <FlaskConical className="h-3.5 w-3.5" aria-hidden />
+                      TEST
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 break-words text-sm text-muted">
                   {formatNairobiDateTime(selectedOrder.created_at)} EAT
                 </p>
               </div>
               <OrderStatusBadge status={selectedCanonicalStatus} />
             </div>
+
+            {selectedOrder.is_test ? (
+              <div
+                role="status"
+                className="flex items-start gap-2.5 rounded-[2px] border border-purple-400/60 bg-purple-100/50 p-3 text-sm text-purple-950 dark:border-purple-500/40 dark:bg-purple-950/35 dark:text-purple-200"
+              >
+                <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <p>
+                  <strong>Test order:</strong> Excluded from analytics, revenue, customer LTV, discount usage counts, and financial reports. Stock still reserves/restocks normally and invoices use the separate <code className="font-mono">TEST-INV</code> sequence.
+                </p>
+              </div>
+            ) : null}
 
             {selectedOrder.needs_review ? (
               <div
@@ -1239,6 +1337,26 @@ export function OrderManager({
                   >
                     <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
                     Mark returned
+                  </Button>
+                ) : null}
+
+                {isOwner && selectedCanonicalStatus === "pending" ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full sm:col-span-2"
+                    disabled={savingId === selectedOrder.id}
+                    onClick={() =>
+                      void handleToggleTestOrder(
+                        selectedOrder,
+                        !Boolean(selectedOrder.is_test)
+                      )
+                    }
+                  >
+                    <FlaskConical className="mr-2 h-4 w-4" aria-hidden />
+                    {selectedOrder.is_test
+                      ? "Unmark test order (treat as real)"
+                      : "Mark as test order"}
                   </Button>
                 ) : null}
 

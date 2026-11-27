@@ -13,6 +13,7 @@ import {
   computeInvoiceBalanceDue,
   getInvoiceDocumentTitle,
   getInvoiceStatusLabel,
+  isTestInvoice,
   NAIROBI_TIME_ZONE,
   toMoneyNumber
 } from "@/lib/invoices";
@@ -212,6 +213,38 @@ const a4Styles = StyleSheet.create({
     fontSize: 18,
     letterSpacing: 3
   },
+  watermarkTestOverlay: {
+    position: "absolute",
+    top: 290,
+    left: 110,
+    borderWidth: 4,
+    borderColor: "#7E22CE",
+    paddingVertical: 10,
+    paddingHorizontal: 44,
+    transform: "rotate(-28deg)",
+    opacity: 0.22
+  },
+  watermarkTestText: {
+    color: "#7E22CE",
+    fontFamily: "Helvetica-Bold",
+    fontSize: 64,
+    letterSpacing: 14
+  },
+  testBanner: {
+    backgroundColor: "#F3E8FF",
+    borderWidth: 1,
+    borderColor: "#9333EA",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+    textAlign: "center"
+  },
+  testBannerText: {
+    color: "#6B21A8",
+    fontFamily: "Helvetica-Bold",
+    fontSize: 9,
+    letterSpacing: 1.5
+  },
   footer: {
     marginTop: 22,
     borderTopWidth: 1,
@@ -278,20 +311,42 @@ const receiptStyles = StyleSheet.create({
     paddingHorizontal: 8,
     marginVertical: 6,
     alignSelf: "center"
+  },
+  stampTestBox: {
+    borderWidth: 1.5,
+    borderColor: "#7E22CE",
+    backgroundColor: "#F3E8FF",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginVertical: 5,
+    alignSelf: "center"
   }
 });
 
 export function InvoiceA4Document({ bundle }: { bundle: InvoiceDetailBundle }) {
   const { invoice, payments, creditNotes } = bundle;
   const docTitle = getInvoiceDocumentTitle(invoice);
+  const testWatermark = isTestInvoice(invoice);
   const business = invoice.business_snapshot;
   const customer = invoice.customer_snapshot;
   const lines = invoice.lines_snapshot ?? [];
   const balanceDue = computeInvoiceBalanceDue(invoice);
 
   return (
-    <Document title={`${docTitle} ${invoice.invoice_number}`}>
+    <Document title={`${testWatermark ? "TEST " : ""}${docTitle} ${invoice.invoice_number}`}>
       <Page size="A4" style={a4Styles.page}>
+        {testWatermark ? (
+          <>
+            <View style={a4Styles.watermarkTestOverlay} fixed>
+              <Text style={a4Styles.watermarkTestText}>TEST</Text>
+            </View>
+            <View style={a4Styles.testBanner}>
+              <Text style={a4Styles.testBannerText}>
+                TEST INVOICE — NOT FOR ACCOUNTING OR REVENUE REPORTING
+              </Text>
+            </View>
+          </>
+        ) : null}
         {invoice.status === "paid" ? (
           <View style={a4Styles.stampPaid}>
             <Text style={a4Styles.stampPaidText}>PAID</Text>
@@ -499,6 +554,7 @@ export function InvoiceReceipt80mmDocument({
 }) {
   const { invoice, payments, creditNotes } = bundle;
   const docTitle = getInvoiceDocumentTitle(invoice);
+  const testWatermark = isTestInvoice(invoice);
   const business = invoice.business_snapshot;
   const customer = invoice.customer_snapshot;
   const lines = invoice.lines_snapshot ?? [];
@@ -506,8 +562,15 @@ export function InvoiceReceipt80mmDocument({
 
   // 80mm thermal paper width = 226.77pt
   return (
-    <Document title={`${docTitle} ${invoice.invoice_number} (80mm)`}>
+    <Document title={`${testWatermark ? "TEST " : ""}${docTitle} ${invoice.invoice_number} (80mm)`}>
       <Page size={[226.77, 720]} style={receiptStyles.page}>
+        {testWatermark ? (
+          <View style={receiptStyles.stampTestBox}>
+            <Text style={{ color: "#6B21A8", fontFamily: "Helvetica-Bold", fontSize: 10 }}>
+              TEST — NOT A REAL RECEIPT
+            </Text>
+          </View>
+        ) : null}
         <View style={receiptStyles.center}>
           <Text style={receiptStyles.brand}>{business.site_name || "Auro Ardon"}</Text>
           <Text style={receiptStyles.muted}>{business.business_address}</Text>

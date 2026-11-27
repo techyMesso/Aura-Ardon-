@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { OrderManager } from "@/components/admin/order-manager";
+import { isOwnerUser, requireAdminPage } from "@/lib/auth";
 import { getStoreSettings, listAdminOrders, listRiders } from "@/lib/data";
 
 export const metadata = {
@@ -9,7 +10,8 @@ export const metadata = {
 };
 
 export default async function AdminOrdersPage() {
-  const [orders, riders, settings] = await Promise.all([
+  const [adminUser, orders, riders, settings] = await Promise.all([
+    requireAdminPage(),
     listAdminOrders(),
     listRiders(),
     getStoreSettings()
@@ -21,6 +23,7 @@ export default async function AdminOrdersPage() {
         initialOrders={orders}
         initialRiders={riders}
         messageTemplates={settings.message_templates}
+        isOwner={isOwnerUser(adminUser)}
       />
     </Suspense>
   );

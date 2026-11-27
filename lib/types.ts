@@ -164,6 +164,7 @@ export interface Order {
   order_number?: string | null;
   channel?: string | null;
   status?: CanonicalOrderStatus | null;
+  is_test?: boolean;
   customer_id?: string | null;
   customer_name: string;
   customer_email: string | null;
@@ -262,6 +263,7 @@ export interface InvoiceCustomerSnapshot {
   order_number?: string | null;
   is_gift?: boolean;
   hide_prices?: boolean;
+  is_test?: boolean;
 }
 
 export interface InvoiceLineSnapshot {
@@ -291,6 +293,7 @@ export interface Invoice {
   id: string;
   invoice_number: string;
   order_id: string;
+  is_test?: boolean;
   status: InvoiceStatus;
   issued_at: string;
   due_at: string;
@@ -804,7 +807,7 @@ export interface AnalyticsPeriodKpis {
     cancelled: number;
     returned: number;
   };
-  aov: number;
+  aov: number | null;
   confirmation_rate: number;
   cancellation_rate: number;
   return_rate: number;
@@ -830,6 +833,7 @@ export interface AnalyticsFunnel {
   add_to_bag: number;
   begin_checkout: number;
   whatsapp_order_sent: number;
+  orders_created?: number;
   confirmed: number;
   delivered: number;
   whatsapp_questions: number;
@@ -991,6 +995,7 @@ export interface AnalyticsDashboardReport {
     granularity: "day" | "week";
   };
   include_owner_metrics: boolean;
+  include_internal?: boolean;
   kpis: AnalyticsPeriodKpis;
   previous_kpis: AnalyticsPeriodKpis;
   revenue_series: AnalyticsRevenueSeriesPoint[];

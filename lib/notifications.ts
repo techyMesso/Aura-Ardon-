@@ -528,7 +528,22 @@ export function buildDailySummaryReport(
   }
 ): DailySummaryReport {
   const nowMs = data.nowMs ?? Date.now();
-  const invoiceByOrderId = new Map(data.invoices.map(inv => [inv.order_id, inv]));
+  const realOrders = data.orders.filter(order => !order.is_test);
+  const testOrderIds = new Set(
+    data.orders.filter(order => Boolean(order.is_test)).map(order => order.id)
+  );
+  const realInvoices = data.invoices.filter(
+    inv =>
+      !inv.is_test &&
+      !inv.invoice_number.toUpperCase().startsWith("TEST-INV-") &&
+      !testOrderIds.has(inv.order_id)
+  );
+  const realPayments = data.payments.filter(
+    payment => !testOrderIds.has(payment.order_id)
+  );
+  const realReturns = data.returns.filter(ret => !testOrderIds.has(ret.order_id));
+
+  const invoiceByOrderId = new Map(realInvoices.map(inv => [inv.order_id, inv]));
 
   const ordersTodayByStatus = {
     pending: 0,
@@ -547,7 +562,7 @@ export function buildDailySummaryReport(
   let cashStillToCollectCount = 0;
   let cashStillToCollectTotal = 0;
 
-  for (const order of data.orders) {
+  for (const order of realOrders) {
     const status = resolveCanonicalOrderStatus(order);
     const createdDay = toNairobiDateIso(order.created_at);
     const total = toMoneyNumber(order.total);
@@ -580,7 +595,7 @@ export function buildDailySummaryReport(
     }
   }
 
-  for (const ret of data.returns) {
+  for (const ret of realReturns) {
     if (toNairobiDateIso(ret.created_at) === dateIso) {
       bookedRevenue = round2(Math.max(0, bookedRevenue - toMoneyNumber(ret.refund_amount)));
     }
@@ -588,9 +603,9 @@ export function buildDailySummaryReport(
 
   const cashup = buildDailyCashupReport(
     dateIso,
-    data.orders,
-    data.invoices,
-    data.payments
+    realOrders,
+    realInvoices,
+    realPayments
   );
 
   // Low stock across active products (or active variants if a product has variants)

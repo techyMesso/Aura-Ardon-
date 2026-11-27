@@ -27,6 +27,7 @@ const ordersQuerySchema = z
       ])
       .optional(),
     paymentStatus: z.enum(PAYMENT_STATUSES).optional(),
+    testFilter: z.enum(["all", "real", "test"]).optional(),
     search: z.string().trim().max(120).optional(),
     from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
     const query = ordersQuerySchema.parse({
       status: searchParams.get("status") ?? undefined,
       paymentStatus: searchParams.get("paymentStatus") ?? undefined,
+      testFilter: searchParams.get("testFilter") ?? undefined,
       search: searchParams.get("search") ?? undefined,
       from: searchParams.get("from") ?? undefined,
       to: searchParams.get("to") ?? undefined

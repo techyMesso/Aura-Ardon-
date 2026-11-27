@@ -315,13 +315,14 @@ export function CheckoutPageClient({
         whatsappUrl?: string | null;
       };
 
-      if (!response.ok || !data.ok || !data.confirmationPath) {
+      if (!response.ok || !data.ok || !data.confirmationPath || !data.orderNumber) {
         throw new Error(data.error || "Unable to save your order. Please try again.");
       }
 
-      // Clear cart ONLY after the order has been saved in Postgres
+      // Fire whatsapp_order_sent ONLY after the order has been saved with an order number
       trackStorefrontEvent("whatsapp_order_sent", {
         productId: items[0]?.product.id ?? null,
+        orderNumber: data.orderNumber,
         path: "/checkout"
       });
       clearCart();

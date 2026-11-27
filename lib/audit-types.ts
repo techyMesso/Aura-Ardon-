@@ -49,6 +49,7 @@ export const AUDIT_ENTITY_OPTIONS = [
   "store_settings",
   "delivery_zone",
   "notification",
+  "analytics_events",
   "discount_code",
   "admin_user",
   "customer",

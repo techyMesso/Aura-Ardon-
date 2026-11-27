@@ -19,7 +19,8 @@ const querySchema = z.object({
   to: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "End date must be YYYY-MM-DD.")
-    .optional()
+    .optional(),
+  includeInternal: z.enum(["1", "0", "true", "false"]).optional()
 });
 
 export async function GET(request: Request) {
@@ -29,7 +30,8 @@ export async function GET(request: Request) {
     const parsed = querySchema.parse({
       preset: searchParams.get("preset") ?? undefined,
       from: searchParams.get("from") ?? undefined,
-      to: searchParams.get("to") ?? undefined
+      to: searchParams.get("to") ?? undefined,
+      includeInternal: searchParams.get("includeInternal") ?? undefined
     });
 
     const resolved = resolveAnalyticsDateRange(
@@ -39,10 +41,14 @@ export async function GET(request: Request) {
     );
 
     const includeOwnerMetrics = isOwnerUser(adminUser);
+    const includeInternal =
+      parsed.includeInternal === "1" || parsed.includeInternal === "true";
+
     const report = await getAnalyticsDashboardData({
       from: resolved.from,
       to: resolved.to,
-      includeOwnerMetrics
+      includeOwnerMetrics,
+      ...(includeInternal ? { includeInternal: true } : {})
     });
 
     return NextResponse.json({

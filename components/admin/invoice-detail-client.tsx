@@ -26,6 +26,7 @@ import {
   getInvoiceStatusBadgeClassName,
   getInvoiceStatusLabel,
   isShareTokenActive,
+  isTestInvoice,
   isValidMpesaCode,
   NAIROBI_TIME_ZONE,
   normalizeMpesaCode,
@@ -71,6 +72,7 @@ export function InvoiceDetailClient({
   const [bundle, setBundle] = useState<InvoiceDetailBundle>(initialBundle);
   const { invoice, payments, creditNotes } = bundle;
   const docTitle = getInvoiceDocumentTitle(invoice);
+  const testWatermark = isTestInvoice(invoice);
   const balanceDue = computeInvoiceBalanceDue(invoice);
   const shareUrl = `${SITE_URL}/i/${invoice.share_token}`;
   const shareActive = isShareTokenActive(invoice);
@@ -403,7 +405,17 @@ export function InvoiceDetailClient({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,1fr)] print:block">
         {/* Immutable Invoice Sheet */}
-        <article className="relative min-w-0 border border-border bg-paper p-5 text-text sm:p-8 print:border-none print:p-0">
+        <article className="relative min-w-0 overflow-hidden border border-border bg-paper p-5 text-text sm:p-8 print:border-none print:p-0">
+          {testWatermark ? (
+            <div
+              aria-label="Test invoice watermark"
+              className="pointer-events-none absolute inset-0 z-10 flex select-none items-center justify-center overflow-hidden"
+            >
+              <span className="-rotate-30 border-4 border-purple-600/35 px-10 py-3 font-serif text-7xl font-bold tracking-[0.35em] text-purple-600/25 sm:text-8xl">
+                TEST
+              </span>
+            </div>
+          ) : null}
           {invoice.status === "paid" ? (
             <div className="pointer-events-none absolute right-6 top-20 rotate-[-10deg] border-2 border-emerald-700 px-4 py-1 text-lg font-bold tracking-[0.25em] text-emerald-700 opacity-85 dark:border-emerald-400 dark:text-emerald-400">
               PAID
@@ -423,6 +435,11 @@ export function InvoiceDetailClient({
                 {invoice.invoice_number}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-2">
+                {testWatermark ? (
+                  <span className="rounded-[2px] border border-purple-400/70 bg-purple-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-[0.14em] text-purple-900 dark:border-purple-500/50 dark:bg-purple-950/70 dark:text-purple-200">
+                    TEST
+                  </span>
+                ) : null}
                 <span
                   className={`rounded-[2px] border px-2.5 py-0.5 text-xs font-semibold ${getInvoiceStatusBadgeClassName(
                     invoice.status
