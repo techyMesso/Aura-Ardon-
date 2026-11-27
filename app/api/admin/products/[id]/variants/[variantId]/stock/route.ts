@@ -5,6 +5,7 @@ import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { listBackInStockAlerts, listProductStockMovements } from "@/lib/data";
+import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -101,6 +102,16 @@ export async function POST(
         type: payload.type,
         note: payload.note
       }
+    });
+
+    logger.info("stock.variant_adjusted", {
+      productId: id,
+      variantId,
+      movementId: data.movement_id,
+      change: payload.change,
+      newVariantStock: Number(data.new_variant_stock),
+      newProductStock: Number(data.new_product_stock),
+      adjustmentType: payload.type
     });
 
     const [ledger, waitingAlerts] = await Promise.all([

@@ -5,6 +5,7 @@ import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { getOrderDetailBundle } from "@/lib/data";
+import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -100,6 +101,15 @@ export async function POST(
         returnedAmount: Number(data.returned_amount ?? 0),
         note: payload.note ?? null
       }
+    });
+
+    logger.info("order.returned", {
+      orderId: id,
+      orderNumber: data.order_number,
+      condition: payload.condition,
+      returnedUnits: Number(data.returned_units ?? 0),
+      restockedUnits: Number(data.restocked_units ?? 0),
+      returnedAmountKes: Number(data.returned_amount ?? 0)
     });
 
     return NextResponse.json({

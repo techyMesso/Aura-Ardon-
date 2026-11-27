@@ -89,7 +89,13 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Storefront slug 301 redirects (/p/:slug and /shop/:category)
+  // Storefront slug 301 redirects (/p/:slug and /shop/:category).
+  // Note: Next.js matcher "/shop/:path*" also matches exact "/shop" (zero segments),
+  // so explicitly pass public storefront roots through before admin auth runs.
+  if (pathname === "/shop" || pathname === "/p") {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/p/") || pathname.startsWith("/shop/")) {
     const match = await lookupSlugRedirect(
       decodeURIComponent(pathname),
@@ -103,6 +109,11 @@ export async function middleware(request: NextRequest) {
       }
       return NextResponse.redirect(targetUrl, match.status_code);
     }
+    return NextResponse.next();
+  }
+
+  // Only /admin routes require admin authentication below this line
+  if (pathname !== "/admin" && !pathname.startsWith("/admin/")) {
     return NextResponse.next();
   }
 

@@ -1,43 +1,13 @@
-import { validateEnv } from "@/lib/env";
-import { logger } from "@/lib/logger";
-
-let registered = false;
+import * as Sentry from "@sentry/nextjs";
 
 export async function register() {
-  if (registered) {
-    return;
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("./sentry.server.config");
   }
 
-  registered = true;
-
-  if (process.env.NEXT_RUNTIME !== "edge" && process.env.NODE_ENV === "production") {
-    validateEnv(process.env);
+  if (process.env.NEXT_RUNTIME === "edge") {
+    await import("./sentry.edge.config");
   }
-
-  logger.info("Application instrumentation initialized");
-
-  const processWithEvents = globalThis.process as
-    | (NodeJS.Process & {
-        on?: (event: string, listener: (...args: unknown[]) => void) => void;
-      })
-    | undefined;
-
-  if (typeof processWithEvents?.on !== "function") {
-    logger.warn("Skipping process-level instrumentation hooks in this runtime");
-    return;
-  }
-
-  processWithEvents.on("unhandledRejection", reason => {
-    logger.error("Unhandled promise rejection", {
-      reason: reason instanceof Error ? { message: reason.message, stack: reason.stack } : { reason }
-    });
-  });
-
-  processWithEvents.on("uncaughtException", error => {
-    logger.error("Uncaught exception", {
-      error: error instanceof Error
-        ? { message: error.message, stack: error.stack }
-        : { error }
-    });
-  });
 }
+
+export const onRequestError = Sentry.captureRequestError;

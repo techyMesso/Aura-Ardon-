@@ -11,7 +11,7 @@
   --paper: 255 255 255; /* #FFFFFF product surfaces */
   --stone: 239 235 231; /* #EFEBE7 secondary surface (search, chips, empty states) */
   --brass: 184 146 62;  /* #B8923E single accent — prices, active states, primary CTA */
-  --text: 26 18 22;     /* #1A1216 body text; muted is 60% opacity */
+  --text: 26 18 22;     /* #1A1216 body text; muted is 72% opacity for WCAG 2.1 AA contrast */
 }
 
 html.light {
@@ -118,8 +118,13 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

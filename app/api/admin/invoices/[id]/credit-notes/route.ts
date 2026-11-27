@@ -4,6 +4,7 @@ import { z } from "zod";
 import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { getInvoiceDetailBundle } from "@/lib/data";
+import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -80,6 +81,12 @@ export async function POST(
         reason: payload.reason,
         amount: payload.amount
       }
+    });
+
+    logger.info("credit_note.issued", {
+      creditNoteId: (data as { id?: string })?.id ?? null,
+      invoiceId: existing.invoice.id,
+      amountKes: payload.amount
     });
 
     return NextResponse.json(

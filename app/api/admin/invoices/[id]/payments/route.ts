@@ -5,6 +5,7 @@ import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { getInvoiceDetailBundle } from "@/lib/data";
 import { isValidMpesaCode, normalizeMpesaCode } from "@/lib/invoices";
+import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -126,6 +127,16 @@ export async function POST(
         invoiceStatus: data.invoice_status,
         amountPaid: Number(data.amount_paid)
       }
+    });
+
+    logger.info("payment.recorded", {
+      paymentId: data.payment_id,
+      invoiceId: existing.invoice.id,
+      invoiceNumber: data.invoice_number,
+      method: payload.method,
+      amountKes: payload.amount,
+      invoiceStatus: data.invoice_status,
+      balanceDueKes: Number(data.balance_due)
     });
 
     return NextResponse.json(

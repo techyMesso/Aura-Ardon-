@@ -6,6 +6,7 @@ import { assertAdminRequest } from "@/lib/auth";
 import { getOrderDetailBundle, getStoreSettings } from "@/lib/data";
 import { getAfricasTalkingSmsEnv } from "@/lib/env";
 import { formatOrderDisplayNumber } from "@/lib/admin-orders";
+import { logger } from "@/lib/logger";
 import { renderWhatsAppTemplate } from "@/lib/message-templates";
 import { sendAfricasTalkingSms } from "@/lib/notifications";
 import { computeOrderAmountToCollect } from "@/lib/riders";
@@ -131,6 +132,14 @@ export async function POST(
         riderCost: payload.riderCost ?? null,
         reason: payload.reason ?? null
       }
+    });
+
+    logger.info("order.status_updated", {
+      orderId: id,
+      orderNumber: formatOrderDisplayNumber(detail.order),
+      status: payload.status,
+      riderAssigned: Boolean(payload.riderId),
+      actorRole: adminUser?.adminRole ?? "owner"
     });
 
     return NextResponse.json({ ok: true, ...detail });

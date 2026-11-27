@@ -18,9 +18,19 @@ env:
 
 jobs:
   ci:
-    name: Validate
+    name: Validate & E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_PUBLIC_SITE_URL: https://example.com
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      NEXT_PUBLIC_WHATSAPP_NUMBER: 254700000000
+      ADMIN_EMAIL: admin@example.com
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+      ORDER_STATUS_TOKEN_SECRET: test-order-status-token-secret-for-ci
+      REVALIDATE_SECRET: test-revalidate-secret-for-ci
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,28 +44,66 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and integration tests
         run: npm run test
 
-      - name: Build
+      - name: Build and client-bundle secret scan
         run: npm run build
         env:
           NODE_ENV: production
-          NEXT_TELEMETRY_DISABLED: 1
-          NEXT_PUBLIC_SITE_URL: https://example.com
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
-          NEXT_PUBLIC_WHATSAPP_NUMBER: 254700000000
-          ADMIN_EMAIL: admin@example.com
-          SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
-          ORDER_STATUS_TOKEN_SECRET: test-order-status-token-secret-for-ci
-          REVALIDATE_SECRET: test-revalidate-secret-for-ci
+          CSP_DISABLE_UPGRADE_INSECURE: "1"
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright E2E (desktop + mobile)
+        run: npm run test:e2e
+        env:
+          NODE_ENV: production
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  staging-db-integration:
+    name: Staging DB Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ secrets.STAGING_SUPABASE_URL != '' && secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run live staging DB integration and RLS tests
+        run: npx vitest run tests/integration/phase15-staging-db.test.ts tests/integration/phase14-security-roles.test.ts
+        env:
+          RUN_STAGING_DB_TESTS: "1"
+          RUN_LIVE_STAGING_RLS_TEST: "1"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
 
   container:
     name: Build and publish image

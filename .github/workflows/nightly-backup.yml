@@ -1,0 +1,85 @@
+name: Nightly Database Backup
+
+on:
+  schedule:
+    # 00:00 UTC = 03:00 EAT (Africa/Nairobi)
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Nightly pg_dump with 30-day retention
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ secrets.PROD_DATABASE_URL != '' && secrets.PROD_SUPABASE_URL != '' && secrets.PROD_SUPABASE_SERVICE_ROLE_KEY != '' }}
+    steps:
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client-16 jq curl
+
+      - name: Run pg_dump (custom compressed format)
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          DATE_TAG=$(date -u +%Y-%m-%d)
+          FILENAME="auro-ardon-${DATE_TAG}.dump"
+          echo "BACKUP_FILENAME=${FILENAME}" >> "$GITHUB_ENV"
+          pg_dump \
+            --format=custom \
+            --compress=9 \
+            --no-owner \
+            --no-acl \
+            --schema=public \
+            "$PROD_DATABASE_URL" \
+            -f "${FILENAME}"
+          ls -lh "${FILENAME}"
+
+      - name: Ensure private db-backups bucket and upload dump
+        env:
+          SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # Create private bucket if it does not exist yet (409 already exists is fine)
+          curl -sS -o /dev/null -w "%{http_code}\n" \
+            -X POST "${SUPABASE_URL}/storage/v1/bucket" \
+            -H "Authorization: Bearer ${SERVICE_KEY}" \
+            -H "apikey: ${SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"id":"db-backups","name":"db-backups","public":false}' || true
+
+          curl --fail --show-error -sS \
+            -X POST "${SUPABASE_URL}/storage/v1/object/db-backups/${BACKUP_FILENAME}" \
+            -H "Authorization: Bearer ${SERVICE_KEY}" \
+            -H "apikey: ${SERVICE_KEY}" \
+            -H "Content-Type: application/octet-stream" \
+            -H "x-upsert: true" \
+            --data-binary "@${BACKUP_FILENAME}"
+
+      - name: Prune backups older than 30 days
+        env:
+          SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          CUTOFF_ISO=$(date -u -d "30 days ago" +%Y-%m-%dT%H:%M:%SZ)
+          OBJECTS=$(curl --fail -sS \
+            -X POST "${SUPABASE_URL}/storage/v1/object/list/db-backups" \
+            -H "Authorization: Bearer ${SERVICE_KEY}" \
+            -H "apikey: ${SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"prefix":"","limit":200}')
+
+          EXPIRED=$(echo "$OBJECTS" | jq -r --arg cutoff "$CUTOFF_ISO" \
+            '.[] | select(.name != null and .created_at != null and .created_at < $cutoff) | .name')
+
+          for NAME in $EXPIRED; do
+            echo "Pruning expired backup: ${NAME}"
+            curl -sS -X DELETE \
+              "${SUPABASE_URL}/storage/v1/object/db-backups/${NAME}" \
+              -H "Authorization: Bearer ${SERVICE_KEY}" \
+              -H "apikey: ${SERVICE_KEY}"
+          done
+

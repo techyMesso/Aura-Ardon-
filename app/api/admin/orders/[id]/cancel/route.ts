@@ -5,6 +5,7 @@ import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { getOrderDetailBundle } from "@/lib/data";
+import { logger } from "@/lib/logger";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -89,6 +90,14 @@ export async function POST(
         note: payload.note ?? null,
         restockedItemsCount: Number(data.restocked_items_count ?? 0)
       }
+    });
+
+    logger.info("order.cancelled", {
+      orderId: id,
+      orderNumber: data.order_number,
+      reason: payload.reason,
+      restockedItemsCount: Number(data.restocked_items_count ?? 0),
+      alreadyRestocked: Boolean(data.already_restocked)
     });
 
     return NextResponse.json({

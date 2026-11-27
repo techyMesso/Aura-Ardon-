@@ -16,7 +16,7 @@ const config: Config = {
         stone: token("--stone"),
         brass: token("--brass"),
         text:  token("--text"),
-        muted: "rgb(var(--text) / 0.6)",
+        muted: "rgb(var(--text) / 0.72)",
 
         // Admin compatibility aliases mapped strictly onto the 5 tokens
         background: token("--paper"),

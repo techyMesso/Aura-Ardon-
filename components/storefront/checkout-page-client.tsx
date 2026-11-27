@@ -73,6 +73,13 @@ export function CheckoutPageClient({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    fullName?: string;
+    phone?: string;
+    deliveryZone?: string;
+    buildingLandmark?: string;
+    townCounty?: string;
+  }>({});
 
   const selectedZone = useMemo(
     () =>
@@ -207,37 +214,69 @@ export function CheckoutPageClient({
       return;
     }
 
+    const nextFieldErrors: {
+      fullName?: string;
+      phone?: string;
+      deliveryZone?: string;
+      buildingLandmark?: string;
+      townCounty?: string;
+    } = {};
+
     if (!fullName.trim() || fullName.trim().length < 2) {
-      setError("Enter your full name.");
-      return;
+      nextFieldErrors.fullName = "Enter your full name.";
     }
 
     try {
       normalizeKenyanPhoneNumber(phone);
     } catch {
-      setError(
-        "Enter a valid Kenyan phone number (07XXXXXXXX, 01XXXXXXXX, +2547..., or +2541...)."
-      );
+      nextFieldErrors.phone =
+        "Enter a valid Kenyan phone number (07XXXXXXXX, 01XXXXXXXX, +2547..., or +2541...).";
+    }
+
+    if (!selectedZone) {
+      nextFieldErrors.deliveryZone = "Select your delivery zone.";
+    }
+
+    if (!buildingLandmark.trim() || buildingLandmark.trim().length < 2) {
+      nextFieldErrors.buildingLandmark =
+        "Enter your building, road, or delivery landmark.";
+    }
+
+    if (selectedZone?.is_outside_nairobi && !townCounty.trim()) {
+      nextFieldErrors.townCounty =
+        "Enter your town or county for deliveries outside Nairobi.";
+    }
+
+    const firstErrorMessage =
+      nextFieldErrors.fullName ||
+      nextFieldErrors.phone ||
+      nextFieldErrors.deliveryZone ||
+      nextFieldErrors.buildingLandmark ||
+      nextFieldErrors.townCounty;
+
+    if (firstErrorMessage) {
+      setFieldErrors(nextFieldErrors);
+      setError(firstErrorMessage);
+      const firstInvalidId = nextFieldErrors.fullName
+        ? "checkout-full-name"
+        : nextFieldErrors.phone
+          ? "checkout-phone"
+          : nextFieldErrors.deliveryZone
+            ? "checkout-delivery-zone"
+            : nextFieldErrors.buildingLandmark
+              ? "checkout-building-landmark"
+              : "checkout-town-county";
+      document.getElementById(firstInvalidId)?.focus();
       return;
     }
 
     if (!selectedZone) {
-      setError("Select your delivery zone.");
-      return;
-    }
-
-    if (!buildingLandmark.trim() || buildingLandmark.trim().length < 2) {
-      setError("Enter your building, road, or delivery landmark.");
-      return;
-    }
-
-    if (selectedZone.is_outside_nairobi && !townCounty.trim()) {
-      setError("Enter your town or county for deliveries outside Nairobi.");
       return;
     }
 
     submittingRef.current = true;
     setLoading(true);
+    setFieldErrors({});
     setError(null);
 
     try {
@@ -363,42 +402,90 @@ export function CheckoutPageClient({
           </div>
 
           <div className="space-y-4">
-            <label className="block font-sans text-[14px]">
-              <span className="mb-1.5 block text-text">
+            <div className="block font-sans text-[14px]">
+              <label htmlFor="checkout-full-name" className="mb-1.5 block text-text">
                 Full name <span className="text-brass">*</span>
-              </span>
+              </label>
               <Input
+                id="checkout-full-name"
                 required
                 autoComplete="name"
                 placeholder="e.g. Amina Wanjiku"
+                aria-invalid={Boolean(fieldErrors.fullName)}
+                aria-describedby={
+                  fieldErrors.fullName ? "checkout-full-name-error" : undefined
+                }
                 value={fullName}
-                onChange={event => setFullName(event.target.value)}
+                onChange={event => {
+                  setFullName(event.target.value);
+                  if (fieldErrors.fullName) {
+                    setFieldErrors(prev => ({ ...prev, fullName: undefined }));
+                  }
+                }}
               />
-            </label>
+              {fieldErrors.fullName ? (
+                <p
+                  id="checkout-full-name-error"
+                  role="alert"
+                  className="mt-1 text-[12px] text-red-600 dark:text-red-400"
+                >
+                  {fieldErrors.fullName}
+                </p>
+              ) : null}
+            </div>
 
-            <label className="block font-sans text-[14px]">
-              <span className="mb-1.5 block text-text">
+            <div className="block font-sans text-[14px]">
+              <label htmlFor="checkout-phone" className="mb-1.5 block text-text">
                 WhatsApp / Phone number <span className="text-brass">*</span>
-              </span>
+              </label>
               <Input
+                id="checkout-phone"
                 required
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
                 placeholder="0712 345 678 or +254 712 345 678"
+                aria-invalid={Boolean(fieldErrors.phone)}
+                aria-describedby={
+                  fieldErrors.phone ? "checkout-phone-error" : undefined
+                }
                 value={phone}
-                onChange={event => setPhone(event.target.value)}
+                onChange={event => {
+                  setPhone(event.target.value);
+                  if (fieldErrors.phone) {
+                    setFieldErrors(prev => ({ ...prev, phone: undefined }));
+                  }
+                }}
               />
-            </label>
+              {fieldErrors.phone ? (
+                <p
+                  id="checkout-phone-error"
+                  role="alert"
+                  className="mt-1 text-[12px] text-red-600 dark:text-red-400"
+                >
+                  {fieldErrors.phone}
+                </p>
+              ) : null}
+            </div>
 
-            <label className="block font-sans text-[14px]">
-              <span className="mb-1.5 block text-text">
+            <div className="block font-sans text-[14px]">
+              <label htmlFor="checkout-delivery-zone" className="mb-1.5 block text-text">
                 Delivery zone <span className="text-brass">*</span>
-              </span>
+              </label>
               <select
+                id="checkout-delivery-zone"
                 required
+                aria-invalid={Boolean(fieldErrors.deliveryZone)}
+                aria-describedby={
+                  fieldErrors.deliveryZone ? "checkout-delivery-zone-error" : undefined
+                }
                 value={selectedZone?.id ?? ""}
-                onChange={event => setSelectedZoneId(event.target.value)}
+                onChange={event => {
+                  setSelectedZoneId(event.target.value);
+                  if (fieldErrors.deliveryZone) {
+                    setFieldErrors(prev => ({ ...prev, deliveryZone: undefined }));
+                  }
+                }}
                 className="h-11 w-full rounded-[2px] border border-text/20 bg-paper px-3.5 font-sans text-[14px] text-text focus:border-brass focus:outline-none"
               >
                 {activeZones.map(zone => (
@@ -407,13 +494,26 @@ export function CheckoutPageClient({
                   </option>
                 ))}
               </select>
-            </label>
+              {fieldErrors.deliveryZone ? (
+                <p
+                  id="checkout-delivery-zone-error"
+                  role="alert"
+                  className="mt-1 text-[12px] text-red-600 dark:text-red-400"
+                >
+                  {fieldErrors.deliveryZone}
+                </p>
+              ) : null}
+            </div>
 
-            <label className="block font-sans text-[14px]">
-              <span className="mb-1.5 block text-text">
+            <div className="block font-sans text-[14px]">
+              <label
+                htmlFor="checkout-building-landmark"
+                className="mb-1.5 block text-text"
+              >
                 Building, road, or landmark <span className="text-brass">*</span>
-              </span>
+              </label>
               <Input
+                id="checkout-building-landmark"
                 required
                 autoComplete="street-address"
                 placeholder={
@@ -421,23 +521,68 @@ export function CheckoutPageClient({
                     ? "e.g. Courier pickup office or estate landmark"
                     : "e.g. Sarit Centre, 3rd floor, or apartment gate"
                 }
+                aria-invalid={Boolean(fieldErrors.buildingLandmark)}
+                aria-describedby={
+                  fieldErrors.buildingLandmark
+                    ? "checkout-building-landmark-error"
+                    : undefined
+                }
                 value={buildingLandmark}
-                onChange={event => setBuildingLandmark(event.target.value)}
+                onChange={event => {
+                  setBuildingLandmark(event.target.value);
+                  if (fieldErrors.buildingLandmark) {
+                    setFieldErrors(prev => ({
+                      ...prev,
+                      buildingLandmark: undefined
+                    }));
+                  }
+                }}
               />
-            </label>
+              {fieldErrors.buildingLandmark ? (
+                <p
+                  id="checkout-building-landmark-error"
+                  role="alert"
+                  className="mt-1 text-[12px] text-red-600 dark:text-red-400"
+                >
+                  {fieldErrors.buildingLandmark}
+                </p>
+              ) : null}
+            </div>
 
             {selectedZone?.is_outside_nairobi ? (
-              <label className="block font-sans text-[14px]">
-                <span className="mb-1.5 block text-text">
+              <div className="block font-sans text-[14px]">
+                <label
+                  htmlFor="checkout-town-county"
+                  className="mb-1.5 block text-text"
+                >
                   Town / County <span className="text-brass">*</span>
-                </span>
+                </label>
                 <Input
+                  id="checkout-town-county"
                   required
                   placeholder="e.g. Nakuru, Kisumu, Mombasa, Eldoret"
+                  aria-invalid={Boolean(fieldErrors.townCounty)}
+                  aria-describedby={
+                    fieldErrors.townCounty ? "checkout-town-county-error" : undefined
+                  }
                   value={townCounty}
-                  onChange={event => setTownCounty(event.target.value)}
+                  onChange={event => {
+                    setTownCounty(event.target.value);
+                    if (fieldErrors.townCounty) {
+                      setFieldErrors(prev => ({ ...prev, townCounty: undefined }));
+                    }
+                  }}
                 />
-              </label>
+                {fieldErrors.townCounty ? (
+                  <p
+                    id="checkout-town-county-error"
+                    role="alert"
+                    className="mt-1 text-[12px] text-red-600 dark:text-red-400"
+                  >
+                    {fieldErrors.townCounty}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
 
             <label className="block font-sans text-[14px]">
@@ -558,6 +703,7 @@ export function CheckoutPageClient({
           {error ? (
             <div
               role="alert"
+              aria-live="assertive"
               className="rounded-[2px] border border-red-400/50 bg-red-500/10 px-4 py-3 font-sans text-[14px] text-red-600 dark:text-red-400"
             >
               {error}

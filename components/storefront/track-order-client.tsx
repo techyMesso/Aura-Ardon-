@@ -147,32 +147,44 @@ export function TrackOrderClient({ whatsappNumber }: { whatsappNumber: string })
         className="mt-8 space-y-4 border border-text/12 bg-paper p-6"
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block font-sans text-[14px]">
-            <span className="mb-1.5 block text-text">Order number</span>
+          <div className="block font-sans text-[14px]">
+            <label htmlFor="track-order-number" className="mb-1.5 block text-text">
+              Order number
+            </label>
             <Input
+              id="track-order-number"
               required
               placeholder="AA-7F3K2"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? "track-order-error" : undefined}
               value={orderNumber}
               onChange={event => setOrderNumber(event.target.value.toUpperCase())}
             />
-          </label>
+          </div>
 
-          <label className="block font-sans text-[14px]">
-            <span className="mb-1.5 block text-text">Phone number</span>
+          <div className="block font-sans text-[14px]">
+            <label htmlFor="track-order-phone" className="mb-1.5 block text-text">
+              Phone number
+            </label>
             <Input
+              id="track-order-phone"
               required
               type="tel"
               inputMode="tel"
               placeholder="0712 345 678"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? "track-order-error" : undefined}
               value={phone}
               onChange={event => setPhone(event.target.value)}
             />
-          </label>
+          </div>
         </div>
 
         {error ? (
           <div
+            id="track-order-error"
             role="alert"
+            aria-live="assertive"
             className="rounded-[2px] border border-red-400/50 bg-red-500/10 px-4 py-3 font-sans text-[14px] text-red-600 dark:text-red-400"
           >
             {error}

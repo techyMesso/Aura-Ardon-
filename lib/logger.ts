@@ -14,9 +14,19 @@ function shouldLog(level: LogLevel) {
   return severityOrder[level] >= minimumLevel;
 }
 
+const REDACT_KEY_PATTERN =
+  /pass|secret|token|key|authorization|cookie|phone|tel|address|landmark|location|email|ip_?address|customer_name|full_?name|gift_?note/i;
+
+const KENYAN_PHONE_LOG_PATTERN =
+  /(?:\+?254[\s-]?[17]\d{2}[\s-]?\d{3}[\s-]?\d{3}|\b0[17]\d{2}[\s-]?\d{3}[\s-]?\d{3}\b)/g;
+
 function redactValue(value: unknown): unknown {
   if (value === null || value === undefined) {
     return value;
+  }
+
+  if (typeof value === "string") {
+    return value.replace(KENYAN_PHONE_LOG_PATTERN, "[REDACTED_PHONE]");
   }
 
   if (Array.isArray(value)) {
@@ -30,7 +40,7 @@ function redactValue(value: unknown): unknown {
   const redacted: Record<string, unknown> = {};
 
   for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-    if (/pass|secret|token|key|authorization|cookie/i.test(key)) {
+    if (REDACT_KEY_PATTERN.test(key) && typeof nestedValue !== "boolean") {
       redacted[key] = "[REDACTED]";
       continue;
     }

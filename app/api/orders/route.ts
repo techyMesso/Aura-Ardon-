@@ -244,6 +244,18 @@ export async function POST(request: Request) {
 
     revalidateProductCatalog();
 
+    logger.info("order.placed", {
+      orderId: data.order_id,
+      orderNumber: data.order_number,
+      status: data.status,
+      totalKes: Number(data.total),
+      shippingFeeKes: Number(data.shipping_fee),
+      discountAmountKes: Number(data.discount_amount ?? 0),
+      itemCount: (data.item_summary ?? []).length,
+      replayed: Boolean(data.replayed),
+      durationMs: Date.now() - startedAt
+    });
+
     const confirmationToken = createOrderNumberToken(data.order_number);
     const confirmationPath = `/order/${encodeURIComponent(data.order_number)}?t=${encodeURIComponent(confirmationToken)}`;
     const whatsappPhone =
