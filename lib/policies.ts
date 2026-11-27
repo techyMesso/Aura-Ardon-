@@ -5,6 +5,29 @@ import { formatCurrency } from "@/lib/utils";
 export const LEGAL_DRAFT_HTML_COMMENT =
   "<!-- DRAFT — owner to review before publishing -->";
 
+export function formatLegalLastUpdatedDate(
+  settings: Pick<StoreSettings, "legal_reviewed_at" | "updated_at">
+): string {
+  const candidate = settings.legal_reviewed_at || settings.updated_at;
+  if (candidate) {
+    const parsed = new Date(candidate);
+    if (!Number.isNaN(parsed.getTime()) && parsed.getTime() > 0) {
+      return new Intl.DateTimeFormat("en-KE", {
+        timeZone: "Africa/Nairobi",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      }).format(parsed);
+    }
+  }
+  return new Intl.DateTimeFormat("en-KE", {
+    timeZone: "Africa/Nairobi",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(new Date());
+}
+
 export const ABOUT_OWNER_HTML_COMMENT =
   "<!-- TODO(owner): Replace studio photo slot with a real Nairobi studio/team photograph and add the founder brand story before launch -->";
 

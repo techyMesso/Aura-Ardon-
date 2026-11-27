@@ -72,7 +72,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
 
             <Link
               href="/"
-              className="font-serif text-[22px] font-normal leading-none tracking-[-0.01em] text-white"
+              className="font-serif text-[24px] font-normal leading-[1.1] tracking-[-0.01em] text-white"
             >
               Auro Ardon
             </Link>
@@ -163,8 +163,8 @@ export function Navbar({ categories }: { categories: Category[] }) {
                     onClick={() => setMobileOpen(false)}
                     className={`flex min-h-11 items-center font-sans text-[16px] ${
                       isActive(`/shop/${category.slug}`)
-                        ? "text-brass"
-                        : "text-text hover:text-brass"
+                        ? "font-medium text-price"
+                        : "text-text hover:text-price"
                     }`}
                   >
                     {category.name}
@@ -175,7 +175,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
                 <Link
                   href="/shop?sort=newest"
                   onClick={() => setMobileOpen(false)}
-                  className="flex min-h-11 items-center font-sans text-[16px] text-text hover:text-brass"
+                  className="flex min-h-11 items-center font-sans text-[16px] text-text hover:text-price"
                 >
                   New in
                 </Link>
@@ -186,8 +186,8 @@ export function Navbar({ categories }: { categories: Category[] }) {
                   onClick={() => setMobileOpen(false)}
                   className={`flex min-h-11 items-center font-sans text-[16px] ${
                     isActive("/shop")
-                      ? "text-brass"
-                      : "text-text hover:text-brass"
+                      ? "font-medium text-price"
+                      : "text-text hover:text-price"
                   }`}
                 >
                   Shop all
@@ -205,7 +205,7 @@ export function Navbar({ categories }: { categories: Category[] }) {
                     onClick={() => setMobileOpen(false)}
                     className={`flex min-h-11 items-center font-sans text-[14px] ${
                       isActive(link.href)
-                        ? "text-brass"
+                        ? "font-medium text-price"
                         : "text-muted hover:text-text"
                     }`}
                   >

@@ -23,6 +23,10 @@ import {
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
+import {
+  resolveProductImageAlt,
+  stripBrandAltSuffix
+} from "@/lib/image-processing";
 
 export function CartPageClient() {
   const { items, updateQuantity, removeItem, cartNotice, dismissCartNotice } =
@@ -36,7 +40,7 @@ export function CartPageClient() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-10 lg:py-14">
-      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[64px]">
         Bag ({itemCount})
       </h1>
 
@@ -86,7 +90,11 @@ export function CartPageClient() {
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-none bg-paper">
                     <Image
                       src={image}
-                      alt={item.variant?.image_alt || displayTitle}
+                      alt={
+                        item.variant?.image_alt
+                          ? stripBrandAltSuffix(item.variant.image_alt) || displayTitle
+                          : resolveProductImageAlt(item.product, 0)
+                      }
                       fill
                       loading="lazy"
                       placeholder="blur"
@@ -104,7 +112,7 @@ export function CartPageClient() {
                       <div>
                         <Link
                           href={productPath}
-                          className="font-sans text-[16px] text-text hover:text-brass"
+                          className="font-sans text-[16px] text-text hover:text-price"
                         >
                           {displayTitle}
                         </Link>
@@ -136,7 +144,7 @@ export function CartPageClient() {
                             )
                           }
                           aria-label={`Decrease quantity of ${displayTitle}`}
-                          className="flex h-9 w-9 items-center justify-center text-text hover:text-brass"
+                          className="flex h-9 w-9 items-center justify-center text-text hover:text-price"
                         >
                           <Minus className="h-3.5 w-3.5" aria-hidden />
                         </button>
@@ -157,7 +165,7 @@ export function CartPageClient() {
                           }
                           disabled={atLimit}
                           aria-label={`Increase quantity of ${displayTitle}`}
-                          className="flex h-9 w-9 items-center justify-center text-text hover:text-brass disabled:opacity-40"
+                          className="flex h-9 w-9 items-center justify-center text-text hover:text-price disabled:opacity-40"
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden />
                         </button>
@@ -208,7 +216,7 @@ export function CartPageClient() {
 
       {recentlyViewedProducts.length > 0 ? (
         <section className="mt-16 border-t border-text/12 pt-10">
-          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
             Recently viewed
           </h2>
           <ProductGallery

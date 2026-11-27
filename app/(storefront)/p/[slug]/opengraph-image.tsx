@@ -123,7 +123,8 @@ export default async function ProductOpenGraphImage({
               <div
                 style={{
                   fontSize: 32,
-                  color: "#B8923E"
+                  fontWeight: 500,
+                  color: "#8A6A22"
                 }}
               >
                 {price}

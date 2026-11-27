@@ -16,7 +16,7 @@ export default function ContactPage() {
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[64px]">
         Contact
       </h1>
 
@@ -35,7 +35,7 @@ export default function ContactPage() {
               <p className="mt-0.5">
                 <a
                   href={`tel:+${normalizedNumber}`}
-                  className="underline underline-offset-4 hover:text-brass"
+                  className="underline underline-offset-4 hover:text-price"
                 >
                   {displayNumber}
                 </a>

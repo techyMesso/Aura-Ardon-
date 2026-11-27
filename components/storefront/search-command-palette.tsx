@@ -262,7 +262,14 @@ export function SearchCommandPalette() {
                           {getProductCategoryLabel(product, categoryMap)}
                         </p>
                       </div>
-                      <PriceKES amount={product.price} className="shrink-0" />
+                      <PriceKES
+                        amount={product.price}
+                        className={
+                          isSelected
+                            ? "shrink-0 text-[#7A5D1D] dark:text-price"
+                            : "shrink-0"
+                        }
+                      />
                     </Link>
                   </li>
                 );
@@ -285,7 +292,7 @@ export function SearchCommandPalette() {
                         key={category.id}
                         href={`/shop/${category.slug}`}
                         onClick={closeSearch}
-                        className="rounded-[2px] border border-text/20 bg-paper px-3 py-1.5 text-[13px] text-text transition-colors hover:border-brass hover:text-brass"
+                        className="rounded-[2px] border border-text/20 bg-paper px-3 py-1.5 text-[13px] text-text transition-colors hover:border-price hover:text-price"
                       >
                         {category.name}
                       </Link>
@@ -305,12 +312,15 @@ export function SearchCommandPalette() {
                         <Link
                           href={productHref(product)}
                           onClick={closeSearch}
-                          className="flex items-center justify-between gap-3 py-2 text-[13px] text-text hover:text-brass"
+                          className="flex items-center justify-between gap-3 py-2 text-[13px] text-text hover:text-[#7A5D1D] dark:hover:text-price"
                         >
                           <span className="truncate">
                             {formatProductTitle(product.title)}
                           </span>
-                          <PriceKES amount={product.price} className="shrink-0" />
+                          <PriceKES
+                            amount={product.price}
+                            className="shrink-0 text-[#7A5D1D] dark:text-price"
+                          />
                         </Link>
                       </li>
                     ))}

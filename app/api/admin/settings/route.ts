@@ -40,6 +40,8 @@ const updateSettingsSchema = z.object({
   invoice_footer: z.string().trim().max(500).optional(),
   payment_instructions: z.string().trim().max(500).optional(),
   sms_notifications_enabled: z.boolean().optional(),
+  legal_reviewed_at: z.string().datetime().nullable().optional(),
+  mark_legal_reviewed: z.boolean().optional(),
   message_templates: z
     .object({
       confirmed: templateFieldSchema.optional(),
@@ -136,6 +138,11 @@ export async function PATCH(request: Request) {
     if (payload.sms_notifications_enabled !== undefined) {
       updates.sms_notifications_enabled = payload.sms_notifications_enabled;
     }
+    if (payload.mark_legal_reviewed === true) {
+      updates.legal_reviewed_at = new Date().toISOString();
+    } else if (payload.legal_reviewed_at !== undefined) {
+      updates.legal_reviewed_at = payload.legal_reviewed_at;
+    }
     if (payload.message_templates !== undefined) {
       updates.message_templates = {
         ...DEFAULT_MESSAGE_TEMPLATES,
@@ -151,7 +158,10 @@ export async function PATCH(request: Request) {
         email: adminUser?.email ?? "owner",
         role: "owner"
       },
-      action: "settings.updated",
+      action:
+        payload.mark_legal_reviewed === true
+          ? "legal_pages.marked_reviewed"
+          : "settings.updated",
       entity: "store_settings",
       entityId: "singleton",
       before: current,

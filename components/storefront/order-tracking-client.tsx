@@ -93,14 +93,14 @@ export function OrderTrackingClient({
           type="button"
           onClick={() => void refreshStatus()}
           disabled={refreshing}
-          className="inline-flex cursor-pointer items-center gap-1.5 font-sans text-[14px] text-text underline underline-offset-4 hover:text-brass disabled:opacity-50"
+          className="inline-flex cursor-pointer items-center gap-1.5 font-sans text-[14px] text-text underline underline-offset-4 hover:text-price disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} aria-hidden />
           {refreshing ? "Checking..." : "Refresh status"}
         </button>
       </div>
 
-      <h1 className="mt-4 font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[56px]">
+      <h1 className="mt-4 font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[56px]">
         {isCancelled ? "Order cancelled" : "Track your order"}
       </h1>
 

@@ -145,6 +145,7 @@ export function StoreSettingsHub({
     Boolean(initialSettings.sms_notifications_enabled)
   );
   const [saving, setSaving] = useState(false);
+  const [markingLegalReviewed, setMarkingLegalReviewed] = useState(false);
 
   // Store operations form fields
   const [isStoreOpen, setIsStoreOpen] = useState(initialSettings.is_store_open);
@@ -311,6 +312,41 @@ export function StoreSettingsHub({
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleMarkLegalPagesReviewed() {
+    setMarkingLegalReviewed(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mark_legal_reviewed: true })
+      });
+      const payload = (await response.json()) as {
+        settings?: StoreSettings;
+        error?: string;
+      };
+      if (!response.ok || !payload.settings) {
+        throw new Error(
+          payload.error ?? "Unable to mark legal pages as reviewed."
+        );
+      }
+      setSettings(payload.settings);
+      setSuccess(
+        "Legal pages (/privacy and /terms) marked as reviewed and updated."
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to mark legal pages as reviewed."
+      );
+    } finally {
+      setMarkingLegalReviewed(false);
     }
   }
 
@@ -1457,6 +1493,79 @@ export function StoreSettingsHub({
             </Button>
           </div>
           </form>
+
+          {/* Legal Pages Owner Review */}
+          <section
+            id="legal-pages"
+            aria-label="Legal pages review"
+            className="space-y-4 border border-border bg-paper p-5"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="font-serif text-2xl text-text">
+                  Legal pages review
+                </h3>
+                <p className="mt-1 text-sm text-muted">
+                  Review your published{" "}
+                  <a
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-price underline underline-offset-4 hover:opacity-80"
+                  >
+                    Privacy Policy (/privacy)
+                  </a>{" "}
+                  and{" "}
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-price underline underline-offset-4 hover:opacity-80"
+                  >
+                    Terms of Service (/terms)
+                  </a>
+                  . Marking them reviewed updates their &ldquo;Last updated&rdquo; date, removes the draft HTML comment, and completes the Setup Checklist item.
+                </p>
+              </div>
+              <span
+                className={`rounded-[2px] border px-2.5 py-1 text-xs font-semibold ${
+                  settings.legal_reviewed_at
+                    ? "border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/60 dark:text-emerald-200"
+                    : "border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-200"
+                }`}
+              >
+                {settings.legal_reviewed_at
+                  ? `Reviewed ${new Intl.DateTimeFormat("en-KE", {
+                      timeZone: "Africa/Nairobi",
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric"
+                    }).format(new Date(settings.legal_reviewed_at))}`
+                  : "Pending owner review"}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[2px] border border-border bg-stone/40 p-4">
+              <p className="text-xs text-muted">
+                {settings.legal_reviewed_at
+                  ? "You can re-confirm review anytime after updating your store address, email, or return rules."
+                  : "Open both links above to verify your business details, then confirm below."}
+              </p>
+              <Button
+                type="button"
+                variant={settings.legal_reviewed_at ? "secondary" : "default"}
+                disabled={markingLegalReviewed || saving}
+                onClick={() => void handleMarkLegalPagesReviewed()}
+              >
+                <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden />
+                {markingLegalReviewed
+                  ? "Saving..."
+                  : settings.legal_reviewed_at
+                    ? "Re-mark legal pages as reviewed"
+                    : "Mark legal pages as reviewed"}
+              </Button>
+            </div>
+          </section>
         </div>
       ) : null}
     </div>

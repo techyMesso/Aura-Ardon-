@@ -167,15 +167,42 @@ export async function compressImageToWebp(
   }
 }
 
+const BRAND_ALT_SUFFIX_PATTERN =
+  /\s*[—–-]\s*Auro\s+Ardon(?:\s+Nairobi(?:\s+boutique)?)?\s*$/i;
+
+export function stripBrandAltSuffix(value: string): string {
+  return value.replace(BRAND_ALT_SUFFIX_PATTERN, "").trim();
+}
+
 export function resolveProductImageAlt(
-  product: Pick<Product, "title" | "image_alts">,
-  index: number
+  product: Pick<Product, "title" | "image_alts"> & { images?: string[] },
+  index: number,
+  totalImages?: number
 ): string {
-  const customAlt = product.image_alts?.[index]?.trim();
-  if (customAlt) return customAlt;
+  const rawCustomAlt = product.image_alts?.[index]?.trim();
+  if (rawCustomAlt) {
+    const cleaned = stripBrandAltSuffix(rawCustomAlt);
+    if (cleaned) return cleaned;
+  }
+
   const displayTitle = formatProductTitle(product.title);
-  return index === 0
-    ? `${displayTitle} — Auro Ardon Nairobi`
-    : `${displayTitle}, photo ${index + 1}`;
+  const explicitTotal =
+    typeof totalImages === "number" && totalImages > 0
+      ? Math.floor(totalImages)
+      : null;
+
+  if (explicitTotal && explicitTotal > 1) {
+    return `${displayTitle}, photo ${index + 1} of ${explicitTotal}`;
+  }
+
+  if (index > 0) {
+    const inferredTotal = Math.max(
+      index + 1,
+      product.images?.filter(Boolean).length ?? index + 1
+    );
+    return `${displayTitle}, photo ${index + 1} of ${inferredTotal}`;
+  }
+
+  return displayTitle;
 }
 

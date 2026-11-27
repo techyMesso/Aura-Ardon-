@@ -6,7 +6,9 @@ import { ProductGallery } from "@/components/storefront/product-gallery";
 import { ProductTile } from "@/components/storefront/product-tile";
 import {
   filterNonEmptyCategories,
-  formatProductTitle,
+  getCategoryGridClassName,
+  getCategoryTileAspectClassName,
+  getCategoryTileSizes,
   getSafeCatalogImageUrl,
   selectHomepageBestsellers
 } from "@/lib/catalog";
@@ -16,12 +18,13 @@ import {
   listCategories,
   listPublicProducts
 } from "@/lib/data";
+import { resolveProductImageAlt } from "@/lib/image-processing";
 import {
   buildOrganizationJsonLd,
   buildPageMetadata,
   serializeJsonLd
 } from "@/lib/seo";
-import { formatHeroSubline, SITE_CONFIG } from "@/lib/site-config";
+import { formatHeroSubline, HERO_CONFIG, SITE_CONFIG } from "@/lib/site-config";
 
 export const revalidate = 300;
 
@@ -69,10 +72,12 @@ export default async function HomePage() {
 
   const heroProduct = featuredProducts[0] ?? allProducts[0];
   const heroImage =
-    getSafeCatalogImageUrl(heroProduct?.images[0]) || "/hero-jewelry.png";
+    HERO_CONFIG.imageUrl ||
+    getSafeCatalogImageUrl(heroProduct?.images[0]) ||
+    "/hero-jewelry.png";
   const heroAlt = heroProduct
-    ? `${formatProductTitle(heroProduct.title)} — ${SITE_CONFIG.brandName} Nairobi boutique`
-    : `${SITE_CONFIG.brandName} jewelry, watches, and beauty picks in Nairobi`;
+    ? resolveProductImageAlt(heroProduct, 0)
+    : "Curated jewelry, watches, and beauty picks";
   const heroSubline = formatHeroSubline(allProducts);
 
   const representativeMap = new Map(
@@ -101,8 +106,8 @@ export default async function HomePage() {
         }}
       />
 
-      <section className="relative flex min-h-[460px] w-full items-end overflow-hidden bg-ink text-white sm:min-h-[540px] lg:min-h-[600px]">
-        <div className="absolute inset-0 animate-hero-reveal">
+      <section className="relative flex min-h-[500px] w-full items-end overflow-hidden bg-ink text-white sm:min-h-[540px] md:items-center lg:min-h-[600px]">
+        <div className="absolute inset-0 animate-hero-reveal md:left-[28%] lg:left-[34%]">
           <Image
             src={heroImage}
             alt={heroAlt}
@@ -112,22 +117,25 @@ export default async function HomePage() {
             blurDataURL={
               heroProduct?.blur_data_url || DEFAULT_PRODUCT_BLUR_DATA_URL
             }
-            sizes="100vw"
-            className="object-cover object-[center_35%] md:object-center"
+            sizes="(max-width: 767px) 100vw, 72vw"
+            className={`object-cover ${HERO_CONFIG.focalPointClass}`}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/45 to-ink/25" />
         </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-ink/15 md:bg-gradient-to-r md:from-ink md:via-ink/75 md:to-ink/10"
+        />
 
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-12 pt-20 sm:px-6 sm:pb-14 sm:pt-24 lg:px-10 lg:pb-16">
-          <h1 className="max-w-4xl font-serif text-[36px] font-normal leading-[1.04] tracking-[-0.01em] text-white sm:text-[56px] lg:text-[76px]">
-            {SITE_CONFIG.heroHeadline}
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-10 pt-44 sm:px-6 sm:pb-12 sm:pt-48 md:py-20 lg:px-10">
+          <h1 className="hero-headline font-serif font-normal text-white">
+            {HERO_CONFIG.headline}
           </h1>
-          <p className="mt-4 max-w-xl font-sans text-[15px] leading-[1.5] text-white/90 sm:text-[16px]">
+          <p className="mt-4 max-w-md font-sans text-[15px] leading-[1.5] text-white/90 sm:text-[16px]">
             {heroSubline}
           </p>
           <div className="mt-6">
-            <Link href="/shop?sort=newest" className="btn-primary">
-              Shop new in
+            <Link href={HERO_CONFIG.ctaHref} className="btn-primary">
+              {HERO_CONFIG.ctaLabel}
             </Link>
           </div>
         </div>
@@ -135,10 +143,12 @@ export default async function HomePage() {
 
       {visibleCategories.length > 0 ? (
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
             Shop by category
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div
+            className={`grid gap-4 ${getCategoryGridClassName(visibleCategories.length)}`}
+          >
             {visibleCategories.map(category => {
               const candidateImage =
                 getSafeCatalogImageUrl(category.image_url) ||
@@ -158,21 +168,23 @@ export default async function HomePage() {
                   href={`/shop/${category.slug}`}
                   className="group block"
                 >
-                  <div className="relative aspect-square w-full overflow-hidden rounded-none border border-text/10 bg-stone">
+                  <div
+                    className={`relative w-full overflow-hidden rounded-none border border-text/10 bg-stone ${getCategoryTileAspectClassName(visibleCategories.length)}`}
+                  >
                     {distinctImage ? (
                       <Image
                         src={distinctImage}
-                        alt={`${category.name} collection at ${SITE_CONFIG.brandName}`}
+                        alt={`${category.name} collection`}
                         fill
                         loading="lazy"
                         placeholder="blur"
                         blurDataURL={DEFAULT_PRODUCT_BLUR_DATA_URL}
-                        sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 16vw"
+                        sizes={getCategoryTileSizes(visibleCategories.length)}
                         className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                       />
                     ) : (
                       <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
-                        <span className="font-serif text-[28px] leading-none text-brass">
+                        <span className="font-serif text-[28px] leading-[1.1] tracking-[-0.01em] text-[#7A5D1D] dark:text-price">
                           {category.name.slice(0, 2).toUpperCase()}
                         </span>
                         <span className="mt-2 font-sans text-[12px] text-muted">
@@ -181,7 +193,7 @@ export default async function HomePage() {
                       </div>
                     )}
                   </div>
-                  <p className="mt-2 font-sans text-[14px] leading-[1.5] text-text group-hover:text-brass">
+                  <p className="mt-2 font-sans text-[14px] leading-[1.5] text-text group-hover:text-price">
                     {category.name}
                   </p>
                 </Link>
@@ -194,12 +206,12 @@ export default async function HomePage() {
       {newInProducts.length > 0 ? (
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
           <div className="mb-6 flex items-baseline justify-between gap-4">
-            <h2 className="font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+            <h2 className="font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
               New in
             </h2>
             <Link
               href="/shop?sort=newest"
-              className="font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-brass"
+              className="font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-price"
             >
               See all
             </Link>
@@ -238,12 +250,12 @@ export default async function HomePage() {
       {bestsellers.length > 0 ? (
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
           <div className="mb-6 flex items-baseline justify-between gap-4">
-            <h2 className="font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+            <h2 className="font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
               Gift sets and bestsellers
             </h2>
             <Link
               href="/shop"
-              className="font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-brass"
+              className="font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-price"
             >
               See all
             </Link>

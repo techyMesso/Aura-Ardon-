@@ -3,17 +3,21 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { SlidersHorizontal } from "lucide-react";
+import { MessageCircle, SlidersHorizontal } from "lucide-react";
 
 import { Drawer } from "@/components/storefront/drawer";
 import { ProductGallery } from "@/components/storefront/product-gallery";
+import { useStorefrontUI } from "@/components/storefront/storefront-context";
 import { useCart } from "@/lib/cart";
 import {
   computeCatalogPriceRanges,
   computeMaterialChips,
   normalizeMaterialKey
 } from "@/lib/catalog";
+import { DEFAULT_STORE_CONFIG } from "@/lib/site";
+import { SITE_CONFIG } from "@/lib/site-config";
 import type { Product } from "@/lib/types";
+import { createWhatsAppLink } from "@/lib/utils";
 
 const SORT_OPTIONS = ["newest", "price-asc", "price-desc"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
@@ -44,10 +48,33 @@ function ShopUrlSync({ onSync }: { onSync: (next: ShopUrlState) => void }) {
   return null;
 }
 
-export function ShopPageClient({ products }: { products: Product[] }) {
+interface ShopPageClientProps {
+  products: Product[];
+  emptyCategoryName?: string;
+  whatsappNumber?: string | null;
+}
+
+export function ShopPageClient({
+  products,
+  emptyCategoryName,
+  whatsappNumber
+}: ShopPageClientProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { categories } = useCart();
+  const { storeSettings } = useStorefrontUI();
+
+  const effectiveWhatsAppNumber =
+    whatsappNumber ||
+    storeSettings.whatsappNumber ||
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ||
+    DEFAULT_STORE_CONFIG.whatsapp_number;
+  const emptyNotifyWhatsAppUrl = createWhatsAppLink(
+    effectiveWhatsAppNumber,
+    emptyCategoryName
+      ? `Hi ${SITE_CONFIG.brandName}, please notify me on WhatsApp when ${emptyCategoryName} pieces are in stock.`
+      : `Hi ${SITE_CONFIG.brandName}, please notify me on WhatsApp when new pieces are in stock.`
+  );
 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [priceRangeId, setPriceRangeId] = useState<string>("all");
@@ -164,7 +191,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
               href="/shop"
               className={`block ${
                 pathname === "/shop"
-                  ? "text-brass"
+                  ? "font-medium text-price"
                   : "text-muted hover:text-text"
               }`}
             >
@@ -179,7 +206,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
                 <Link
                   href={href}
                   className={`block ${
-                    active ? "text-brass" : "text-muted hover:text-text"
+                    active ? "font-medium text-price" : "text-muted hover:text-text"
                   }`}
                 >
                   {category.name}
@@ -206,7 +233,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
                 className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
                   active
                     ? "bg-ink text-white"
-                    : "bg-stone text-text hover:text-brass"
+                    : "bg-stone text-text hover:text-[#7A5D1D] dark:hover:text-price"
                 }`}
               >
                 {range.label}
@@ -227,7 +254,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
               className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
                 selectedMaterial === "all"
                   ? "bg-ink text-white"
-                  : "bg-stone text-text hover:text-brass"
+                  : "bg-stone text-text hover:text-[#7A5D1D] dark:hover:text-price"
               }`}
             >
               All finishes
@@ -243,7 +270,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
                   className={`cursor-pointer rounded-[2px] px-2.5 py-1 text-[13px] transition-colors ${
                     active
                       ? "bg-ink text-white"
-                      : "bg-stone text-text hover:text-brass"
+                      : "bg-stone text-text hover:text-[#7A5D1D] dark:hover:text-price"
                   }`}
                 >
                   {chip.label}
@@ -273,7 +300,7 @@ export function ShopPageClient({ products }: { products: Product[] }) {
           <button
             type="button"
             onClick={clearFilters}
-            className="cursor-pointer font-sans text-[13px] text-brass underline underline-offset-4 hover:opacity-80"
+            className="cursor-pointer font-sans text-[13px] text-price underline underline-offset-4 hover:opacity-80"
           >
             Reset all filters
           </button>
@@ -328,12 +355,17 @@ export function ShopPageClient({ products }: { products: Product[] }) {
             <ProductGallery products={filtered} priorityCount={4} columns={4} />
           ) : (
             <div className="bg-stone p-8 font-sans text-[16px] leading-[1.5] text-text">
-              <p>
+              <p className="font-medium">
                 {hasActiveFilters
                   ? "No pieces match the active filters."
                   : "Nothing in this collection yet."}
               </p>
-              <div className="mt-4 flex flex-wrap gap-3">
+              {!hasActiveFilters ? (
+                <p className="mt-2 max-w-lg text-[14px] text-muted">
+                  New arrivals drop regularly at our Nairobi studio. Message us and we&apos;ll send you a quick WhatsApp note as soon as this collection is stocked.
+                </p>
+              ) : null}
+              <div className="mt-5 flex flex-wrap gap-3">
                 {hasActiveFilters ? (
                   <button
                     type="button"
@@ -342,6 +374,16 @@ export function ShopPageClient({ products }: { products: Product[] }) {
                   >
                     Clear filters
                   </button>
+                ) : emptyNotifyWhatsAppUrl ? (
+                  <a
+                    href={emptyNotifyWhatsAppUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary inline-flex items-center gap-2"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                    Get notified on WhatsApp when it&apos;s in
+                  </a>
                 ) : null}
                 {pathname !== "/shop" ? (
                   <Link href="/shop" className="btn-outline">

@@ -240,6 +240,28 @@ const MINOR_TITLE_WORDS = new Set([
   "with"
 ]);
 
+export function getCategoryGridClassName(count: number): string {
+  if (count <= 1) return "grid-cols-1";
+  if (count === 2) return "grid-cols-2";
+  if (count === 3) return "grid-cols-3";
+  if (count === 4) return "grid-cols-2 lg:grid-cols-4";
+  return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+}
+
+export function getCategoryTileAspectClassName(count: number): string {
+  if (count <= 1) return "aspect-[16/7] sm:aspect-[21/9]";
+  if (count === 2) return "aspect-[4/3]";
+  return "aspect-square";
+}
+
+export function getCategoryTileSizes(count: number): string {
+  if (count <= 1) return "100vw";
+  if (count === 2) return "50vw";
+  if (count === 3) return "33vw";
+  if (count === 4) return "(max-width: 1023px) 50vw, 25vw";
+  return "(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw";
+}
+
 export function formatProductTitle(
   value: string | null | undefined
 ): string {

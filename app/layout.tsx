@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bodoni_Moda, Geist } from "next/font/google";
 
-import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { buildCanonicalUrl, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const themeScript = `(() => { try { const saved = localStorage.getItem("auro-ardon-theme"); const theme = saved === "dark" || saved === "light" ? saved : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; document.documentElement.classList.remove("light", "dark"); document.documentElement.classList.add(theme); document.documentElement.style.colorScheme = theme; } catch {} })();`;
@@ -46,10 +46,19 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_KE",
     siteName: SITE_NAME,
-    url: SITE_URL
+    url: SITE_URL,
+    images: [
+      {
+        url: buildCanonicalUrl("/opengraph-image"),
+        width: 1200,
+        height: 630,
+        alt: `${SITE_NAME} — Nairobi · Pay on delivery`
+      }
+    ]
   },
   twitter: {
-    card: "summary_large_image"
+    card: "summary_large_image",
+    images: [buildCanonicalUrl("/twitter-image")]
   }
 };
 

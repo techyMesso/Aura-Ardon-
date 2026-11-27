@@ -15,6 +15,7 @@ const config: Config = {
         paper: token("--paper"),
         stone: token("--stone"),
         brass: token("--brass"),
+        price: token("--price"),
         text:  token("--text"),
         muted: "rgb(var(--text) / 0.72)",
 

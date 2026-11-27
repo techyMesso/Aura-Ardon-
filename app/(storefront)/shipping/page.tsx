@@ -26,10 +26,10 @@ export default async function ShippingPage() {
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-brass">
+      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-price">
         Nairobi &amp; Nationwide Kenya
       </p>
-      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[64px]">
         Delivery &amp; zone fees
       </h1>
       <p className="mt-4 max-w-2xl font-sans text-[16px] leading-[1.55] text-muted">
@@ -39,10 +39,10 @@ export default async function ShippingPage() {
       {/* Key delivery highlights */}
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <div className="border border-text/12 bg-paper p-5">
-          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-brass">
+          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-price">
             Same-day Nairobi cutoff
           </p>
-          <p className="mt-2 font-serif text-[26px] leading-tight text-text">
+          <p className="mt-2 font-serif text-[26px] leading-[1.15] tracking-[-0.01em] text-text">
             {cutoffLabel}
           </p>
           <p className="mt-1.5 font-sans text-[13px] leading-[1.5] text-muted">
@@ -51,10 +51,10 @@ export default async function ShippingPage() {
         </div>
 
         <div className="border border-text/12 bg-paper p-5">
-          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-brass">
+          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-price">
             Outside Nairobi courier
           </p>
-          <p className="mt-2 font-serif text-[26px] leading-tight text-text">
+          <p className="mt-2 font-serif text-[26px] leading-[1.15] tracking-[-0.01em] text-text">
             1–2 business days
           </p>
           <p className="mt-1.5 font-sans text-[13px] leading-[1.5] text-muted">
@@ -63,10 +63,10 @@ export default async function ShippingPage() {
         </div>
 
         <div className="border border-text/12 bg-stone p-5">
-          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-brass">
+          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7A5D1D] dark:text-price">
             Free delivery
           </p>
-          <p className="mt-2 font-serif text-[26px] leading-tight text-text">
+          <p className="mt-2 font-serif text-[26px] leading-[1.15] tracking-[-0.01em] text-text">
             {freeThreshold > 0
               ? `Orders ${formatCurrency(freeThreshold)}+`
               : "Fixed zone rates"}
@@ -82,7 +82,7 @@ export default async function ShippingPage() {
       {/* Dynamic Zone/Fee Table from delivery_zones */}
       <div className="mt-10 space-y-8">
         <div>
-          <h2 className="font-serif text-[28px] font-normal leading-[1.1] text-text">
+          <h2 className="font-serif text-[28px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
             Nairobi rider zones
           </h2>
           <p className="mt-1.5 font-sans text-[14px] text-muted">
@@ -125,7 +125,7 @@ export default async function ShippingPage() {
 
         {outsideNairobiZones.length > 0 ? (
           <div>
-            <h2 className="font-serif text-[28px] font-normal leading-[1.1] text-text">
+            <h2 className="font-serif text-[28px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
               Outside Nairobi (nationwide courier)
             </h2>
             <p className="mt-1.5 font-sans text-[14px] text-muted">
@@ -169,7 +169,7 @@ export default async function ShippingPage() {
       </div>
 
       <div className="mt-10 space-y-4 border-t border-text/12 pt-8 font-sans text-[15px] leading-[1.6] text-text">
-        <h2 className="font-serif text-[26px] font-normal text-text">
+        <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
           How handover works
         </h2>
         <ul className="list-disc space-y-2 pl-5 text-muted">

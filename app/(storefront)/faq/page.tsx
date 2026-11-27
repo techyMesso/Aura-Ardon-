@@ -35,10 +35,10 @@ export default async function FaqPage() {
         }}
       />
 
-      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-brass">
+      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-price">
         Help centre
       </p>
-      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[64px]">
         Frequently asked questions
       </h1>
       <p className="mt-4 font-sans text-[16px] leading-[1.55] text-muted">
@@ -48,7 +48,7 @@ export default async function FaqPage() {
       <dl className="mt-10 divide-y divide-text/12 border-y border-text/12">
         {faqs.map(faq => (
           <div key={faq.question} className="py-6">
-            <dt className="font-serif text-[22px] font-normal leading-[1.2] text-text">
+            <dt className="font-serif text-[24px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
               {faq.question}
             </dt>
             <dd className="mt-2 font-sans text-[15px] leading-[1.65] text-muted">

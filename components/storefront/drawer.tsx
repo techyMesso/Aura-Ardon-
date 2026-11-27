@@ -106,7 +106,7 @@ export function Drawer({
             type="button"
             onClick={onClose}
             aria-label={`Close ${title}`}
-            className="flex h-9 w-9 items-center justify-center rounded-[2px] text-text hover:text-brass"
+            className="flex h-9 w-9 items-center justify-center rounded-[2px] text-text hover:text-price"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>

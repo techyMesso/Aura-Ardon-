@@ -135,7 +135,7 @@ export function TrackOrderClient({ whatsappNumber }: { whatsappNumber: string })
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:py-16">
-      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[56px]">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[56px]">
         Track your order
       </h1>
       <p className="mt-3 font-sans text-[15px] leading-[1.5] text-muted">
@@ -213,7 +213,7 @@ export function TrackOrderClient({ whatsappNumber }: { whatsappNumber: string })
               <p className="font-sans text-[12px] uppercase tracking-[0.15em] text-muted">
                 Order {tracked.orderNumber}
               </p>
-              <h2 className="mt-1 font-serif text-[26px] font-normal text-text">
+              <h2 className="mt-1 font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
                 {tracked.status === "cancelled"
                   ? "Order cancelled"
                   : tracked.status === "returned"

@@ -1,10 +1,20 @@
 import type { Product } from "@/lib/types";
 
+export const HERO_CONFIG = {
+  headline:
+    "Jewelry, watches and beauty picks, delivered in Nairobi today.",
+  sublinePrefix: "Everyday pieces and giftable picks",
+  ctaLabel: "Shop new in",
+  ctaHref: "/shop?sort=newest",
+  imageUrl: null as string | null,
+  focalPointClass: "object-[center_top] md:object-[75%_center]"
+} as const;
+
 export const SITE_CONFIG = {
   brandName: "Auro Ardon",
-  heroHeadline:
-    "Jewelry, watches and beauty picks, delivered in Nairobi today.",
-  heroSublinePrefix: "Everyday pieces and giftable picks",
+  heroHeadline: HERO_CONFIG.headline,
+  heroSublinePrefix: HERO_CONFIG.sublinePrefix,
+  footerTagline: "Curated jewelry, watches & beauty essentials in Nairobi.",
   defaultPriceFloorKES: 50,
   brandLine:
     "Auro Ardon is a Nairobi boutique. We pick bold, giftable jewelry, watches, and beauty essentials, deliver across Nairobi in a day, and you pay when it arrives.",

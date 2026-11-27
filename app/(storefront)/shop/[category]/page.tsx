@@ -5,6 +5,7 @@ import { CollectionShell } from "@/components/storefront/collection-shell";
 import { ShopPageClient } from "@/components/storefront/shop-page-client";
 import {
   getActiveRedirect,
+  getStoreSettings,
   listCategories,
   listProductsByCategory
 } from "@/lib/data";
@@ -41,12 +42,15 @@ export async function generateMetadata({
     });
   }
 
+  const products = await listProductsByCategory(slug);
+
   return buildPageMetadata({
     title: category.name,
     description:
       category.description ||
       `Shop our ${category.name} collection from Auro Ardon in Nairobi with same-day delivery and payment on arrival.`,
-    pathname: `/shop/${category.slug}`
+    pathname: `/shop/${category.slug}`,
+    noIndex: products.length === 0
   });
 }
 
@@ -63,7 +67,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  const products = await listProductsByCategory(slug);
+  const [products, storeSettings] = await Promise.all([
+    listProductsByCategory(slug),
+    getStoreSettings()
+  ]);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: "Home", pathname: "/" },
     { name: "Shop", pathname: "/shop" },
@@ -79,7 +86,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         }}
       />
       <CollectionShell categories={categories} activeCategory={category}>
-        <ShopPageClient products={products} />
+        <ShopPageClient
+          products={products}
+          emptyCategoryName={category.name}
+          whatsappNumber={storeSettings.whatsapp_number}
+        />
       </CollectionShell>
     </>
   );

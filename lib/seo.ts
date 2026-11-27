@@ -17,6 +17,8 @@ export interface PageMetadataInput {
   absoluteTitle?: boolean;
   noIndex?: boolean;
   openGraphType?: "website" | "article";
+  /** Set true on routes that define their own route-level opengraph-image.tsx (e.g. /p/[slug]). */
+  omitDefaultImages?: boolean;
 }
 
 export function buildPageMetadata({
@@ -25,10 +27,14 @@ export function buildPageMetadata({
   pathname,
   absoluteTitle = false,
   noIndex = false,
-  openGraphType = "website"
+  openGraphType = "website",
+  omitDefaultImages = false
 }: PageMetadataInput): Metadata {
-  const canonicalUrl = buildCanonicalUrl(pathname);
+  const siteUrl = resolveSiteUrl();
+  const canonicalUrl = buildCanonicalUrl(pathname, siteUrl);
   const fullTitle = absoluteTitle ? title : `${title} | ${SITE_NAME}`;
+  const defaultOgImageUrl = buildCanonicalUrl("/opengraph-image", siteUrl);
+  const defaultTwitterImageUrl = buildCanonicalUrl("/twitter-image", siteUrl);
 
   return {
     title: absoluteTitle ? { absolute: title } : title,
@@ -50,12 +56,25 @@ export function buildPageMetadata({
       siteName: SITE_NAME,
       title: fullTitle,
       description,
-      url: canonicalUrl
+      url: canonicalUrl,
+      ...(omitDefaultImages
+        ? {}
+        : {
+            images: [
+              {
+                url: defaultOgImageUrl,
+                width: 1200,
+                height: 630,
+                alt: `${SITE_NAME} — Nairobi · Pay on delivery`
+              }
+            ]
+          })
     },
     twitter: {
       card: "summary_large_image",
       title: fullTitle,
-      description
+      description,
+      ...(omitDefaultImages ? {} : { images: [defaultTwitterImageUrl] })
     }
   };
 }

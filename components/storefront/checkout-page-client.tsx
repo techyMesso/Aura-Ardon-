@@ -346,7 +346,7 @@ export function CheckoutPageClient({
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 sm:px-6">
-        <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[56px]">
+        <h1 className="font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[56px]">
           Your bag is empty.
         </h1>
         <p className="mt-4 font-sans text-[16px] leading-[1.5] text-muted">
@@ -366,7 +366,7 @@ export function CheckoutPageClient({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-10 lg:py-14">
-      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[56px]">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[56px]">
         Checkout
       </h1>
       <p className="mt-2 font-sans text-[15px] text-muted">
@@ -405,7 +405,7 @@ export function CheckoutPageClient({
           <div className="space-y-4">
             <div className="block font-sans text-[14px]">
               <label htmlFor="checkout-full-name" className="mb-1.5 block text-text">
-                Full name <span className="text-brass">*</span>
+                Full name <span className="text-price">*</span>
               </label>
               <Input
                 id="checkout-full-name"
@@ -437,7 +437,7 @@ export function CheckoutPageClient({
 
             <div className="block font-sans text-[14px]">
               <label htmlFor="checkout-phone" className="mb-1.5 block text-text">
-                WhatsApp / Phone number <span className="text-brass">*</span>
+                WhatsApp / Phone number <span className="text-price">*</span>
               </label>
               <Input
                 id="checkout-phone"
@@ -471,7 +471,7 @@ export function CheckoutPageClient({
 
             <div className="block font-sans text-[14px]">
               <label htmlFor="checkout-delivery-zone" className="mb-1.5 block text-text">
-                Delivery zone <span className="text-brass">*</span>
+                Delivery zone <span className="text-price">*</span>
               </label>
               <select
                 id="checkout-delivery-zone"
@@ -511,7 +511,7 @@ export function CheckoutPageClient({
                 htmlFor="checkout-building-landmark"
                 className="mb-1.5 block text-text"
               >
-                Building, road, or landmark <span className="text-brass">*</span>
+                Building, road, or landmark <span className="text-price">*</span>
               </label>
               <Input
                 id="checkout-building-landmark"
@@ -556,7 +556,7 @@ export function CheckoutPageClient({
                   htmlFor="checkout-town-county"
                   className="mb-1.5 block text-text"
                 >
-                  Town / County <span className="text-brass">*</span>
+                  Town / County <span className="text-price">*</span>
                 </label>
                 <Input
                   id="checkout-town-county"
@@ -736,14 +736,14 @@ export function CheckoutPageClient({
               By sending your order you agree to our{" "}
               <Link
                 href="/terms"
-                className="underline underline-offset-4 hover:text-brass"
+                className="underline underline-offset-4 hover:text-price"
               >
                 Terms
               </Link>{" "}
               and{" "}
               <Link
                 href="/privacy"
-                className="underline underline-offset-4 hover:text-brass"
+                className="underline underline-offset-4 hover:text-price"
               >
                 Privacy Policy
               </Link>
@@ -808,14 +808,14 @@ export function CheckoutPageClient({
                   <span>
                     Discount{appliedDiscount ? ` (${appliedDiscount.code})` : ""}
                   </span>
-                  <span className="text-brass">
+                  <span className="text-price">
                     −{formatKES(totals.discountAmount)}
                   </span>
                 </div>
               ) : appliedDiscount?.freeDeliveryApplied ? (
                 <div className="flex justify-between text-muted">
                   <span>Promo ({appliedDiscount.code})</span>
-                  <span className="text-brass">Free delivery</span>
+                  <span className="text-price">Free delivery</span>
                 </div>
               ) : null}
 

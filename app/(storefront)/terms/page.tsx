@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getStoreSettings } from "@/lib/data";
 import {
   formatCutoffEatLabel,
+  formatLegalLastUpdatedDate,
   LEGAL_DRAFT_HTML_COMMENT,
   RETURNS_POLICY_CONFIG
 } from "@/lib/policies";
@@ -21,28 +22,32 @@ export const metadata = buildPageMetadata({
 export default async function TermsPage() {
   const settings = await getStoreSettings();
   const cutoffLabel = formatCutoffEatLabel(settings.same_day_cutoff);
+  const lastUpdated = formatLegalLastUpdatedDate(settings);
+  const isReviewed = Boolean(settings.legal_reviewed_at);
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-      <div
-        dangerouslySetInnerHTML={{
-          __html: LEGAL_DRAFT_HTML_COMMENT
-        }}
-      />
+      {!isReviewed ? (
+        <div
+          dangerouslySetInnerHTML={{
+            __html: LEGAL_DRAFT_HTML_COMMENT
+          }}
+        />
+      ) : null}
 
-      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-brass">
+      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-price">
         Store Terms · Kenya
       </p>
-      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[56px]">
+      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[56px]">
         Terms of Service
       </h1>
       <p className="mt-3 font-sans text-[13px] text-muted">
-        Draft terms prepared for {settings.site_name} ({settings.business_address}) — subject to owner review before publishing.
+        Last updated: {lastUpdated} · {settings.site_name} ({settings.business_address})
       </p>
 
       <div className="mt-8 space-y-8 font-sans text-[15px] leading-[1.65] text-text">
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             1. About these terms
           </h2>
           <p className="text-muted">
@@ -52,7 +57,7 @@ export default async function TermsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             2. Ordering on WhatsApp &amp; stock reservation
           </h2>
           <p className="text-muted">
@@ -68,7 +73,7 @@ export default async function TermsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             3. Pricing, KES currency &amp; discount codes
           </h2>
           <p className="text-muted">
@@ -80,7 +85,7 @@ export default async function TermsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             4. Payment on delivery
           </h2>
           <p className="text-muted">
@@ -89,14 +94,14 @@ export default async function TermsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             5. Delivery &amp; handover
           </h2>
           <p className="text-muted">
             Fixed zone fees are published on our{" "}
             <Link
               href="/shipping"
-              className="text-text underline underline-offset-4 hover:text-brass"
+              className="text-text underline underline-offset-4 hover:text-price"
             >
               Delivery page
             </Link>
@@ -111,7 +116,7 @@ export default async function TermsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             6. Exchanges, returns &amp; damaged items
           </h2>
           <p className="text-muted">
@@ -123,7 +128,7 @@ export default async function TermsPage() {
             {RETURNS_POLICY_CONFIG.exchangeWindowDays} days, while earrings and beauty or lip products can only be returned if unopened or faulty. Full details are on our{" "}
             <Link
               href="/returns"
-              className="text-text underline underline-offset-4 hover:text-brass"
+              className="text-text underline underline-offset-4 hover:text-price"
             >
               Returns &amp; Exchanges page
             </Link>
@@ -132,7 +137,7 @@ export default async function TermsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             7. Verified customer reviews
           </h2>
           <p className="text-muted">
@@ -141,14 +146,14 @@ export default async function TermsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             8. Privacy &amp; governing law
           </h2>
           <p className="text-muted">
             We handle your personal delivery data in accordance with Kenya&apos;s Data Protection Act, 2019 as described in our{" "}
             <Link
               href="/privacy"
-              className="text-text underline underline-offset-4 hover:text-brass"
+              className="text-text underline underline-offset-4 hover:text-price"
             >
               Privacy Policy
             </Link>

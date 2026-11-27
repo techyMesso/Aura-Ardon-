@@ -45,7 +45,8 @@ export function countUniqueProductsWithCatalogWarnings(
     warnings.missingSecondImage,
     warnings.missingAltText,
     warnings.shortName,
-    warnings.missingFinishSizeInTheBox
+    warnings.missingFinishSizeInTheBox,
+    warnings.misspellings.map(entry => entry.product)
   ]) {
     for (const product of list) {
       ids.add(product.id);

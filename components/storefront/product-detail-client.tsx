@@ -32,7 +32,10 @@ import {
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
-import { resolveProductImageAlt } from "@/lib/image-processing";
+import {
+  resolveProductImageAlt,
+  stripBrandAltSuffix
+} from "@/lib/image-processing";
 import { trackStorefrontEvent } from "@/lib/events-client";
 import type { ProductReviewAggregate } from "@/lib/seo";
 import { resolveSiteUrl } from "@/lib/site";
@@ -104,17 +107,25 @@ export function ProductDetailClient({
   }, [activeVariants, hasVariants, selectedVariantId]);
 
   const gallerySlides = useMemo(() => {
-    const slides: Array<{ src: string; alt: string }> = [];
+    const rawSlides: Array<{
+      src: string;
+      customAlt: string | null;
+      productImageIndex: number | null;
+      variantName: string | null;
+    }> = [];
     const seen = new Set<string>();
 
     const variantImg = getSafeCatalogImageUrl(selectedVariant?.image_url);
     if (variantImg && !seen.has(variantImg)) {
       seen.add(variantImg);
-      slides.push({
+      const cleanedVariantAlt = selectedVariant?.image_alt?.trim()
+        ? stripBrandAltSuffix(selectedVariant.image_alt.trim())
+        : "";
+      rawSlides.push({
         src: variantImg,
-        alt:
-          selectedVariant?.image_alt?.trim() ||
-          `${displayTitle} — ${selectedVariant?.name ?? "option"}`
+        customAlt: cleanedVariantAlt || null,
+        productImageIndex: null,
+        variantName: selectedVariant?.name ?? null
       });
     }
 
@@ -122,21 +133,47 @@ export function ProductDetailClient({
       const safe = getSafeCatalogImageUrl(rawUrl);
       if (safe && !seen.has(safe)) {
         seen.add(safe);
-        slides.push({
+        const rawAlt = product.image_alts?.[index]?.trim() ?? "";
+        const cleanedAlt = rawAlt ? stripBrandAltSuffix(rawAlt) : "";
+        rawSlides.push({
           src: safe,
-          alt: resolveProductImageAlt(product, index)
+          customAlt: cleanedAlt || null,
+          productImageIndex: index,
+          variantName: null
         });
       }
     });
 
-    if (slides.length === 0) {
-      slides.push({
-        src: "/hero-jewelry.png",
-        alt: resolveProductImageAlt(product, 0)
-      });
+    if (rawSlides.length === 0) {
+      return [
+        {
+          src: "/hero-jewelry.png",
+          alt: resolveProductImageAlt(product, 0, 1)
+        }
+      ];
     }
 
-    return slides;
+    const total = rawSlides.length;
+    return rawSlides.map((slide, slideIndex) => {
+      if (slide.customAlt) {
+        return { src: slide.src, alt: slide.customAlt };
+      }
+      if (slide.variantName) {
+        const label = `${displayTitle} (${slide.variantName})`;
+        return {
+          src: slide.src,
+          alt:
+            total > 1 ? `${label}, photo ${slideIndex + 1} of ${total}` : label
+        };
+      }
+      return {
+        src: slide.src,
+        alt:
+          total > 1
+            ? `${displayTitle}, photo ${slideIndex + 1} of ${total}`
+            : displayTitle
+      };
+    });
   }, [displayTitle, product, selectedVariant]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -525,7 +562,7 @@ export function ProductDetailClient({
 
         <section className="flex flex-col">
           <div className="flex items-start justify-between gap-4">
-            <h1 className="font-serif text-[32px] font-normal leading-[1.05] tracking-[-0.01em] text-text">
+            <h1 className="font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
               {displayTitle}
             </h1>
             <button
@@ -537,7 +574,7 @@ export function ProductDetailClient({
                   : `Save ${displayTitle} to wishlist`
               }
               aria-pressed={wishlisted}
-              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-[2px] border border-text/15 text-text hover:text-brass"
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-[2px] border border-text/15 text-text hover:text-price"
             >
               <Heart
                 className={`h-4 w-4 ${
@@ -574,7 +611,7 @@ export function ProductDetailClient({
           {reviewStats && reviewStats.reviewCount > 0 ? (
             <a
               href="#reviews"
-              className="mt-2 inline-flex w-fit items-center gap-1.5 font-sans text-[13px] text-text transition-colors hover:text-brass"
+              className="mt-2 inline-flex w-fit items-center gap-1.5 font-sans text-[13px] text-text transition-colors hover:text-price"
             >
               <Star className="h-4 w-4 fill-brass text-brass" aria-hidden />
               <span className="font-medium">
@@ -662,7 +699,7 @@ export function ProductDetailClient({
                     }
                     disabled={quantity <= 1 || remaining < 1}
                     aria-label="Decrease quantity"
-                    className="flex h-11 w-10 items-center justify-center text-text hover:text-brass disabled:opacity-40"
+                    className="flex h-11 w-10 items-center justify-center text-text hover:text-price disabled:opacity-40"
                   >
                     <Minus className="h-4 w-4" aria-hidden />
                   </button>
@@ -682,7 +719,7 @@ export function ProductDetailClient({
                     }
                     disabled={remaining < 1 || quantity >= remaining}
                     aria-label="Increase quantity"
-                    className="flex h-11 w-10 items-center justify-center text-text hover:text-brass disabled:opacity-40"
+                    className="flex h-11 w-10 items-center justify-center text-text hover:text-price disabled:opacity-40"
                   >
                     <Plus className="h-4 w-4" aria-hidden />
                   </button>
@@ -784,7 +821,7 @@ export function ProductDetailClient({
                       path: productHref(product)
                     })
                   }
-                  className="inline-block font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-brass"
+                  className="inline-block font-sans text-[14px] leading-[1.5] text-text underline underline-offset-4 hover:text-price"
                 >
                   Ask about this piece on WhatsApp
                 </a>
@@ -827,12 +864,12 @@ export function ProductDetailClient({
         >
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-brass">
+              <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-price">
                 Verified buyers
               </p>
               <h2
                 id="verified-reviews-heading"
-                className="mt-1 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text"
+                className="mt-1 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text"
               >
                 Customer reviews
               </h2>
@@ -863,7 +900,7 @@ export function ProductDetailClient({
 
             <Link
               href="/review"
-              className="font-sans text-[13px] text-text underline underline-offset-4 hover:text-brass"
+              className="font-sans text-[13px] text-text underline underline-offset-4 hover:text-price"
             >
               Ordered this piece? Leave a verified review
             </Link>
@@ -934,7 +971,7 @@ export function ProductDetailClient({
                   <span className="font-medium text-text">
                     {review.display_name}
                   </span>
-                  <span className="uppercase tracking-[0.12em] text-brass">
+                  <span className="uppercase tracking-[0.12em] text-price">
                     Verified buyer
                   </span>
                 </footer>
@@ -946,7 +983,7 @@ export function ProductDetailClient({
 
       {otherRecentlyViewed.length > 0 ? (
         <section className="mt-14 border-t border-text/12 pt-10">
-          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
             Recently viewed
           </h2>
           <ProductGallery products={otherRecentlyViewed} columns={4} />

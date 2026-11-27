@@ -26,7 +26,7 @@ export function PriceKES({
   className?: string;
 }) {
   return (
-    <span className={cn("font-sans text-[14px] leading-[1.5] text-brass", className)}>
+    <span className={cn("font-sans text-[16px] font-medium leading-[1.4] text-price", className)}>
       {formatKES(amount)}
     </span>
   );

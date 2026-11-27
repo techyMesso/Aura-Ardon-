@@ -24,10 +24,10 @@ export default async function ReturnsPage() {
   return (
     <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
       {/* TODO(owner): confirm 7-day exchange window and preferred refund method (M-Pesa reversal vs store credit) before launch */}
-      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-brass">
+      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-price">
         Fair &amp; transparent
       </p>
-      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[64px]">
         Returns &amp; exchanges
       </h1>
       <p className="mt-4 font-sans text-[16px] leading-[1.55] text-muted">
@@ -37,10 +37,10 @@ export default async function ReturnsPage() {
       {/* Summary highlights */}
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <div className="border border-text/12 bg-paper p-5">
-          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-brass">
+          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-price">
             Exchange window
           </p>
-          <p className="mt-2 font-serif text-[26px] leading-tight text-text">
+          <p className="mt-2 font-serif text-[26px] leading-[1.15] tracking-[-0.01em] text-text">
             {RETURNS_POLICY_CONFIG.exchangeWindowDays} days
           </p>
           <p className="mt-1.5 font-sans text-[13px] leading-[1.5] text-muted">
@@ -49,10 +49,10 @@ export default async function ReturnsPage() {
         </div>
 
         <div className="border border-text/12 bg-paper p-5">
-          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-brass">
+          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-price">
             Damage reports
           </p>
-          <p className="mt-2 font-serif text-[26px] leading-tight text-text">
+          <p className="mt-2 font-serif text-[26px] leading-[1.15] tracking-[-0.01em] text-text">
             Within {RETURNS_POLICY_CONFIG.damageReportHours} hours
           </p>
           <p className="mt-1.5 font-sans text-[13px] leading-[1.5] text-muted">
@@ -61,10 +61,10 @@ export default async function ReturnsPage() {
         </div>
 
         <div className="border border-text/12 bg-stone p-5">
-          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-brass">
+          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7A5D1D] dark:text-price">
             Refund options
           </p>
-          <p className="mt-2 font-serif text-[24px] leading-tight text-text">
+          <p className="mt-2 font-serif text-[24px] leading-[1.15] tracking-[-0.01em] text-text">
             M-Pesa or credit
           </p>
           <p className="mt-1.5 font-sans text-[13px] leading-[1.5] text-muted">
@@ -75,7 +75,7 @@ export default async function ReturnsPage() {
 
       <div className="mt-10 space-y-8 font-sans text-[15px] leading-[1.65] text-text">
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             Eligible watches &amp; jewelry
           </h2>
           <p className="text-muted">
@@ -89,7 +89,7 @@ export default async function ReturnsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             Earrings &amp; beauty / lip products (hygiene policy)
           </h2>
           <p className="text-muted">
@@ -102,7 +102,7 @@ export default async function ReturnsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             Damaged or incorrect items
           </h2>
           <p className="text-muted">
@@ -115,7 +115,7 @@ export default async function ReturnsPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             Refunds &amp; credit notes
           </h2>
           <p className="text-muted">
@@ -129,7 +129,7 @@ export default async function ReturnsPage() {
         </section>
 
         <section className="space-y-2.5 border-t border-text/12 pt-6">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             How to request a return or exchange
           </h2>
           <ol className="list-decimal space-y-2 pl-5 text-muted">

@@ -147,7 +147,7 @@ export function ProductTile({
         </div>
 
         <div className="flex flex-col pt-2.5">
-          <h3 className="line-clamp-1 font-sans text-[14px] leading-[1.5] text-text transition-colors group-hover:text-brass">
+          <h3 className="line-clamp-1 font-sans text-[0.95rem] leading-[1.4] text-text transition-colors group-hover:text-price">
             {displayTitle}
           </h3>
 
@@ -199,7 +199,7 @@ export function ProductTile({
             : `Save ${displayTitle} to wishlist`
         }
         aria-pressed={wishlisted}
-        className="absolute right-2.5 top-2.5 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-[2px] bg-paper/85 text-text transition-colors hover:text-brass"
+        className="absolute right-2.5 top-2.5 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-[2px] bg-paper/85 text-text transition-colors hover:text-price"
       >
         <Heart
           className={`h-4 w-4 ${
@@ -214,7 +214,7 @@ export function ProductTile({
           type="button"
           onClick={handleAddToBag}
           disabled={!hasVariants && availability.disabled}
-          className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-[2px] border border-text/25 bg-paper px-3 py-1.5 font-sans text-[14px] leading-[1.5] text-text transition-opacity duration-150 hover:border-brass hover:text-brass disabled:cursor-not-allowed disabled:opacity-45 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+          className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-[2px] border border-text/25 bg-paper px-3 py-1.5 font-sans text-[14px] leading-[1.5] text-text transition-opacity duration-150 hover:border-price hover:text-price disabled:cursor-not-allowed disabled:opacity-45 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
         >
           {hasVariants
             ? availability.soldOut

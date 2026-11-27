@@ -284,13 +284,13 @@ export function VerifiedReviewForm({
       }
     >
       <div className="space-y-1.5">
-        <div className="inline-flex items-center gap-1.5 text-brass">
+        <div className="inline-flex items-center gap-1.5 text-price">
           <ShieldCheck className="h-4 w-4" aria-hidden />
           <span className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em]">
             Verified buyer review
           </span>
         </div>
-        <h2 className="font-serif text-[26px] font-normal leading-[1.1] text-text sm:text-[30px]">
+        <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text sm:text-[30px]">
           Share your experience
         </h2>
         <p className="font-sans text-[14px] leading-[1.5] text-muted">
@@ -358,7 +358,7 @@ export function VerifiedReviewForm({
                   setItems([]);
                   setSubmitFeedback(null);
                 }}
-                className="text-xs font-medium text-brass underline underline-offset-4 hover:text-text"
+                className="text-xs font-medium text-[#7A5D1D] underline underline-offset-4 hover:text-text dark:text-price"
               >
                 Use another order
               </button>
@@ -519,7 +519,7 @@ export function VerifiedReviewForm({
                   Add a photo (optional)
                 </span>
                 <div className="flex flex-wrap items-center gap-3">
-                  <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-[2px] border border-text/20 bg-paper px-3.5 py-2 font-sans text-[13px] text-text transition hover:border-brass hover:text-brass">
+                  <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-[2px] border border-text/20 bg-paper px-3.5 py-2 font-sans text-[13px] text-text transition hover:border-price hover:text-price">
                     <Camera className="h-4 w-4" aria-hidden />
                     <span>{photoFile ? "Change photo" : "Upload photo"}</span>
                     <input

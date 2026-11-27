@@ -6,11 +6,12 @@
   --nav-height: 56px;
   --mobile-bottom-nav-height: 56px;
 
-  /* Five tokens, each with one job */
+  /* Core tokens, each with one job */
   --ink: 26 18 22;      /* #1A1216 deep warm near-black (aubergine-tinted) */
   --paper: 255 255 255; /* #FFFFFF product surfaces */
   --stone: 239 235 231; /* #EFEBE7 secondary surface (search, chips, empty states) */
-  --brass: 184 146 62;  /* #B8923E single accent — prices, active states, primary CTA */
+  --brass: 184 146 62;  /* #B8923E accent — buttons, icons, dark-surface highlights */
+  --price: 138 106 34;  /* #8A6A22 WCAG AA (5.04:1 on white) prices & gold text on light surfaces */
   --text: 26 18 22;     /* #1A1216 body text; muted is 72% opacity for WCAG 2.1 AA contrast */
 }
 
@@ -24,6 +25,7 @@ html.dark {
   --paper: 20 17 20;    /* #141114 dark product surface */
   --stone: 31 26 28;    /* #1F1A1C dark secondary surface */
   --brass: 184 146 62;  /* #B8923E brass stays brass */
+  --price: 184 146 62;  /* #B8923E WCAG AA (6.36:1 on dark paper) prices in dark mode */
   --text: 245 242 239;  /* #F5F2EF light text on dark paper/stone */
 }
 
@@ -82,7 +84,7 @@ body {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[2px]
            border border-text/30 bg-transparent px-5 py-2.5
            text-[14px] font-medium leading-[1.5] text-text
-           transition-colors duration-150 hover:border-brass hover:text-brass
+           transition-colors duration-150 hover:border-price hover:text-price
            disabled:cursor-not-allowed disabled:opacity-50;
   }
 
@@ -107,7 +109,14 @@ body {
   }
 
   .heading-display {
-    @apply font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px];
+    @apply font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[64px];
+  }
+
+  .hero-headline {
+    font-size: clamp(2.25rem, 5vw + 1rem, 3.5rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    max-width: 16ch;
   }
 }
 

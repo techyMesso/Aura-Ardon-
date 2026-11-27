@@ -63,7 +63,8 @@ export async function generateMetadata({
   return buildPageMetadata({
     title: displayTitle,
     description,
-    pathname: canonicalPath
+    pathname: canonicalPath,
+    omitDefaultImages: true
   });
 }
 
@@ -145,7 +146,7 @@ export default async function CanonicalProductPage({
       />
       {relatedProducts.length > 0 ? (
         <section className="mx-auto max-w-7xl px-4 pb-14 pt-6 sm:px-6 lg:px-10">
-          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.0] tracking-[-0.01em] text-text">
+          <h2 className="mb-6 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
             Wear it with
           </h2>
           <ProductGallery products={relatedProducts} columns={4} />

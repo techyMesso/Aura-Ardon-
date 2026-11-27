@@ -1,7 +1,10 @@
 import Link from "next/link";
 
 import { getStoreSettings } from "@/lib/data";
-import { LEGAL_DRAFT_HTML_COMMENT } from "@/lib/policies";
+import {
+  formatLegalLastUpdatedDate,
+  LEGAL_DRAFT_HTML_COMMENT
+} from "@/lib/policies";
 import { buildPageMetadata } from "@/lib/seo";
 import { formatWhatsAppNumber } from "@/lib/utils";
 
@@ -19,28 +22,32 @@ export default async function PrivacyPage() {
   const displayPhone = formatWhatsAppNumber(
     settings.business_phone || settings.whatsapp_number
   );
+  const lastUpdated = formatLegalLastUpdatedDate(settings);
+  const isReviewed = Boolean(settings.legal_reviewed_at);
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-      <div
-        dangerouslySetInnerHTML={{
-          __html: LEGAL_DRAFT_HTML_COMMENT
-        }}
-      />
+      {!isReviewed ? (
+        <div
+          dangerouslySetInnerHTML={{
+            __html: LEGAL_DRAFT_HTML_COMMENT
+          }}
+        />
+      ) : null}
 
-      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-brass">
+      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-price">
         Kenya Data Protection Act, 2019
       </p>
-      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[56px]">
+      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[56px]">
         Privacy Policy
       </h1>
       <p className="mt-3 font-sans text-[13px] text-muted">
-        Draft policy prepared for {settings.site_name} ({settings.business_address}) in alignment with Kenya&apos;s Data Protection Act, 2019 (Cap. 411C). Subject to owner legal review before publishing.
+        Last updated: {lastUpdated} · {settings.site_name} ({settings.business_address})
       </p>
 
       <div className="mt-8 space-y-8 font-sans text-[15px] leading-[1.65] text-text">
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             1. Who we are (Data Controller)
           </h2>
           <p className="text-muted">
@@ -51,7 +58,7 @@ export default async function PrivacyPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             2. What personal data we collect and why
           </h2>
           <p className="text-muted">
@@ -85,7 +92,7 @@ export default async function PrivacyPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             3. How long we keep your data
           </h2>
           <ul className="list-disc space-y-1.5 pl-5 text-muted">
@@ -110,7 +117,7 @@ export default async function PrivacyPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             4. Who sees your data
           </h2>
           <p className="text-muted">
@@ -133,7 +140,7 @@ export default async function PrivacyPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             5. WhatsApp communications
           </h2>
           <p className="text-muted">
@@ -142,7 +149,7 @@ export default async function PrivacyPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             6. Marketing consent and opt-out
           </h2>
           <p className="text-muted">
@@ -151,7 +158,7 @@ export default async function PrivacyPage() {
         </section>
 
         <section className="space-y-2.5">
-          <h2 className="font-serif text-[26px] font-normal text-text">
+          <h2 className="font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             7. Your rights &amp; how to request access or deletion
           </h2>
           <p className="text-muted">
@@ -175,7 +182,7 @@ export default async function PrivacyPage() {
                     , email{" "}
                     <a
                       href={`mailto:${settings.business_email}`}
-                      className="text-text underline underline-offset-4 hover:text-brass"
+                      className="text-text underline underline-offset-4 hover:text-price"
                     >
                       {settings.business_email}
                     </a>
@@ -188,7 +195,7 @@ export default async function PrivacyPage() {
             )}
             <Link
               href="/contact"
-              className="text-text underline underline-offset-4 hover:text-brass"
+              className="text-text underline underline-offset-4 hover:text-price"
             >
               Contact page
             </Link>

@@ -38,10 +38,10 @@ export default async function AboutPage() {
         }}
       />
 
-      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-brass">
+      <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-price">
         {settings.business_address}
       </p>
-      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+      <h1 className="mt-2 font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[64px]">
         About {settings.site_name}
       </h1>
 
@@ -52,8 +52,8 @@ export default async function AboutPage() {
             src={ABOUT_OWNER_SLOTS.studioPhotoPath || "/hero-jewelry.png"}
             alt={
               ABOUT_OWNER_SLOTS.studioPhotoPath
-                ? `${settings.site_name} Nairobi studio and team`
-                : `${settings.site_name} curated Nairobi jewelry and watches collection`
+                ? "Nairobi studio and team"
+                : "Curated jewelry and watches collection"
             }
             fill
             priority
@@ -73,7 +73,7 @@ export default async function AboutPage() {
       {/* Brand story — TODO(owner): Add founder story in ABOUT_OWNER_SLOTS.brandStoryParagraphs */}
       <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="space-y-5 font-sans text-[16px] leading-[1.65] text-text">
-          <h2 className="font-serif text-[28px] font-normal leading-[1.1] text-text">
+          <h2 className="font-serif text-[28px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
             How we work
           </h2>
 
@@ -102,7 +102,7 @@ export default async function AboutPage() {
         </div>
 
         <aside className="space-y-5 border border-text/12 bg-stone p-6 font-sans text-[14px]">
-          <h2 className="font-serif text-[22px] font-normal text-text">
+          <h2 className="font-serif text-[24px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             Nairobi studio desk
           </h2>
           <dl className="space-y-3">
@@ -132,7 +132,7 @@ export default async function AboutPage() {
                 <dd className="mt-0.5">
                   <a
                     href={`tel:+${normalizedPhone}`}
-                    className="text-text underline underline-offset-4 hover:text-brass"
+                    className="text-text underline underline-offset-4 hover:text-[#7A5D1D] dark:hover:text-price"
                   >
                     {displayPhone}
                   </a>

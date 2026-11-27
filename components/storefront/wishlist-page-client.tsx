@@ -31,7 +31,7 @@ export function WishlistPageClient() {
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-10 lg:py-14">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-text/12 pb-6">
         <div>
-          <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[56px]">
+          <h1 className="font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[56px]">
             Wishlist
           </h1>
           <p className="mt-2 font-sans text-[14px] text-muted">
@@ -70,7 +70,7 @@ export function WishlistPageClient() {
       {wishlistProducts.length === 0 ? (
         <div className="bg-stone p-8 text-center sm:p-12">
           <Heart className="mx-auto h-8 w-8 text-brass" aria-hidden />
-          <h2 className="mt-4 font-serif text-[26px] font-normal text-text">
+          <h2 className="mt-4 font-serif text-[26px] font-normal leading-[1.15] tracking-[-0.01em] text-text">
             Your wishlist is empty
           </h2>
           <p className="mx-auto mt-2 max-w-md font-sans text-[14px] text-muted">

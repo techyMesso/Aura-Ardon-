@@ -122,13 +122,13 @@ export function OrderConfirmationClient({
     return (
       <div className="mx-auto max-w-lg px-4 py-16 sm:px-6">
         <div className="border border-text/15 bg-paper p-6 sm:p-8">
-          <div className="flex items-center gap-2 text-brass">
+          <div className="flex items-center gap-2 text-price">
             <Lock className="h-4 w-4" aria-hidden />
             <span className="font-sans text-[12px] font-semibold uppercase tracking-[0.18em]">
               Verify your order
             </span>
           </div>
-          <h1 className="mt-2 font-serif text-[32px] font-normal leading-[1.05] text-text">
+          <h1 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] text-text">
             Order {orderNumber}
           </h1>
           <p className="mt-3 font-sans text-[14px] leading-[1.5] text-muted">
@@ -181,7 +181,7 @@ export function OrderConfirmationClient({
         <span>Order {order.orderNumber}</span>
       </div>
 
-      <h1 className="mt-4 font-serif text-[34px] font-normal leading-[1.08] tracking-[-0.01em] text-text sm:text-[44px]">
+      <h1 className="mt-4 font-serif text-[34px] font-normal leading-[1.12] tracking-[-0.01em] text-text sm:text-[44px]">
         {order.status === "delivered"
           ? "Your order has been delivered — thank you for shopping with Auro Ardon."
           : "Your order is ready — send the WhatsApp message to confirm it."}
@@ -242,12 +242,12 @@ export function OrderConfirmationClient({
               <span>
                 Discount{order.discountCode ? ` (${order.discountCode})` : ""}
               </span>
-              <span className="text-brass">−{formatKES(order.discountAmount)}</span>
+              <span className="text-price">−{formatKES(order.discountAmount)}</span>
             </div>
           ) : order.discountCode && order.deliveryFee === 0 ? (
             <div className="flex justify-between text-muted">
               <span>Promo ({order.discountCode})</span>
-              <span className="text-brass">Free delivery</span>
+              <span className="text-price">Free delivery</span>
             </div>
           ) : null}
           <div className="flex justify-between text-muted">

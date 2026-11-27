@@ -72,13 +72,77 @@ export function filterProducts(products: Product[], filters: ProductListFilters)
   });
 }
 
+export interface CatalogMisspellingMatch {
+  field: "material" | "finish";
+  found: string;
+  suggestion: string;
+}
+
+export interface CatalogMisspellingWarning {
+  product: Product;
+  matches: CatalogMisspellingMatch[];
+}
+
 export interface CatalogQualityWarnings {
   missingCategory: Product[];
   missingSecondImage: Product[];
   missingAltText: Product[];
   shortName: Product[];
   missingFinishSizeInTheBox: Product[];
+  misspellings: CatalogMisspellingWarning[];
   hasWarnings: boolean;
+}
+
+export const COMMON_CATALOG_TYPOS: ReadonlyArray<{
+  typo: string;
+  suggestion: string;
+  pattern: RegExp;
+}> = [
+  { typo: "staps", suggestion: "straps", pattern: /\bstaps\b/i },
+  { typo: "stap", suggestion: "strap", pattern: /\bstap\b/i },
+  { typo: "stainles", suggestion: "stainless", pattern: /\bstainles\b/i },
+  { typo: "stainlees", suggestion: "stainless", pattern: /\bstainlees\b/i },
+  { typo: "lether", suggestion: "leather", pattern: /\blether\b/i },
+  { typo: "leathr", suggestion: "leather", pattern: /\bleathr\b/i },
+  { typo: "bracelete", suggestion: "bracelet", pattern: /\bbracelete\b/i },
+  { typo: "braclet", suggestion: "bracelet", pattern: /\bbraclet\b/i },
+  { typo: "neckless", suggestion: "necklace", pattern: /\bneckless\b/i },
+  { typo: "neclace", suggestion: "necklace", pattern: /\bneclace\b/i },
+  { typo: "earings", suggestion: "earrings", pattern: /\bearings\b/i },
+  { typo: "earing", suggestion: "earring", pattern: /\bearing\b/i },
+  { typo: "jewelery", suggestion: "jewelry", pattern: /\bjewelery\b/i },
+  { typo: "jewellry", suggestion: "jewelry", pattern: /\bjewellry\b/i },
+  { typo: "waterprof", suggestion: "waterproof", pattern: /\bwaterprof\b/i },
+  { typo: "platinium", suggestion: "platinum", pattern: /\bplatinium\b/i },
+  { typo: "zironia", suggestion: "zirconia", pattern: /\bzironia\b/i },
+  { typo: "zirconea", suggestion: "zirconia", pattern: /\bzirconea\b/i }
+];
+
+export function findCatalogMisspellings(
+  product: Pick<Product, "material" | "finish">
+): CatalogMisspellingMatch[] {
+  const matches: CatalogMisspellingMatch[] = [];
+  const fields: Array<["material" | "finish", string | null | undefined]> = [
+    ["material", product.material],
+    ["finish", product.finish]
+  ];
+
+  for (const [field, rawValue] of fields) {
+    const value = rawValue?.trim();
+    if (!value) continue;
+    for (const rule of COMMON_CATALOG_TYPOS) {
+      const hit = value.match(rule.pattern);
+      if (hit) {
+        matches.push({
+          field,
+          found: hit[0],
+          suggestion: rule.suggestion
+        });
+      }
+    }
+  }
+
+  return matches;
 }
 
 const BEAUTY_CATEGORY_PATTERN =
@@ -123,6 +187,13 @@ export function getCatalogQualityWarnings(
         !product.size_label?.trim() ||
         !product.in_the_box?.trim())
   );
+  const misspellings: CatalogMisspellingWarning[] = [];
+  for (const product of activeProducts) {
+    const matches = findCatalogMisspellings(product);
+    if (matches.length > 0) {
+      misspellings.push({ product, matches });
+    }
+  }
 
   return {
     missingCategory,
@@ -130,11 +201,13 @@ export function getCatalogQualityWarnings(
     missingAltText,
     shortName,
     missingFinishSizeInTheBox,
+    misspellings,
     hasWarnings:
       missingCategory.length > 0 ||
       missingSecondImage.length > 0 ||
       missingAltText.length > 0 ||
       shortName.length > 0 ||
-      missingFinishSizeInTheBox.length > 0
+      missingFinishSizeInTheBox.length > 0 ||
+      misspellings.length > 0
   };
 }

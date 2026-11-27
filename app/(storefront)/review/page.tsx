@@ -21,10 +21,10 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:py-16">
       <div className="mb-8 space-y-2">
-        <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-brass">
+        <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.16em] text-price">
           Authentic feedback only
         </p>
-        <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[52px]">
+        <h1 className="font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[52px]">
           Verified buyer review
         </h1>
         <p className="font-sans text-[15px] leading-[1.55] text-muted">
@@ -36,7 +36,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
 
       <p className="mt-6 font-sans text-[13px] text-muted">
         Looking for your order status instead?{" "}
-        <Link href="/track" className="text-text underline underline-offset-4 hover:text-brass">
+        <Link href="/track" className="text-text underline underline-offset-4 hover:text-price">
           Track your order
         </Link>
         .

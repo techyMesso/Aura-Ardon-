@@ -23,6 +23,10 @@ import {
   getSafeCatalogImageUrl,
   productHref
 } from "@/lib/catalog";
+import {
+  resolveProductImageAlt,
+  stripBrandAltSuffix
+} from "@/lib/image-processing";
 import { createWhatsAppLink } from "@/lib/utils";
 
 export function CartDrawer() {
@@ -153,7 +157,11 @@ export function CartDrawer() {
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-none bg-paper">
                     <Image
                       src={image}
-                      alt={item.variant?.image_alt || displayTitle}
+                      alt={
+                        item.variant?.image_alt
+                          ? stripBrandAltSuffix(item.variant.image_alt) || displayTitle
+                          : resolveProductImageAlt(item.product, 0)
+                      }
                       fill
                       placeholder="blur"
                       blurDataURL={
@@ -171,7 +179,7 @@ export function CartDrawer() {
                         <Link
                           href={productPath}
                           onClick={closeCart}
-                          className="block truncate font-sans text-[14px] text-text hover:text-brass"
+                          className="block truncate font-sans text-[14px] text-text hover:text-price"
                         >
                           {displayTitle}
                         </Link>
@@ -205,7 +213,7 @@ export function CartDrawer() {
                             )
                           }
                           aria-label={`Decrease quantity of ${displayTitle}`}
-                          className="flex h-8 w-8 items-center justify-center text-text hover:text-brass"
+                          className="flex h-8 w-8 items-center justify-center text-text hover:text-price"
                         >
                           <Minus className="h-3.5 w-3.5" aria-hidden />
                         </button>
@@ -226,7 +234,7 @@ export function CartDrawer() {
                           }
                           disabled={atLimit}
                           aria-label={`Increase quantity of ${displayTitle}`}
-                          className="flex h-8 w-8 items-center justify-center text-text hover:text-brass disabled:opacity-40"
+                          className="flex h-8 w-8 items-center justify-center text-text hover:text-price disabled:opacity-40"
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden />
                         </button>
@@ -252,7 +260,7 @@ export function CartDrawer() {
                   href={wishlistWhatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-sans text-[14px] text-brass underline underline-offset-4"
+                  className="font-sans text-[14px] text-price underline underline-offset-4"
                 >
                   Share wishlist on WhatsApp
                 </a>
@@ -270,7 +278,7 @@ export function CartDrawer() {
                     <Link
                       href={path}
                       onClick={closeCart}
-                      className="truncate text-text hover:text-brass"
+                      className="truncate text-text hover:text-price"
                     >
                       {displayTitle}
                     </Link>

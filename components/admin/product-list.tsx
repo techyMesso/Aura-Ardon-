@@ -567,6 +567,35 @@ export function ProductList({
                 ))}
               </li>
             ) : null}
+            {qualityWarnings.misspellings.length > 0 ? (
+              <li>
+                <span className="font-medium text-text">
+                  Possible spelling typos in material/finish (
+                  {qualityWarnings.misspellings.length}):
+                </span>{" "}
+                {qualityWarnings.misspellings.map((entry, index) => (
+                  <span key={entry.product.id}>
+                    {index > 0 ? ", " : ""}
+                    <Link
+                      href={`/admin/products/${entry.product.id}/edit`}
+                      className="text-brass underline underline-offset-2"
+                    >
+                      {entry.product.title}
+                    </Link>{" "}
+                    <span className="text-xs text-muted">
+                      (
+                      {entry.matches
+                        .map(
+                          match =>
+                            `${match.field}: "${match.found}" → "${match.suggestion}"`
+                        )
+                        .join("; ")}
+                      )
+                    </span>
+                  </span>
+                ))}
+              </li>
+            ) : null}
           </ul>
         </div>
       ) : null}

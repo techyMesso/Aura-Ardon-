@@ -39,6 +39,7 @@ export function revalidateCategoryCatalog() {
 
 export function revalidateStoreSettings() {
   safelyRevalidate(["store-settings"]);
+  safelyRevalidatePaths(["/", "/privacy", "/terms", "/shipping", "/faq", "/about"]);
 }
 
 export function revalidateDeliveryZones() {

@@ -12,7 +12,7 @@ export const metadata = buildPageMetadata({
 export default function HowToOrderPage() {
   return (
     <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-      <h1 className="font-serif text-[40px] font-normal leading-[1.0] tracking-[-0.01em] text-text md:text-[64px]">
+      <h1 className="font-serif text-[40px] font-normal leading-[1.12] tracking-[-0.01em] text-text md:text-[64px]">
         How to order
       </h1>
 
