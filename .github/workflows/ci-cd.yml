@@ -94,7 +94,7 @@ jobs:
         run: npm ci
 
       - name: Run live staging DB integration and RLS tests
-        run: npx vitest run tests/integration/phase15-staging-db.test.ts tests/integration/phase14-security-roles.test.ts
+        run: npx vitest run tests/integration/phase15-staging-db.test.ts tests/integration/phase14-rls-anon-denial.test.ts tests/integration/round2-phase1-notifications-and-zones.test.ts tests/integration/round2-phase5-staging.test.ts
         env:
           RUN_STAGING_DB_TESTS: "1"
           RUN_LIVE_STAGING_RLS_TEST: "1"
