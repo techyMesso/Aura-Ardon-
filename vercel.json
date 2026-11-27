@@ -1,18 +1,21 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    {
+  "schedules": {
+    "auto-cancel-pending": {
+      "schedule": "0 * * * *",
       "path": "/api/cron/auto-cancel-pending",
-      "schedule": "0 * * * *"
+      "requestMethod": "GET"
     },
-    {
+    "daily-summary": {
+      "schedule": "0 17 * * *",
       "path": "/api/cron/daily-summary",
-      "schedule": "0 17 * * *"
+      "requestMethod": "GET"
     },
-    {
+    "prune-events": {
+      "schedule": "0 2 * * 0",
       "path": "/api/cron/prune-events",
-      "schedule": "0 2 * * 0"
+      "requestMethod": "GET"
     }
-  ]
+  }
 }
 

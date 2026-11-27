@@ -42,7 +42,7 @@ Configure these under **Vercel → Project `aura-ardon` → Settings → Environ
 #### B. Strongly Recommended for Production *(add in Vercel before launch)*
 | Variable | Scope | Purpose |
 | --- | --- | --- |
-| `CRON_SECRET` | Server-only | Authorizes Vercel Cron calls to `/api/cron/auto-cancel-pending`, `/api/cron/daily-summary`, and `/api/cron/prune-events` (`openssl rand -hex 32`) |
+| `CRON_SECRET` | Server-only | Authorizes Vercel Schedules calls to `/api/cron/auto-cancel-pending`, `/api/cron/daily-summary`, and `/api/cron/prune-events` (`openssl rand -hex 32`) |
 | `REVALIDATE_SECRET` | Server-only | Authorizes `POST /api/revalidate` cache-invalidation webhooks (`openssl rand -hex 32`) |
 | `UPSTASH_REDIS_REST_URL` | Server-only | Upstash Redis URL for distributed rate limiting (checkout, login, search, tracking, reviews) |
 | `UPSTASH_REDIS_REST_TOKEN` | Server-only | Upstash Redis REST token |
@@ -79,7 +79,7 @@ Configure these under **Vercel → Project `aura-ardon` → Settings → Environ
 ### 3. Run Migrations on Production, Create the Owner Account, and Enable MFA
 - [ ] **Take a fresh pre-migration backup** of Production (`bjasoyhcxubrkxrqurfr`) first (see `docs/BACKUP.md`).
 - [ ] **Push your branch to GitHub** (`git push origin main`) so all commits from Phases 0–16 are live in the repo.
-- [ ] **Apply all 15 roadmap migrations in strict chronological order** against Production (`bjasoyhcxubrkxrqurfr`) using `supabase db push` (or the Supabase SQL Editor in order):
+- [ ] **Apply all 16 roadmap migrations in strict chronological order** against Production (`bjasoyhcxubrkxrqurfr`) using `supabase db push` (or the Supabase SQL Editor in order):
   1. `supabase/migrations/20261126000000_baseline_schema.sql`
   2. `supabase/migrations/20261126010000_phase0_store_settings_and_delivery_zones.sql`
   3. `supabase/migrations/20261126020000_phase2_specs_and_search.sql`
@@ -95,6 +95,7 @@ Configure these under **Vercel → Project `aura-ardon` → Settings → Environ
   13. `supabase/migrations/20261126120000_phase12_real_reviews.sql`
   14. `supabase/migrations/20261126140000_phase14_security_roles_and_audit.sql`
   15. `supabase/migrations/20261126140100_phase14_private_rls_helpers.sql`
+  16. `supabase/migrations/20261127000000_phase16_production_hardening_cleanup.sql`
 - [ ] **Verify production database health:**
   - Run `select * from public.check_stock_integrity();` (must return **0 rows**).
   - Open **Supabase Dashboard → Advisors → Security Advisor** and confirm **0 errors and 0 warnings**.
@@ -205,7 +206,7 @@ Perform one full live test order on a real mobile phone (iOS Safari or Android C
 
 ## Scheduled Jobs Reference (`vercel.json` & GitHub Actions)
 
-All Vercel Crons require `CRON_SECRET` set in Vercel Production env vars (`Authorization: Bearer <CRON_SECRET>`):
+All Vercel Schedules (`vercel.json` `schedules`) require `CRON_SECRET` set in Vercel Production env vars (`Authorization: Bearer <CRON_SECRET>`):
 
 | Job | Schedule (UTC) | Nairobi Time (EAT) | Endpoint / Workflow | Purpose |
 | --- | --- | --- | --- | --- |
