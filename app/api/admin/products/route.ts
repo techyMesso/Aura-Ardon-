@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import {
   assertAdminRequest,
   isOwnerUser,
@@ -130,6 +131,24 @@ export async function POST(request: Request) {
     const product = canManageCost
       ? (data as Product)
       : stripProductCostPrice(data as Product);
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "admin",
+        role: canManageCost ? "owner" : "staff"
+      },
+      action: "product.created",
+      entity: "product",
+      entityId: product.id,
+      after: {
+        title: product.title,
+        slug: product.slug,
+        price: product.price,
+        stock_quantity: product.stock_quantity,
+        status: product.status
+      }
+    });
 
     return NextResponse.json({ product }, { status: 201 });
   } catch (caughtError) {

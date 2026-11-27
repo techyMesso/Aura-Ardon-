@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { productStatusSchema } from "@/lib/admin-product-input";
 import { revalidateProductCatalog } from "@/lib/cache";
@@ -62,6 +63,17 @@ export async function POST(request: Request) {
 
       if (error) throw new Error(error.message);
       revalidateProductCatalog();
+      await recordAuditLog({
+        actor: {
+          id: adminUser?.id ?? null,
+          email: actor,
+          role: adminUser?.adminRole ?? "owner"
+        },
+        action: "product.bulk_status_updated",
+        entity: "product",
+        entityId: payload.productIds.join(",").slice(0, 120),
+        after: { status: payload.status, productIds: payload.productIds }
+      });
       return NextResponse.json({
         ok: true,
         updatedCount: payload.productIds.length
@@ -109,6 +121,21 @@ export async function POST(request: Request) {
       }
 
       revalidateProductCatalog();
+      await recordAuditLog({
+        actor: {
+          id: adminUser?.id ?? null,
+          email: actor,
+          role: adminUser?.adminRole ?? "owner"
+        },
+        action: "product.bulk_price_updated",
+        entity: "product",
+        entityId: payload.productIds.join(",").slice(0, 120),
+        after: {
+          action: payload.action,
+          updatedCount,
+          productIds: payload.productIds
+        }
+      });
       return NextResponse.json({ ok: true, updatedCount });
     }
 
@@ -136,6 +163,25 @@ export async function POST(request: Request) {
 
     revalidateProductCatalog();
 
+    if (updatedCount > 0) {
+      await recordAuditLog({
+        actor: {
+          id: adminUser?.id ?? null,
+          email: actor,
+          role: adminUser?.adminRole ?? "owner"
+        },
+        action: "stock.bulk_adjusted",
+        entity: "stock",
+        entityId: payload.productIds.join(",").slice(0, 120),
+        after: {
+          change: payload.change,
+          note: payload.note,
+          updatedCount,
+          productIds: payload.productIds
+        }
+      });
+    }
+
     if (updatedCount === 0 && failures.length > 0) {
       return NextResponse.json(
         {
@@ -158,8 +204,12 @@ export async function POST(request: Request) {
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to complete bulk edit.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
-

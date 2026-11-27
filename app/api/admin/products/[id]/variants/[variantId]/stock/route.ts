@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { listBackInStockAlerts, listProductStockMovements } from "@/lib/data";
@@ -81,6 +82,26 @@ export async function POST(
     }
 
     revalidateProductCatalog();
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "stock.variant_adjusted",
+      entity: "stock",
+      entityId: variantId,
+      after: {
+        productId: id,
+        variantId,
+        change: payload.change,
+        newVariantStock: Number(data.new_variant_stock),
+        newProductStock: Number(data.new_product_stock),
+        type: payload.type,
+        note: payload.note
+      }
+    });
 
     const [ledger, waitingAlerts] = await Promise.all([
       listProductStockMovements(id).catch(() => null),

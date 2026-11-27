@@ -1,14 +1,34 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 
 import { getAdminEmail } from "@/lib/env";
+import {
+  ADMIN_ACTIVITY_COOKIE,
+  verifyAdminActivityToken
+} from "@/lib/session-timeout";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Product, ProductVariant } from "@/lib/types";
 
 export type AdminRole = "owner" | "staff";
 
-function isAdminEmail(email: string | null | undefined) {
-  return Boolean(email && email.toLowerCase() === getAdminEmail());
+export interface AuthenticatedAdminUser extends User {
+  adminRole?: AdminRole;
+}
+
+export function isOwnerMfaEnforced(): boolean {
+  return process.env.OWNER_MFA_REQUIRED?.trim().toLowerCase() !== "false";
+}
+
+export function getAuthErrorStatus(message: string): number {
+  if (message === "UNAUTHORIZED" || message === "SESSION_EXPIRED") {
+    return 401;
+  }
+  if (message === "FORBIDDEN" || message === "MFA_REQUIRED") {
+    return 403;
+  }
+  return 400;
 }
 
 function matchesOptionalAdminEmail(email: string | null | undefined) {
@@ -17,9 +37,8 @@ function matchesOptionalAdminEmail(email: string | null | undefined) {
 }
 
 /**
- * Determines whether an authenticated admin user has full owner privileges
- * (including viewing/editing cost prices, margins, settings, and user management).
- * Staff accounts (app_metadata.role === "staff") are explicitly excluded.
+ * Synchronous role resolution from JWT app_metadata.role and configured ADMIN_EMAIL.
+ * Never trusts user-editable user_metadata.
  */
 export function getAdminRole(
   user: Pick<User, "email" | "app_metadata"> | null | undefined
@@ -36,9 +55,84 @@ export function getAdminRole(
 }
 
 export function isOwnerUser(
-  user: Pick<User, "email" | "app_metadata"> | null | undefined
+  user:
+    | (Pick<User, "email" | "app_metadata"> & { adminRole?: AdminRole })
+    | null
+    | undefined
 ): boolean {
+  if (!user) return false;
+  if (user.adminRole) return user.adminRole === "owner";
   return getAdminRole(user) === "owner";
+}
+
+export function buildAuditActor(
+  user:
+    | (Pick<User, "id" | "email" | "app_metadata"> & { adminRole?: AdminRole })
+    | null
+    | undefined
+): { id: string | null; email: string; role: AdminRole } {
+  const role = user?.adminRole ?? getAdminRole(user) ?? "owner";
+  return {
+    id: user?.id ?? null,
+    email: user?.email ?? user?.id ?? "admin",
+    role
+  };
+}
+
+/**
+ * Authoritative role check against public.admin_users (with safe fallback to signed app_metadata / ADMIN_EMAIL).
+ * Explicitly revokes access if a user is marked active = false in public.admin_users.
+ */
+export async function resolveUserAdminRole(
+  user: Pick<User, "id" | "email" | "app_metadata"> | null | undefined
+): Promise<AdminRole | null> {
+  if (!user) return null;
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const canQueryAdminUsers = Boolean(
+    user.id &&
+      serviceKey &&
+      serviceKey !== "staging-build-check-placeholder" &&
+      process.env.NEXT_PUBLIC_SUPABASE_URL
+  );
+
+  if (canQueryAdminUsers) {
+    try {
+      const adminSupabase = createAdminSupabaseClient();
+      const table = adminSupabase.from("admin_users");
+      if (table && typeof table.select === "function") {
+        const { data } = await table
+          .select("role, active")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (data) {
+          const row = data as { role?: string; active?: boolean };
+          if (row.active === false) {
+            return null;
+          }
+          if (row.role === "owner" || row.role === "staff") {
+            return row.role;
+          }
+        }
+      }
+    } catch {
+      // Fallback to JWT/env resolution if DB lookup is mocked or unavailable
+    }
+  }
+
+  const fallbackRole = getAdminRole(user);
+  if (fallbackRole) return fallbackRole;
+
+  try {
+    if (user.email && user.email.toLowerCase() === getAdminEmail()) {
+      return "owner";
+    }
+  } catch {
+    // ADMIN_EMAIL not configured
+  }
+
+  return null;
 }
 
 export function stripVariantCostPrice<T extends Partial<ProductVariant>>(
@@ -71,22 +165,121 @@ export async function getCurrentUser() {
   return user;
 }
 
-export async function requireAdminPage() {
-  const user = await getCurrentUser();
+interface AdminSessionCheckResult {
+  user: AuthenticatedAdminUser | null;
+  role: AdminRole | null;
+  errorCode: "UNAUTHORIZED" | "SESSION_EXPIRED" | "MFA_REQUIRED" | null;
+}
 
-  if (!isAdminEmail(user?.email)) {
+async function inspectCurrentAdminSession(): Promise<AdminSessionCheckResult> {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { user: null, role: null, errorCode: "UNAUTHORIZED" };
+  }
+
+  const role = await resolveUserAdminRole(user);
+  if (!role) {
+    return { user: null, role: null, errorCode: "UNAUTHORIZED" };
+  }
+
+  // Enforce inactivity timeout when the signed activity cookie is present
+  try {
+    const cookieStore = await cookies();
+    const activityCookie = cookieStore.get(ADMIN_ACTIVITY_COOKIE)?.value;
+    if (activityCookie) {
+      const check = await verifyAdminActivityToken({
+        token: activityCookie,
+        userId: user.id
+      });
+      if (!check.valid || check.expired) {
+        await supabase.auth.signOut().catch(() => {});
+        return { user: null, role: null, errorCode: "SESSION_EXPIRED" };
+      }
+    }
+  } catch {
+    // Outside request cookie context (e.g. unit test without cookies())
+  }
+
+  // Enforce Supabase TOTP MFA (AAL2) for owner accounts
+  if (
+    role === "owner" &&
+    isOwnerMfaEnforced() &&
+    typeof supabase.auth.mfa?.getAuthenticatorAssuranceLevel === "function"
+  ) {
+    const { data: aalData } =
+      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aalData && aalData.currentLevel !== "aal2") {
+      return {
+        user: Object.assign(user, { adminRole: role }),
+        role,
+        errorCode: "MFA_REQUIRED"
+      };
+    }
+  }
+
+  return {
+    user: Object.assign(user, { adminRole: role }),
+    role,
+    errorCode: null
+  };
+}
+
+export async function requireAdminPage(options?: {
+  requiredRole?: AdminRole;
+}): Promise<AuthenticatedAdminUser> {
+  const session = await inspectCurrentAdminSession();
+
+  if (session.errorCode === "SESSION_EXPIRED") {
+    redirect("/login?reason=timeout");
+  }
+
+  if (!session.user || !session.role) {
     redirect("/login");
   }
 
-  return user;
+  if (session.errorCode === "MFA_REQUIRED") {
+    redirect("/login?mfa=required");
+  }
+
+  if (options?.requiredRole === "owner" && session.role !== "owner") {
+    redirect("/admin?denied=owner");
+  }
+
+  return session.user;
 }
 
-export async function assertAdminRequest() {
-  const user = await getCurrentUser();
+export async function requireOwnerPage(): Promise<AuthenticatedAdminUser> {
+  return requireAdminPage({ requiredRole: "owner" });
+}
 
-  if (!isAdminEmail(user?.email)) {
+export async function assertAdminRequest(options?: {
+  requiredRole?: AdminRole;
+}): Promise<AuthenticatedAdminUser> {
+  const session = await inspectCurrentAdminSession();
+
+  if (session.errorCode === "SESSION_EXPIRED") {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (!session.user || !session.role) {
     throw new Error("UNAUTHORIZED");
   }
 
-  return user;
+  if (session.errorCode === "MFA_REQUIRED") {
+    throw new Error("MFA_REQUIRED");
+  }
+
+  if (options?.requiredRole === "owner" && session.role !== "owner") {
+    throw new Error("FORBIDDEN");
+  }
+
+  return session.user;
+}
+
+export async function assertOwnerRequest(): Promise<AuthenticatedAdminUser> {
+  return assertAdminRequest({ requiredRole: "owner" });
 }

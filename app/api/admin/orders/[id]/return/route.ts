@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { getOrderDetailBundle } from "@/lib/data";
@@ -82,6 +83,25 @@ export async function POST(
 
     const detail = await getOrderDetailBundle(id);
 
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "order.returned",
+      entity: "order",
+      entityId: id,
+      after: {
+        orderNumber: data.order_number,
+        condition: payload.condition,
+        returnedUnits: Number(data.returned_units ?? 0),
+        restockedUnits: Number(data.restocked_units ?? 0),
+        returnedAmount: Number(data.returned_amount ?? 0),
+        note: payload.note ?? null
+      }
+    });
+
     return NextResponse.json({
       ok: true,
       returnedUnits: Number(data.returned_units ?? 0),
@@ -97,8 +117,12 @@ export async function POST(
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to record return.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
-

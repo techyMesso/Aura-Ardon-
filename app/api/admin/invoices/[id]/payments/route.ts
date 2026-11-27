@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { getInvoiceDetailBundle } from "@/lib/data";
 import { isValidMpesaCode, normalizeMpesaCode } from "@/lib/invoices";
@@ -102,6 +103,31 @@ export async function POST(
 
     const updated = await getInvoiceDetailBundle(existing.invoice.id);
 
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "payment.recorded",
+      entity: "payment",
+      entityId: data.payment_id,
+      before: {
+        invoiceId: existing.invoice.id,
+        status: existing.invoice.status,
+        amountPaid: existing.invoice.amount_paid
+      },
+      after: {
+        invoiceId: existing.invoice.id,
+        invoiceNumber: data.invoice_number,
+        amount: payload.amount,
+        method: payload.method,
+        receivedBy: payload.receivedBy,
+        invoiceStatus: data.invoice_status,
+        amountPaid: Number(data.amount_paid)
+      }
+    });
+
     return NextResponse.json(
       {
         ok: true,
@@ -120,8 +146,12 @@ export async function POST(
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to record payment.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
-

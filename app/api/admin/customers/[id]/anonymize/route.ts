@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { getCustomerDetailBundle } from "@/lib/data";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -57,6 +58,22 @@ export async function POST(
 
     const updated = await getCustomerDetailBundle(id);
 
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "customer.anonymized",
+      entity: "customer",
+      entityId: id,
+      after: {
+        anonymizedRef: data.anonymized_ref,
+        ordersAnonymized: Number(data.orders_anonymized ?? 0),
+        invoicesAnonymized: Number(data.invoices_anonymized ?? 0)
+      }
+    });
+
     return NextResponse.json({
       ok: true,
       anonymizedRef: data.anonymized_ref,
@@ -72,8 +89,12 @@ export async function POST(
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to anonymize customer.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
-

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { getOrderDetailBundle, getStoreSettings } from "@/lib/data";
 import { getAfricasTalkingSmsEnv } from "@/lib/env";
@@ -114,6 +115,23 @@ export async function POST(
         // Optional SMS must never fail a status transition
       }
     }
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "order.status_changed",
+      entity: "order",
+      entityId: id,
+      after: {
+        status: payload.status,
+        riderId: payload.riderId ?? null,
+        riderCost: payload.riderCost ?? null,
+        reason: payload.reason ?? null
+      }
+    });
 
     return NextResponse.json({ ok: true, ...detail });
   } catch (caughtError) {

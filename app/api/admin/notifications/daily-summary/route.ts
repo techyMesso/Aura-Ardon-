@@ -18,7 +18,7 @@ const querySchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    await assertAdminRequest();
+    await assertAdminRequest({ requiredRole: "owner" });
     const { searchParams } = new URL(request.url);
     const { date } = querySchema.parse({
       date: searchParams.get("date") ?? undefined
@@ -33,14 +33,19 @@ export async function GET(request: Request) {
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to load daily summary.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    await assertAdminRequest();
+    await assertAdminRequest({ requiredRole: "owner" });
     const body = (await request.json().catch(() => ({}))) as { date?: string };
     const { date } = querySchema.parse({ date: body.date });
     const targetDate = date ?? toNairobiDateIso(new Date());
@@ -54,7 +59,12 @@ export async function POST(request: Request) {
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to send daily summary.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }

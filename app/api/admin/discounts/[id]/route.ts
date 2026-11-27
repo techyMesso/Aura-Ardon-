@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { discountCodePayloadSchema } from "@/lib/discounts";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -22,7 +23,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await assertAdminRequest();
+    const adminUser = await assertAdminRequest({ requiredRole: "owner" });
     const { id } = idParamSchema.parse(await context.params);
     const body = (await request.json()) as unknown;
     const supabase = createAdminSupabaseClient();
@@ -70,6 +71,18 @@ export async function PATCH(
       throw new Error(error.message);
     }
 
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "owner",
+        role: "owner"
+      },
+      action: "discount.updated",
+      entity: "discount_code",
+      entityId: id,
+      after: data
+    });
+
     return NextResponse.json({ discount: data as DiscountCode });
   } catch (caughtError) {
     const message =
@@ -78,7 +91,12 @@ export async function PATCH(
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to update discount code.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
@@ -88,7 +106,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await assertAdminRequest();
+    const adminUser = await assertAdminRequest({ requiredRole: "owner" });
     const { id } = idParamSchema.parse(await context.params);
     const supabase = createAdminSupabaseClient();
 
@@ -105,6 +123,18 @@ export async function DELETE(
           .update({ active: false } as never)
           .eq("id", id);
 
+        await recordAuditLog({
+          actor: {
+            id: adminUser?.id ?? null,
+            email: adminUser?.email ?? "owner",
+            role: "owner"
+          },
+          action: "discount.deactivated",
+          entity: "discount_code",
+          entityId: id,
+          after: { active: false }
+        });
+
         return NextResponse.json({
           ok: true,
           deactivated: true,
@@ -115,6 +145,17 @@ export async function DELETE(
       throw new Error(error.message);
     }
 
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "owner",
+        role: "owner"
+      },
+      action: "discount.deleted",
+      entity: "discount_code",
+      entityId: id
+    });
+
     return NextResponse.json({ ok: true, deactivated: false });
   } catch (caughtError) {
     const message =
@@ -123,7 +164,12 @@ export async function DELETE(
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to delete discount code.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }

@@ -1,4 +1,5 @@
 import { DiscountManager } from "@/components/admin/discount-manager";
+import { requireOwnerPage } from "@/lib/auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import type { DiscountCode } from "@/lib/types";
 
@@ -8,6 +9,7 @@ export const metadata = {
 };
 
 export default async function AdminDiscountsPage() {
+  await requireOwnerPage();
   const supabase = createAdminSupabaseClient();
   const { data } = await supabase
     .from("discount_codes")

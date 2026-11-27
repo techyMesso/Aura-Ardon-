@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { getStoreSettings, saveStoreSettings } from "@/lib/data";
 import {
@@ -69,7 +70,7 @@ function buildNotificationIntegrationStatus() {
 
 export async function GET() {
   try {
-    await assertAdminRequest();
+    await assertAdminRequest({ requiredRole: "owner" });
     const settings = await getStoreSettings();
     return NextResponse.json({
       settings,
@@ -78,14 +79,19 @@ export async function GET() {
   } catch (caughtError) {
     const message =
       caughtError instanceof Error ? caughtError.message : "Unable to load store settings.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    await assertAdminRequest();
+    const adminUser = await assertAdminRequest({ requiredRole: "owner" });
     const payload = updateSettingsSchema.parse(await request.json());
     const current = await getStoreSettings();
 
@@ -139,6 +145,18 @@ export async function PATCH(request: Request) {
     }
 
     const settings = await saveStoreSettings(updates);
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "owner",
+        role: "owner"
+      },
+      action: "settings.updated",
+      entity: "store_settings",
+      entityId: "singleton",
+      before: current,
+      after: settings
+    });
     return NextResponse.json({
       settings,
       notifications: buildNotificationIntegrationStatus()
@@ -150,7 +168,12 @@ export async function PATCH(request: Request) {
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to save store settings.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }

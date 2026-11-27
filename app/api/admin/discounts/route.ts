@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { discountCodePayloadSchema } from "@/lib/discounts";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -11,7 +12,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    await assertAdminRequest();
+    await assertAdminRequest({ requiredRole: "owner" });
     const supabase = createAdminSupabaseClient();
     const { data, error } = await supabase
       .from("discount_codes")
@@ -26,14 +27,19 @@ export async function GET() {
       caughtError instanceof Error
         ? caughtError.message
         : "Unable to load discount codes.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    await assertAdminRequest();
+    const adminUser = await assertAdminRequest({ requiredRole: "owner" });
     const payload = discountCodePayloadSchema.parse(await request.json());
     const supabase = createAdminSupabaseClient();
 
@@ -68,6 +74,18 @@ export async function POST(request: Request) {
       throw new Error(error.message);
     }
 
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "owner",
+        role: "owner"
+      },
+      action: "discount.created",
+      entity: "discount_code",
+      entityId: (data as DiscountCode).id,
+      after: data
+    });
+
     return NextResponse.json({ discount: data as DiscountCode }, { status: 201 });
   } catch (caughtError) {
     const message =
@@ -76,7 +94,12 @@ export async function POST(request: Request) {
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to create discount code.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }

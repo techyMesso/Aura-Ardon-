@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { normalizeCustomerTags } from "@/lib/customers";
 import { getCustomerDetailBundle } from "@/lib/data";
@@ -52,7 +53,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await assertAdminRequest();
+    const adminUser = await assertAdminRequest();
     const { id } = idParamSchema.parse(await context.params);
     const payload = customerUpdateSchema.parse(await request.json());
 
@@ -99,6 +100,24 @@ export async function PATCH(
     if (error || !data) {
       throw new Error(error?.message ?? "Unable to update customer.");
     }
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "admin",
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "customer.updated",
+      entity: "customer",
+      entityId: id,
+      before: {
+        is_flagged: existing.customer.is_flagged,
+        is_blocked: existing.customer.is_blocked,
+        marketing_opt_in: existing.customer.marketing_opt_in,
+        tags: existing.customer.tags
+      },
+      after: updates
+    });
 
     return NextResponse.json({ ok: true, customer: data as Customer });
   } catch (caughtError) {

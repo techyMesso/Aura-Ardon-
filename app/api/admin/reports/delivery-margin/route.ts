@@ -28,7 +28,7 @@ const querySchema = z
 
 export async function GET(request: Request) {
   try {
-    await assertAdminRequest();
+    await assertAdminRequest({ requiredRole: "owner" });
     const { searchParams } = new URL(request.url);
     const parsed = querySchema.parse({
       from: searchParams.get("from") ?? undefined,
@@ -62,7 +62,12 @@ export async function GET(request: Request) {
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to load delivery margin report.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }

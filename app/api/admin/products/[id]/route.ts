@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import {
   assertAdminRequest,
   isOwnerUser,
@@ -195,6 +196,24 @@ export async function PATCH(
       ? (data as Product)
       : stripProductCostPrice(data as Product);
 
+    const priceChanged =
+      payload.price !== undefined ||
+      payload.compare_at_price !== undefined ||
+      payload.cost_price !== undefined;
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "admin",
+        role: canManageCost ? "owner" : "staff"
+      },
+      action: priceChanged ? "product.price_updated" : "product.updated",
+      entity: "product",
+      entityId: id,
+      before: existingRow,
+      after: updates
+    });
+
     const slugChanged = Boolean(
       existingRow.slug &&
         updates.slug &&
@@ -228,7 +247,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await assertAdminRequest();
+    const adminUser = await assertAdminRequest();
     const { id } = z.object({ id: z.string().uuid() }).parse(await context.params);
     const { searchParams } = new URL(request.url);
     const archiveIfOrdered = searchParams.get("archiveIfOrdered") === "1";
@@ -255,6 +274,17 @@ export async function DELETE(
         }
 
         revalidateProductCatalog();
+        await recordAuditLog({
+          actor: {
+            id: adminUser?.id ?? null,
+            email: adminUser?.email ?? "admin",
+            role: isOwnerUser(adminUser) ? "owner" : "staff"
+          },
+          action: "product.archived",
+          entity: "product",
+          entityId: id,
+          after: { status: "archived", active: false }
+        });
         return NextResponse.json({
           ok: true,
           archived: true,
@@ -329,6 +359,17 @@ export async function DELETE(
     }
 
     revalidateProductCatalog();
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "admin",
+        role: isOwnerUser(adminUser) ? "owner" : "staff"
+      },
+      action: "product.deleted",
+      entity: "product",
+      entityId: id
+    });
 
     return NextResponse.json({ ok: true, deleted: true });
   } catch (caughtError) {

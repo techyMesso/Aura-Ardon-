@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { buildSiteUrl } from "@/lib/env";
+import { ADMIN_ACTIVITY_COOKIE } from "@/lib/session-timeout";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
@@ -15,5 +16,7 @@ export async function POST(request: Request) {
     }
   })();
 
-  return NextResponse.redirect(buildSiteUrl("/", origin));
+  const response = NextResponse.redirect(buildSiteUrl("/", origin));
+  response.cookies.delete(ADMIN_ACTIVITY_COOKIE);
+  return response;
 }

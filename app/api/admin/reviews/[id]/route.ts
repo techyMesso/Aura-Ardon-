@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateReviews } from "@/lib/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -52,6 +53,21 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
 
     revalidateReviews();
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "admin",
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "review.moderated",
+      entity: "review",
+      entityId: reviewId,
+      after: {
+        status: payload.status,
+        moderationNote: payload.moderationNote?.trim() || null
+      }
+    });
 
     return NextResponse.json({
       review: data

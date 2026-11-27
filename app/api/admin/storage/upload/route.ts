@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { assertAdminRequest } from "@/lib/auth";
 import { logger } from "@/lib/logger";
+import { stripMetadataSegmentsFallback } from "@/lib/reviews";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -113,6 +114,12 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+      if (value.size === 0) {
+        return NextResponse.json(
+          { error: `"${value.name}" is empty.` },
+          { status: 400 }
+        );
+      }
       if (value.size > MAX_FILE_SIZE) {
         return NextResponse.json(
           {
@@ -122,8 +129,14 @@ export async function POST(request: Request) {
         );
       }
 
-      const buffer = Buffer.from(await value.arrayBuffer());
-      const detectedMime = detectImageMimeType(buffer);
+      const rawBuffer = Buffer.from(await value.arrayBuffer());
+      if (rawBuffer.length === 0 || rawBuffer.length > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { error: `"${value.name}" exceeds the 5 MB upload size limit.` },
+          { status: 400 }
+        );
+      }
+      const detectedMime = detectImageMimeType(rawBuffer);
       if (!detectedMime) {
         return NextResponse.json(
           {
@@ -133,9 +146,17 @@ export async function POST(request: Request) {
         );
       }
 
+      // Strip EXIF/GPS camera metadata from uploaded JPEG and PNG studio photos
+      const cleanBuffer =
+        detectedMime === "image/jpeg"
+          ? stripMetadataSegmentsFallback(rawBuffer, "jpeg")
+          : detectedMime === "image/png"
+            ? stripMetadataSegmentsFallback(rawBuffer, "png")
+            : rawBuffer;
+
       preparedFiles.push({
         name: value.name,
-        buffer,
+        buffer: cleanBuffer,
         contentType: detectedMime
       });
     }

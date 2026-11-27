@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import {
   assertAdminRequest,
   isOwnerUser,
@@ -130,6 +131,24 @@ export async function PATCH(
     const variant = canManageCost
       ? (data as ProductVariant)
       : stripVariantCostPrice(data as ProductVariant);
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: adminUser?.email ?? "admin",
+        role: canManageCost ? "owner" : "staff"
+      },
+      action:
+        payload.price_override !== undefined ||
+        payload.compare_at_price !== undefined ||
+        payload.cost_price !== undefined
+          ? "variant.price_updated"
+          : "variant.updated",
+      entity: "variant",
+      entityId: variantId,
+      before: existingRow,
+      after: updates
+    });
 
     return NextResponse.json({ variant });
   } catch (caughtError) {

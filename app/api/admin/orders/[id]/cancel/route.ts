@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { getOrderDetailBundle } from "@/lib/data";
@@ -73,6 +74,23 @@ export async function POST(
 
     const detail = await getOrderDetailBundle(id);
 
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "order.cancelled",
+      entity: "order",
+      entityId: id,
+      after: {
+        orderNumber: data.order_number,
+        reason: payload.reason,
+        note: payload.note ?? null,
+        restockedItemsCount: Number(data.restocked_items_count ?? 0)
+      }
+    });
+
     return NextResponse.json({
       ok: true,
       restockedItemsCount: Number(data.restocked_items_count ?? 0),
@@ -87,8 +105,12 @@ export async function POST(
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to cancel order.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
-

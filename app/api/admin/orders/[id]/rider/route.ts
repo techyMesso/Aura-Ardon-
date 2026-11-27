@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { getOrderDetailBundle } from "@/lib/data";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -62,6 +63,21 @@ export async function PATCH(
     if (!detail) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "order.rider_assigned",
+      entity: "order",
+      entityId: id,
+      after: {
+        riderId: payload.riderId ?? null,
+        riderCost: payload.riderCost ?? null
+      }
+    });
 
     return NextResponse.json({ ok: true, ...detail });
   } catch (caughtError) {

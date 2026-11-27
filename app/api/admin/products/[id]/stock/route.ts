@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { revalidateProductCatalog } from "@/lib/cache";
 import { listBackInStockAlerts, listProductStockMovements } from "@/lib/data";
@@ -104,6 +105,24 @@ export async function POST(
     }
 
     revalidateProductCatalog();
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "stock.adjusted",
+      entity: "stock",
+      entityId: id,
+      after: {
+        productId: id,
+        change: payload.change,
+        newStockQuantity: Number(data.new_stock_quantity),
+        type: payload.type,
+        note: payload.note,
+        movementId: data.movement_id
+      }
+    });
     const [ledger, waitingAlerts] = await Promise.all([
       listProductStockMovements(id),
       Number(data.new_stock_quantity) > 0 && typeof listBackInStockAlerts === "function"

@@ -14,7 +14,9 @@ import {
   MoreHorizontal,
   Package,
   Plus,
+  ScrollText,
   Settings,
+  ShieldCheck,
   Star,
   Store,
   Tag,
@@ -25,22 +27,25 @@ import {
 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import type { AdminRole } from "@/lib/auth";
 
 const PRIMARY_ITEMS = [
-  { href: "/admin", label: "Dashboard", Icon: LayoutDashboard },
-  { href: "/admin/products", label: "Products", Icon: Package },
-  { href: "/admin/categories", label: "Categories", Icon: FolderTree },
-  { href: "/admin/orders", label: "Orders", Icon: ClipboardList },
-  { href: "/admin/riders", label: "Delivery & Riders", Icon: Truck },
-  { href: "/admin/customers", label: "Customers", Icon: Users },
-  { href: "/admin/discounts", label: "Discounts", Icon: Tag },
-  { href: "/admin/reviews", label: "Reviews", Icon: Star }
+  { href: "/admin", label: "Dashboard", Icon: LayoutDashboard, ownerOnly: false },
+  { href: "/admin/products", label: "Products", Icon: Package, ownerOnly: false },
+  { href: "/admin/categories", label: "Categories", Icon: FolderTree, ownerOnly: false },
+  { href: "/admin/orders", label: "Orders", Icon: ClipboardList, ownerOnly: false },
+  { href: "/admin/riders", label: "Delivery & Riders", Icon: Truck, ownerOnly: false },
+  { href: "/admin/customers", label: "Customers", Icon: Users, ownerOnly: false },
+  { href: "/admin/discounts", label: "Discounts", Icon: Tag, ownerOnly: true },
+  { href: "/admin/reviews", label: "Reviews", Icon: Star, ownerOnly: false }
 ];
 
 const REPORT_ITEMS = [
-  { href: "/admin#sales-overview", label: "Analytics", Icon: BarChart3 },
-  { href: "/admin/invoices", label: "Invoices", Icon: FileText },
-  { href: "/admin/settings", label: "Settings & Alerts", Icon: Settings }
+  { href: "/admin#sales-overview", label: "Analytics", Icon: BarChart3, ownerOnly: false },
+  { href: "/admin/invoices", label: "Invoices", Icon: FileText, ownerOnly: false },
+  { href: "/admin/settings", label: "Settings & Alerts", Icon: Settings, ownerOnly: true },
+  { href: "/admin/users", label: "Team & Roles", Icon: ShieldCheck, ownerOnly: true },
+  { href: "/admin/audit", label: "Audit Log", Icon: ScrollText, ownerOnly: true }
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -53,7 +58,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/discounts": "Discounts",
   "/admin/reviews": "Reviews",
   "/admin/invoices": "Invoices",
-  "/admin/settings": "Settings & Alerts"
+  "/admin/settings": "Settings & Alerts",
+  "/admin/users": "Team & Roles",
+  "/admin/audit": "Audit Log"
 };
 
 function matchesRoute(pathname: string, href: string) {
@@ -105,14 +112,26 @@ function AdminNavLink({
   );
 }
 
-export function AdminNavigation({ email }: { email: string | null | undefined }) {
+export function AdminNavigation({
+  email,
+  role = "owner"
+}: {
+  email: string | null | undefined;
+  role?: AdminRole;
+}) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstDrawerLinkRef = useRef<HTMLAnchorElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const pageTitle = getPageTitle(pathname);
-  const moreActive = REPORT_ITEMS.some(item => matchesRoute(pathname, item.href));
+  const visiblePrimaryItems = PRIMARY_ITEMS.filter(
+    item => !item.ownerOnly || role === "owner"
+  );
+  const visibleReportItems = REPORT_ITEMS.filter(
+    item => !item.ownerOnly || role === "owner"
+  );
+  const moreActive = visibleReportItems.some(item => matchesRoute(pathname, item.href));
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -156,7 +175,7 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
         Workspace
       </p>
       <div className="space-y-1">
-        {PRIMARY_ITEMS.map((item, index) => (
+        {visiblePrimaryItems.map((item, index) => (
           <AdminNavLink
             key={item.href}
             {...item}
@@ -170,7 +189,7 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
         Reports &amp; Settings
       </p>
       <div className="space-y-1">
-        {REPORT_ITEMS.map(item => (
+        {visibleReportItems.map(item => (
           <AdminNavLink
             key={item.href}
             {...item}
@@ -204,7 +223,9 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
               <UserRound className="h-4 w-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-text">Administrator</p>
+              <p className="text-sm font-medium text-text">
+                {role === "owner" ? "Owner" : "Staff"}
+              </p>
               <p className="truncate text-xs text-muted">{email}</p>
             </div>
           </div>
@@ -345,7 +366,7 @@ export function AdminNavigation({ email }: { email: string | null | undefined })
         className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-paper/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-text backdrop-blur md:hidden"
         aria-label="Admin quick navigation"
       >
-        {PRIMARY_ITEMS.filter(
+        {visiblePrimaryItems.filter(
           item =>
             item.label !== "Categories" &&
             item.label !== "Discounts" &&

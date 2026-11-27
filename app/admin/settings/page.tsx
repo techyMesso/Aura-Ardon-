@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { StoreSettingsHub } from "@/components/admin/store-settings-hub";
-import { requireAdminPage } from "@/lib/auth";
+import { requireOwnerPage } from "@/lib/auth";
 import {
   getDailySummaryReportData,
   getStoreSettings,
@@ -20,7 +20,7 @@ export const metadata = {
 };
 
 export default async function AdminSettingsPage() {
-  const adminUser = await requireAdminPage();
+  const adminUser = await requireOwnerPage();
   const todayIso = toNairobiDateIso(new Date());
 
   const [settings, subscriptions, dailySummary] = await Promise.all([

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAuditLog } from "@/lib/audit";
 import { assertAdminRequest } from "@/lib/auth";
 import { getInvoiceDetailBundle } from "@/lib/data";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -64,6 +65,23 @@ export async function POST(
     }
 
     const updated = await getInvoiceDetailBundle(existing.invoice.id);
+
+    await recordAuditLog({
+      actor: {
+        id: adminUser?.id ?? null,
+        email: actor,
+        role: adminUser?.adminRole ?? "owner"
+      },
+      action: "credit_note.issued",
+      entity: "credit_note",
+      entityId: (data as { id?: string })?.id ?? existing.invoice.id,
+      after: {
+        invoiceId: existing.invoice.id,
+        reason: payload.reason,
+        amount: payload.amount
+      }
+    });
+
     return NextResponse.json(
       { ok: true, creditNote: data, ...(updated ?? {}) },
       { status: 201 }
@@ -75,8 +93,12 @@ export async function POST(
         : caughtError instanceof Error
           ? caughtError.message
           : "Unable to issue credit note.";
-    const status = message === "UNAUTHORIZED" ? 401 : 400;
+    const status =
+      message === "UNAUTHORIZED" || message === "SESSION_EXPIRED"
+        ? 401
+        : message === "FORBIDDEN" || message === "MFA_REQUIRED"
+          ? 403
+          : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
-
