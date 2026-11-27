@@ -22,7 +22,7 @@ Configure an external uptime monitor (e.g., **Better Stack Uptime**, **UptimeRob
 
 ## Error Tracking (Sentry with PII Scrubbing)
 - Client, server, and edge errors are reported to Sentry when `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` are configured.
-- `sendDefaultPii` is explicitly set to `false`, and `lib/sentry-scrub.ts` strips Kenyan phone numbers (`+2547...`, `07...`, `01...`), customer addresses, names, emails, cookies, IP addresses, and auth headers before any event is transmitted.
+- Sentry v11 does not send default PII, and `lib/sentry-scrub.ts` (`beforeSend`) strips Kenyan phone numbers (`+2547...`, `07...`, `01...`), customer addresses, names, emails, cookies, IP addresses, query strings, and auth headers before any event is transmitted.
 
 ---
 
@@ -44,9 +44,8 @@ See [docs/BACKUP.md](./BACKUP.md) for Supabase PITR configuration, the automated
 ## Branch Protection & CI Gates
 In GitHub Repository → **Settings → Branches → Branch protection rules** for `main`:
 1. Enable **Require a pull request before merging**.
-2. Enable **Require status checks to pass before merging** and mark these checks required:
-   - `Validate (typecheck, lint, unit & integration, build)`
-   - `Playwright E2E (mobile + desktop)`
+2. Enable **Require status checks to pass before merging** and mark this check required:
+   - `Validate & E2E` (runs install, typecheck, lint, unit + integration tests, production build + client secret scan, and Playwright desktop + mobile E2E)
 3. Enable **Require branches to be up to date before merging**.
 
 ---
