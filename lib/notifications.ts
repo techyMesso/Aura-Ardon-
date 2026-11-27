@@ -46,6 +46,7 @@ export interface WebPushSendResult {
   deactivated: number;
   skipped?: boolean;
   reason?: string;
+  errors?: string[];
 }
 
 export interface SmsSendResult {
@@ -103,13 +104,24 @@ export async function sendResendEmail(params: {
 
     if (!response.ok) {
       const errText = await response.text().catch(() => "");
+      let detail = errText.trim();
+      if (detail) {
+        try {
+          const parsed = JSON.parse(detail) as { message?: string; error?: string };
+          detail = parsed.message || parsed.error || detail;
+        } catch {
+          // Keep plain text error response
+        }
+      }
       logger.warn("Resend email delivery failed", {
         status: response.status,
         error: errText.slice(0, 300)
       });
       return {
         sent: false,
-        error: `Resend HTTP ${response.status}`
+        error: detail
+          ? `Resend HTTP ${response.status}: ${detail.slice(0, 220)}`
+          : `Resend HTTP ${response.status}`
       };
     }
 
@@ -262,6 +274,7 @@ export async function sendAdminWebPush(params: {
     let sent = 0;
     let failed = 0;
     let deactivated = 0;
+    const errors: string[] = [];
     const nowIso = new Date().toISOString();
 
     await Promise.allSettled(
@@ -291,30 +304,43 @@ export async function sendAdminWebPush(params: {
             "statusCode" in pushError
               ? Number((pushError as { statusCode?: unknown }).statusCode)
               : 0;
+          const rawMessage =
+            pushError instanceof Error ? pushError.message : String(pushError);
           if (statusCode === 404 || statusCode === 410) {
             deactivated += 1;
+            errors.push(
+              `Push subscription expired (HTTP ${statusCode}) and was deactivated.`
+            );
             await supabase
               .from("admin_push_subscriptions")
               .update({ active: false } as never)
               .eq("id", sub.id);
           } else {
+            errors.push(
+              statusCode
+                ? `Push HTTP ${statusCode}: ${rawMessage.slice(0, 180)}`
+                : rawMessage.slice(0, 180)
+            );
             logger.warn("Admin web push delivery failed", {
               subscriptionId: sub.id,
               statusCode: statusCode || undefined,
-              error:
-                pushError instanceof Error ? pushError.message : String(pushError)
+              error: rawMessage
             });
           }
         }
       })
     );
 
-    return { sent, failed, deactivated };
+    return errors.length > 0
+      ? { sent, failed, deactivated, errors }
+      : { sent, failed, deactivated };
   } catch (caughtError) {
+    const rawMessage =
+      caughtError instanceof Error ? caughtError.message : String(caughtError);
     logger.warn("Admin web push dispatch failed", {
-      error: caughtError instanceof Error ? caughtError.message : String(caughtError)
+      error: rawMessage
     });
-    return { sent: 0, failed: 1, deactivated: 0 };
+    return { sent: 0, failed: 1, deactivated: 0, errors: [rawMessage] };
   }
 }
 
@@ -765,6 +791,144 @@ export async function sendDailySummaryNotifications(
       pushRes.status === "fulfilled"
         ? pushRes.value
         : { sent: 0, failed: 1, deactivated: 0 }
+  };
+}
+
+export interface TestAlertEmailChannelResult {
+  configured: boolean;
+  toEmail: string | null;
+  sent: boolean;
+  skipped: boolean;
+  id?: string;
+  error?: string;
+}
+
+export interface TestAlertPushChannelResult {
+  configured: boolean;
+  deviceCount: number;
+  sent: number;
+  failed: number;
+  deactivated: number;
+  skipped: boolean;
+  error?: string;
+  errors?: string[];
+}
+
+export interface TestAdminAlertResult {
+  ok: boolean;
+  email: TestAlertEmailChannelResult;
+  push: TestAlertPushChannelResult;
+}
+
+/**
+ * Sends a test alert across configured notification channels (Resend email and/or Admin Web Push)
+ * and reports per-channel success or exact failure reasons.
+ */
+export async function sendAdminTestAlert(params?: {
+  actorEmail?: string | null;
+}): Promise<TestAdminAlertResult> {
+  const resendEnv = getResendEnv();
+  const vapidEnv = getWebPushVapidEnv();
+  const triggeredBy = params?.actorEmail?.trim() || "store owner";
+  const timestamp = new Date().toLocaleString("en-KE", {
+    timeZone: "Africa/Nairobi",
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+
+  const emailPromise: Promise<TestAlertEmailChannelResult> = resendEnv
+    ? sendResendEmail({
+        subject: `Test alert — ${SITE_NAME} order notifications`,
+        text: [
+          `${SITE_NAME} — Test Alert`,
+          "",
+          `Triggered by: ${triggeredBy}`,
+          `Time (EAT): ${timestamp}`,
+          "",
+          "If you received this email, new-order email alerts are working.",
+          `Settings: ${SITE_URL}/admin/settings?tab=alerts`
+        ].join("\n"),
+        html: `
+          <div style="font-family:system-ui,-apple-system,sans-serif;color:#1A1216;max-width:560px;margin:0 auto;padding:20px;">
+            <p style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#B8923E;margin:0;">${escapeHtml(
+              SITE_NAME
+            )} · TEST ALERT</p>
+            <h1 style="font-family:Georgia,serif;font-size:22px;margin:8px 0 12px;">Order email alerts are working</h1>
+            <p style="font-size:14px;line-height:1.5;margin:0 0 12px;">
+              This test alert was triggered by <strong>${escapeHtml(
+                triggeredBy
+              )}</strong> on ${escapeHtml(timestamp)} EAT.
+            </p>
+            <p style="margin-top:16px;">
+              <a href="${escapeHtml(
+                `${SITE_URL}/admin/settings?tab=alerts`
+              )}" style="display:inline-block;background:#1A1216;color:#FFFFFF;text-decoration:none;padding:10px 16px;font-size:13px;font-weight:600;">Open Alert Settings</a>
+            </p>
+          </div>
+        `.trim()
+      }).then(res => ({
+        configured: true,
+        toEmail: resendEnv.toEmail,
+        sent: res.sent,
+        skipped: Boolean(res.skipped),
+        id: res.id,
+        error: res.error
+      }))
+    : Promise.resolve({
+        configured: false,
+        toEmail: null,
+        sent: false,
+        skipped: true,
+        error:
+          "Email alerts are not configured (set RESEND_API_KEY and ORDER_NOTIFY_EMAIL)."
+      });
+
+  const pushPromise: Promise<TestAlertPushChannelResult> = vapidEnv
+    ? sendAdminWebPush({
+        title: `${SITE_NAME} — Test Alert`,
+        body: `Push notifications are active (${timestamp} EAT).`,
+        url: "/admin/settings?tab=alerts",
+        tag: `admin-test-alert-${Date.now()}`
+      }).then(res => {
+        const deviceCount = res.sent + res.failed;
+        let error: string | undefined;
+        if (res.skipped && res.reason === "no_active_subscriptions") {
+          error =
+            "No subscribed push devices yet. Install the Admin PWA and tap 'Enable push on this device' on your phone.";
+        } else if (res.skipped && res.reason === "query_error") {
+          error = "Unable to read subscribed push devices from the database.";
+        } else if (res.sent === 0 && res.failed > 0) {
+          error =
+            res.errors?.[0] ?? "Web push delivery failed for all subscribed devices.";
+        }
+        return {
+          configured: true,
+          deviceCount,
+          sent: res.sent,
+          failed: res.failed,
+          deactivated: res.deactivated,
+          skipped: Boolean(res.skipped),
+          error,
+          errors: res.errors
+        };
+      })
+    : Promise.resolve({
+        configured: false,
+        deviceCount: 0,
+        sent: 0,
+        failed: 0,
+        deactivated: 0,
+        skipped: true,
+        error:
+          "Web Push is not configured (set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY)."
+      });
+
+  const [email, push] = await Promise.all([emailPromise, pushPromise]);
+
+  return {
+    ok: email.sent || push.sent > 0,
+    email,
+    push
   };
 }
 

@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { logger } from "@/lib/logger";
 
@@ -10,6 +10,19 @@ function safelyRevalidate(tags: string[]) {
       // A committed write must not be reported as failed because cache refresh failed.
       logger.warn?.("Storefront cache tag could not be revalidated", {
         tag,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+}
+
+function safelyRevalidatePaths(paths: string[]) {
+  for (const path of paths) {
+    try {
+      revalidatePath(path);
+    } catch (error) {
+      logger.warn?.("Route path could not be revalidated", {
+        path,
         error: error instanceof Error ? error.message : String(error)
       });
     }
@@ -30,6 +43,13 @@ export function revalidateStoreSettings() {
 
 export function revalidateDeliveryZones() {
   safelyRevalidate(["delivery-zones"]);
+  safelyRevalidatePaths([
+    "/checkout",
+    "/shipping",
+    "/faq",
+    "/admin/riders",
+    "/admin/settings"
+  ]);
 }
 
 export function revalidateReviews() {

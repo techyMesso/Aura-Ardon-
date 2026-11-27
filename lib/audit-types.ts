@@ -47,6 +47,8 @@ export const AUDIT_ENTITY_OPTIONS = [
   "payment",
   "credit_note",
   "store_settings",
+  "delivery_zone",
+  "notification",
   "discount_code",
   "admin_user",
   "customer",

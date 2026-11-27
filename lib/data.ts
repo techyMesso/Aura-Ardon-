@@ -38,6 +38,7 @@ import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeKenyanPhoneNumber } from "@/lib/utils";
 import type {
   AdminAnalytics,
+  AdminDeliveryZone,
   AdminPushSubscription,
   AdminReviewRecord,
   AnalyticsDashboardReport,
@@ -760,6 +761,32 @@ export async function listAllDeliveryZones(): Promise<DeliveryZone[]> {
     is_outside_nairobi: Boolean(row.is_outside_nairobi),
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? "")
+  }));
+}
+
+export async function listAdminDeliveryZonesWithCounts(): Promise<AdminDeliveryZone[]> {
+  const supabase = createAdminSupabaseClient();
+  const [zones, ordersRes] = await Promise.all([
+    listAllDeliveryZones(),
+    supabase
+      .from("orders")
+      .select("delivery_zone_id")
+      .not("delivery_zone_id", "is", null)
+  ]);
+
+  if (ordersRes.error) {
+    throw new Error(ordersRes.error.message);
+  }
+
+  const counts = new Map<string, number>();
+  for (const row of (ordersRes.data ?? []) as Array<{ delivery_zone_id?: string | null }>) {
+    if (!row.delivery_zone_id) continue;
+    counts.set(row.delivery_zone_id, (counts.get(row.delivery_zone_id) ?? 0) + 1);
+  }
+
+  return zones.map(zone => ({
+    ...zone,
+    order_count: counts.get(zone.id) ?? 0
   }));
 }
 
@@ -1872,6 +1899,23 @@ export async function listAdminPushSubscriptions(
   }
 
   return (data ?? []) as unknown as AdminPushSubscription[];
+}
+
+export async function countActiveAdminPushSubscriptions(): Promise<number> {
+  const supabase = createAdminSupabaseClient();
+  const { count, error } = await supabase
+    .from("admin_push_subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("active", true);
+
+  if (error) {
+    logger.warn("Unable to count active admin push subscriptions", {
+      error: error.message
+    });
+    return 0;
+  }
+
+  return count ?? 0;
 }
 
 export async function getDailySummaryReportData(

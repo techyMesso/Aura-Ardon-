@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   ArrowUpRight,
+  BellOff,
   CheckCircle2,
   ClipboardList,
   Clock,
@@ -37,6 +38,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCancelReasonLabel } from "@/lib/admin-orders";
 import {
+  ALERT_HEALTH_DISMISS_STORAGE_KEY,
+  ALERT_HEALTH_WARNING_TEXT,
+  type AlertHealthStatus,
+  getNairobiDateKey,
+  isAlertHealthDismissedForToday
+} from "@/lib/alert-health";
+import {
   buildCsvContent,
   computePercentDelta,
   formatHoursDuration
@@ -51,6 +59,7 @@ import { formatCurrency } from "@/lib/utils";
 interface AnalyticsDashboardProps {
   initialPreset: AnalyticsDatePreset;
   initialReport: AnalyticsDashboardReport;
+  alertHealth?: AlertHealthStatus;
 }
 
 type InventoryTab = "out_of_stock" | "low_stock" | "at_risk" | "dead_stock" | "sell_through";
@@ -150,7 +159,8 @@ function formatNairobiDate(value: string) {
 
 export function AnalyticsDashboard({
   initialPreset,
-  initialReport
+  initialReport,
+  alertHealth
 }: AnalyticsDashboardProps) {
   const [preset, setPreset] = useState<AnalyticsDatePreset>(initialPreset);
   const [customFrom, setCustomFrom] = useState(initialReport.range.from);
@@ -159,6 +169,33 @@ export function AnalyticsDashboard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inventoryTab, setInventoryTab] = useState<InventoryTab>("out_of_stock");
+  const [alertWarningDismissed, setAlertWarningDismissed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const storedDate = window.localStorage.getItem(
+        ALERT_HEALTH_DISMISS_STORAGE_KEY
+      );
+      if (isAlertHealthDismissedForToday(storedDate, getNairobiDateKey())) {
+        setAlertWarningDismissed(true);
+      }
+    } catch {
+      // Ignore storage failures in private browsing
+    }
+  }, []);
+
+  function handleDismissAlertWarningForToday() {
+    setAlertWarningDismissed(true);
+    try {
+      window.localStorage.setItem(
+        ALERT_HEALTH_DISMISS_STORAGE_KEY,
+        getNairobiDateKey()
+      );
+    } catch {
+      // Ignore storage failures
+    }
+  }
 
   // Quick "Adjust stock" modal state
   const [adjustTarget, setAdjustTarget] = useState<{
@@ -270,6 +307,11 @@ export function AnalyticsDashboard({
     attention.dispatched_over_3d_count +
     attention.unpaid_delivered_invoices_count +
     attention.reviews_pending_moderation_count;
+
+  const showAlertHealthWarning = Boolean(
+    alertHealth && !alertHealth.hasActiveChannel && !alertWarningDismissed
+  );
+  const hasAttentionAlert = totalAttentionCount > 0 || showAlertHealthWarning;
 
   const dateTag = `${report.range.from}-to-${report.range.to}`;
 
@@ -387,14 +429,48 @@ export function AnalyticsDashboard({
       <section
         aria-label="Needs attention"
         className={`border p-4 sm:p-5 ${
-          totalAttentionCount > 0
+          hasAttentionAlert
             ? "border-amber-400/60 bg-amber-50/40 dark:bg-amber-950/20"
             : "border-emerald-400/40 bg-emerald-500/5"
         }`}
       >
+        {showAlertHealthWarning ? (
+          <div
+            role="alert"
+            className="mb-4 flex flex-col gap-3 rounded-[2px] border border-red-400/70 bg-red-500/10 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex items-start gap-2.5">
+              <BellOff
+                className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400"
+                aria-hidden
+              />
+              <div className="space-y-1 text-sm">
+                <p className="font-semibold text-red-700 dark:text-red-300">
+                  {ALERT_HEALTH_WARNING_TEXT}
+                </p>
+                <Link
+                  href="/admin/settings?tab=alerts"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-brass underline underline-offset-4 hover:text-text"
+                >
+                  Open Settings → Alerts
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDismissAlertWarningForToday}
+              className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 self-start rounded-[2px] border border-red-400/50 bg-paper px-3 text-xs font-medium text-text transition hover:border-brass hover:text-brass sm:self-center"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+              Dismiss for today
+            </button>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            {totalAttentionCount > 0 ? (
+            {hasAttentionAlert ? (
               <AlertTriangle
                 className="h-5 w-5 text-amber-700 dark:text-amber-300"
                 aria-hidden
@@ -406,7 +482,7 @@ export function AnalyticsDashboard({
               />
             )}
             <h3 className="font-serif text-2xl text-text">
-              Needs attention ({totalAttentionCount})
+              Needs attention ({totalAttentionCount + (showAlertHealthWarning ? 1 : 0)})
             </h3>
           </div>
           <Link

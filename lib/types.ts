@@ -1053,6 +1053,10 @@ export interface DeliveryZone {
   updated_at: string;
 }
 
+export interface AdminDeliveryZone extends DeliveryZone {
+  order_count: number;
+}
+
 export type DeliveryZoneInsert = Omit<DeliveryZone, "id" | "created_at" | "updated_at"> & {
   id?: string;
 };

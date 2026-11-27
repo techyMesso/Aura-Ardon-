@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
   Bell,
   BellOff,
+  BellRing,
   CheckCircle2,
   Clock,
   Download,
@@ -15,12 +17,18 @@ import {
   Send,
   Settings,
   Smartphone,
-  Store
+  Store,
+  XCircle
 } from "lucide-react";
 
+import { DeliveryZonesManager } from "@/components/admin/delivery-zones-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  ALERT_HEALTH_WARNING_TEXT,
+  evaluateAlertHealth
+} from "@/lib/alert-health";
 import {
   MESSAGE_TEMPLATE_META,
   type MessageTemplateKey,
@@ -29,6 +37,7 @@ import {
 } from "@/lib/message-templates";
 import { DEFAULT_MESSAGE_TEMPLATES } from "@/lib/site";
 import type {
+  AdminDeliveryZone,
   DailySummaryReport,
   StoreMessageTemplates,
   StoreSettings
@@ -50,13 +59,38 @@ interface NotificationStatusProps {
   orderNotifyEmail: string | null;
   vapidConfigured: boolean;
   vapidPublicKey: string | null;
+  totalActivePushDevices?: number;
   smsEnvEnabled: boolean;
   smsEnvConfigured: boolean;
   smsSandbox: boolean;
 }
 
+interface TestAlertResponsePayload {
+  ok?: boolean;
+  error?: string;
+  email?: {
+    configured: boolean;
+    toEmail: string | null;
+    sent: boolean;
+    skipped: boolean;
+    id?: string;
+    error?: string;
+  };
+  push?: {
+    configured: boolean;
+    deviceCount: number;
+    sent: number;
+    failed: number;
+    deactivated: number;
+    skipped: boolean;
+    error?: string;
+    errors?: string[];
+  };
+}
+
 interface StoreSettingsHubProps {
   initialSettings: StoreSettings;
+  initialZones: AdminDeliveryZone[];
   initialSubscriptions: PushSubscriptionSummary[];
   initialDailySummary: DailySummaryReport;
   notifications: NotificationStatusProps;
@@ -85,14 +119,22 @@ function resolveTab(raw: string | null): SettingsTab {
 
 export function StoreSettingsHub({
   initialSettings,
+  initialZones,
   initialSubscriptions,
   initialDailySummary,
   notifications
 }: StoreSettingsHubProps) {
   const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<SettingsTab>(() =>
-    resolveTab(searchParams.get("tab"))
+    resolveTab(requestedTab)
   );
+
+  useEffect(() => {
+    if (requestedTab) {
+      setActiveTab(resolveTab(requestedTab));
+    }
+  }, [requestedTab]);
 
   // Settings & templates state
   const [settings, setSettings] = useState<StoreSettings>(initialSettings);
@@ -137,13 +179,27 @@ export function StoreSettingsHub({
   // Web Push & PWA state
   const [subscriptions, setSubscriptions] =
     useState<PushSubscriptionSummary[]>(initialSubscriptions);
+  const [totalActivePushDevices, setTotalActivePushDevices] = useState<number>(
+    Math.max(
+      initialSubscriptions.length,
+      notifications.totalActivePushDevices ?? initialSubscriptions.length
+    )
+  );
   const [pushSupported, setPushSupported] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("default");
   const [currentEndpoint, setCurrentEndpoint] = useState<string | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   const [isStandalonePwa, setIsStandalonePwa] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(
     null
   );
+
+  // Combined test alert state
+  const [sendingTestAlert, setSendingTestAlert] = useState(false);
+  const [testAlertResult, setTestAlertResult] =
+    useState<TestAlertResponsePayload | null>(null);
 
   // Daily summary state
   const [dailySummary, setDailySummary] =
@@ -174,7 +230,27 @@ export function StoreSettingsHub({
       "Notification" in window;
     setPushSupported(supported);
 
+    let permissionStatus: PermissionStatus | null = null;
+    const syncPermission = () => {
+      if ("Notification" in window) {
+        setNotificationPermission(Notification.permission);
+      } else {
+        setNotificationPermission("unsupported");
+      }
+    };
+    syncPermission();
+
     if (supported) {
+      if ("permissions" in navigator && typeof navigator.permissions?.query === "function") {
+        navigator.permissions
+          .query({ name: "notifications" })
+          .then(status => {
+            permissionStatus = status;
+            status.onchange = syncPermission;
+          })
+          .catch(() => {});
+      }
+
       navigator.serviceWorker
         .getRegistration("/admin/")
         .then(reg => reg?.pushManager.getSubscription())
@@ -188,6 +264,9 @@ export function StoreSettingsHub({
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      if (permissionStatus) {
+        permissionStatus.onchange = null;
+      }
     };
   }, []);
 
@@ -337,9 +416,24 @@ export function StoreSettingsHub({
     setSuccess(null);
 
     try {
+      if (Notification.permission === "denied") {
+        setNotificationPermission("denied");
+        throw new Error(
+          "Notifications are blocked in your browser. Follow the unblock steps below, reload this page, and try again."
+        );
+      }
+
       const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === "denied") {
+        throw new Error(
+          "Notification permission was denied. Follow the unblock steps below to allow notifications in your browser."
+        );
+      }
       if (permission !== "granted") {
-        throw new Error("Notification permission was not granted in your browser.");
+        throw new Error(
+          "Notification permission prompt was dismissed. Tap 'Enable push on this device' and choose Allow."
+        );
       }
 
       const registration = await navigator.serviceWorker.register("/admin-sw.js", {
@@ -381,11 +475,15 @@ export function StoreSettingsHub({
         throw new Error(payload.error ?? "Unable to save push subscription.");
       }
 
+      const alreadyKnown = subscriptions.some(item => item.endpoint === json.endpoint);
       setCurrentEndpoint(json.endpoint);
       setSubscriptions(current => {
         const filtered = current.filter(item => item.endpoint !== json.endpoint);
         return [payload.subscription!, ...filtered];
       });
+      if (!alreadyKnown) {
+        setTotalActivePushDevices(count => count + 1);
+      }
       setSuccess("Push notifications enabled for this device.");
     } catch (caughtError) {
       setError(
@@ -417,7 +515,11 @@ export function StoreSettingsHub({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint })
         });
+        const existed = subscriptions.some(item => item.endpoint === endpoint);
         setSubscriptions(current => current.filter(item => item.endpoint !== endpoint));
+        if (existed) {
+          setTotalActivePushDevices(count => Math.max(0, count - 1));
+        }
       }
       setCurrentEndpoint(null);
       setSuccess("Push notifications disabled on this device.");
@@ -429,6 +531,51 @@ export function StoreSettingsHub({
       );
     } finally {
       setPushBusy(false);
+    }
+  }
+
+  async function handleSendTestAlert() {
+    setSendingTestAlert(true);
+    setError(null);
+    setSuccess(null);
+    setTestAlertResult(null);
+
+    try {
+      const response = await fetch("/api/admin/notifications/test", {
+        method: "POST"
+      });
+      const payload = (await response.json()) as TestAlertResponsePayload;
+      setTestAlertResult(payload);
+
+      if (payload.push && payload.push.deactivated > 0) {
+        setTotalActivePushDevices(count =>
+          Math.max(0, count - (payload.push?.deactivated ?? 0))
+        );
+      }
+
+      if (response.ok && payload.ok) {
+        const parts: string[] = [];
+        if (payload.email?.sent) {
+          parts.push(`email sent to ${payload.email.toEmail ?? "configured address"}`);
+        }
+        if ((payload.push?.sent ?? 0) > 0) {
+          parts.push(`push sent to ${payload.push?.sent} device(s)`);
+        }
+        setSuccess(`Test alert delivered: ${parts.join(" and ")}.`);
+      } else {
+        setError(
+          payload.error ??
+            "Test alert did not deliver on any channel. See per-channel details below."
+        );
+      }
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to send test alert."
+      );
+    } finally {
+      setSendingTestAlert(false);
     }
   }
 
@@ -519,6 +666,12 @@ export function StoreSettingsHub({
     currentEndpoint && subscriptions.some(sub => sub.endpoint === currentEndpoint)
   );
 
+  const alertHealth = evaluateAlertHealth({
+    resendConfigured: notifications.resendConfigured,
+    vapidConfigured: notifications.vapidConfigured,
+    activePushDevices: totalActivePushDevices
+  });
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -539,7 +692,7 @@ export function StoreSettingsHub({
             [
               { id: "templates", label: "WhatsApp Templates", Icon: MessageCircle },
               { id: "alerts", label: "Alerts, PWA & Daily Summary", Icon: Bell },
-              { id: "store", label: "Store Operations", Icon: Store }
+              { id: "store", label: "Store Operations & Delivery Zones", Icon: Store }
             ] as const
           ).map(tab => {
             const active = activeTab === tab.id;
@@ -691,6 +844,122 @@ export function StoreSettingsHub({
       {/* ─── TAB 2: ALERTS, ADMIN PWA & 20:00 EAT SUMMARY ───── */}
       {activeTab === "alerts" ? (
         <div className="space-y-6">
+          {/* Alert Health & Send Test Alert */}
+          <section
+            aria-label="Alert health and test alert"
+            className={`space-y-4 border p-5 ${
+              alertHealth.hasActiveChannel
+                ? "border-emerald-400/50 bg-emerald-500/5"
+                : "border-amber-400/70 bg-amber-50/60 dark:bg-amber-950/25"
+            }`}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  {alertHealth.hasActiveChannel ? (
+                    <BellRing
+                      className="h-5 w-5 text-emerald-700 dark:text-emerald-300"
+                      aria-hidden
+                    />
+                  ) : (
+                    <AlertTriangle
+                      className="h-5 w-5 text-amber-700 dark:text-amber-300"
+                      aria-hidden
+                    />
+                  )}
+                  <h3 className="font-serif text-2xl text-text">
+                    {alertHealth.hasActiveChannel
+                      ? "Order alerts active"
+                      : "No order alert channel active"}
+                  </h3>
+                </div>
+                <p className="text-sm text-muted">
+                  {alertHealth.hasActiveChannel
+                    ? "Test your notification setup anytime to confirm new-order alerts reach your inbox or phone."
+                    : ALERT_HEALTH_WARNING_TEXT}
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                disabled={sendingTestAlert}
+                onClick={() => void handleSendTestAlert()}
+              >
+                <Send className="mr-2 h-4 w-4" aria-hidden />
+                {sendingTestAlert ? "Sending test alert..." : "Send test alert"}
+              </Button>
+            </div>
+
+            {testAlertResult ? (
+              <div className="grid gap-3 border-t border-border pt-4 md:grid-cols-2">
+                {/* Email test result */}
+                <div className="rounded-[2px] border border-border bg-paper p-3.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold uppercase tracking-[0.12em] text-text">
+                      Email (Resend)
+                    </span>
+                    {testAlertResult.email?.sent ? (
+                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
+                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                        Sent
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 font-semibold text-red-600 dark:text-red-400">
+                        <XCircle className="h-3.5 w-3.5" aria-hidden />
+                        {testAlertResult.email?.configured ? "Failed" : "Not configured"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-muted">
+                    {testAlertResult.email?.sent
+                      ? `Delivered test email to ${testAlertResult.email.toEmail ?? "configured recipient"}${
+                          testAlertResult.email.id
+                            ? ` (ID: ${testAlertResult.email.id})`
+                            : ""
+                        }.`
+                      : testAlertResult.email?.error ??
+                        "Email test was not delivered."}
+                  </p>
+                </div>
+
+                {/* Push test result */}
+                <div className="rounded-[2px] border border-border bg-paper p-3.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold uppercase tracking-[0.12em] text-text">
+                      Web Push
+                    </span>
+                    {(testAlertResult.push?.sent ?? 0) > 0 ? (
+                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
+                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                        Sent to {testAlertResult.push?.sent} device(s)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 font-semibold text-red-600 dark:text-red-400">
+                        <XCircle className="h-3.5 w-3.5" aria-hidden />
+                        {testAlertResult.push?.configured
+                          ? (testAlertResult.push.deviceCount ?? 0) === 0
+                            ? "0 devices"
+                            : "Failed"
+                          : "Not configured"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-muted">
+                    {(testAlertResult.push?.sent ?? 0) > 0
+                      ? `Delivered push notification to ${testAlertResult.push?.sent} active device(s)${
+                          (testAlertResult.push?.failed ?? 0) > 0
+                            ? ` (${testAlertResult.push?.failed} failed)`
+                            : ""
+                        }.`
+                      : testAlertResult.push?.error ??
+                        testAlertResult.push?.errors?.[0] ??
+                        "Push test was not delivered."}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
           <div className="grid gap-5 lg:grid-cols-2">
             {/* Resend Email Alerts */}
             <section className="space-y-3 border border-border bg-paper p-5">
@@ -779,11 +1048,20 @@ export function StoreSettingsHub({
                 ) : (
                   <Button
                     type="button"
-                    disabled={pushBusy || !notifications.vapidConfigured || !pushSupported}
+                    disabled={
+                      pushBusy ||
+                      !notifications.vapidConfigured ||
+                      !pushSupported ||
+                      notificationPermission === "denied"
+                    }
                     onClick={() => void handleEnablePush()}
                   >
                     <Bell className="mr-2 h-4 w-4" aria-hidden />
-                    {pushBusy ? "Enabling..." : "Enable push on this device"}
+                    {pushBusy
+                      ? "Enabling..."
+                      : notificationPermission === "denied"
+                        ? "Notifications blocked in browser"
+                        : "Enable push on this device"}
                   </Button>
                 )}
 
@@ -800,6 +1078,36 @@ export function StoreSettingsHub({
                 ) : null}
               </div>
 
+              {notificationPermission === "denied" ? (
+                <div
+                  role="alert"
+                  className="space-y-2 rounded-[2px] border border-red-400/60 bg-red-500/10 p-3.5 text-xs text-text"
+                >
+                  <p className="font-semibold text-red-700 dark:text-red-300">
+                    Notifications are currently blocked (&ldquo;denied&rdquo;) in this browser
+                  </p>
+                  <p className="text-muted">
+                    Browsers do not allow us to ask again automatically once blocked. Re-enable permission manually:
+                  </p>
+                  <ul className="list-disc space-y-1 pl-4 text-muted">
+                    <li>
+                      <strong className="text-text">Android Chrome:</strong> tap the tune / lock icon left of the address bar →{" "}
+                      <strong>Permissions</strong> → <strong>Notifications</strong> → <strong>Allow</strong>, then reload this page.
+                    </li>
+                    <li>
+                      <strong className="text-text">Installed Android Admin PWA:</strong> long-press the{" "}
+                      <strong>Auro Ardon Admin</strong> icon on your home screen → <strong>App info</strong> →{" "}
+                      <strong>Notifications</strong> → enable notifications, then reopen the app.
+                    </li>
+                    <li>
+                      <strong className="text-text">Desktop Chrome / Edge:</strong> click the tune / lock icon in the address bar →{" "}
+                      <strong>Notifications</strong> → <strong>Allow</strong>, then reload and tap{" "}
+                      <strong>Enable push on this device</strong>.
+                    </li>
+                  </ul>
+                </div>
+              ) : null}
+
               {!notifications.vapidConfigured ? (
                 <p className="rounded-[2px] border border-border bg-stone/50 px-3 py-2 text-xs text-muted">
                   Generate VAPID keys with{" "}
@@ -808,6 +1116,34 @@ export function StoreSettingsHub({
                   <code className="font-mono">VAPID_PRIVATE_KEY</code> in Vercel.
                 </p>
               ) : null}
+
+              <div className="space-y-2 rounded-[2px] border border-border bg-stone/40 p-3.5 text-xs">
+                <p className="font-semibold uppercase tracking-[0.12em] text-brass">
+                  How to install Admin PWA on Android Chrome
+                </p>
+                <ol className="list-decimal space-y-1.5 pl-4 text-muted">
+                  <li>
+                    Open <code className="font-mono text-text">/admin</code> directly in{" "}
+                    <strong className="text-text">Google Chrome</strong> on your Android phone (avoid opening inside WhatsApp or Instagram).
+                  </li>
+                  <li>
+                    Tap the <strong className="text-text">⋮ menu</strong> in the top-right corner and select{" "}
+                    <strong className="text-text">&ldquo;Add to Home screen&rdquo;</strong> →{" "}
+                    <strong className="text-text">Install</strong> (or tap the Install Admin App button above when available).
+                  </li>
+                  <li>
+                    Open <strong className="text-text">Auro Ardon Admin</strong> from your Home screen and sign in.
+                  </li>
+                  <li>
+                    Go to <strong className="text-text">Settings → Alerts</strong> and tap{" "}
+                    <strong className="text-text">Enable push on this device</strong>, then tap{" "}
+                    <strong className="text-text">Allow</strong> when Chrome asks for notification permission.
+                  </li>
+                  <li>
+                    Tap <strong className="text-text">Send test alert</strong> above to verify your phone rings/notifies immediately.
+                  </li>
+                </ol>
+              </div>
             </section>
           </div>
 
@@ -954,12 +1290,15 @@ export function StoreSettingsHub({
         </div>
       ) : null}
 
-      {/* ─── TAB 3: STORE OPERATIONS & HOLIDAY MODE ─────────── */}
+      {/* ─── TAB 3: STORE OPERATIONS, HOLIDAY MODE & DELIVERY ZONES ─── */}
       {activeTab === "store" ? (
-        <form
-          onSubmit={handleSaveStoreOperations}
-          className="space-y-5 border border-border bg-paper p-5"
-        >
+        <div className="space-y-6">
+          <DeliveryZonesManager initialZones={initialZones} />
+
+          <form
+            onSubmit={handleSaveStoreOperations}
+            className="space-y-5 border border-border bg-paper p-5"
+          >
           <div className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-brass" aria-hidden />
             <h3 className="font-serif text-2xl text-text">Store Operations &amp; Checkout Rules</h3>
@@ -1117,7 +1456,8 @@ export function StoreSettingsHub({
               {saving ? "Saving settings..." : "Save store settings"}
             </Button>
           </div>
-        </form>
+          </form>
+        </div>
       ) : null}
     </div>
   );
