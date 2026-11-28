@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { checkOrderAddressSanity, NON_NAIROBI_TOWNS } from "@/lib/address-sanity";
 import { resolveOrderPaymentDisplay } from "@/lib/admin-orders";
 import { getCatalogQualityWarnings } from "@/lib/admin-product-filters";
-import { evaluateOwnerMfaState, OWNER_MFA_MAX_SKIPS } from "@/lib/owner-mfa";
 import {
   buildSetupChecklist,
   countUniqueProductsWithCatalogWarnings
@@ -213,82 +212,8 @@ describe("Round 2 Phase 3 — 3.2 Address sanity hint matcher", () => {
   });
 });
 
-describe("Round 2 Phase 3 — 3.3 Owner MFA blocking banner & max 3 skips", () => {
-  it("allows at most 3 skips and requires MFA once all 3 skips are used", () => {
-    expect(OWNER_MFA_MAX_SKIPS).toBe(3);
-
-    const zeroSkips = evaluateOwnerMfaState({
-      isOwner: true,
-      hasVerifiedFactor: false,
-      skipCount: 0,
-      skippedThisSession: false
-    });
-    expect(zeroSkips.shouldShowBanner).toBe(true);
-    expect(zeroSkips.isBlocking).toBe(true);
-    expect(zeroSkips.canSkip).toBe(true);
-    expect(zeroSkips.skipsRemaining).toBe(3);
-    expect(zeroSkips.isHardRequired).toBe(false);
-
-    const skippedSession1 = evaluateOwnerMfaState({
-      isOwner: true,
-      hasVerifiedFactor: false,
-      skipCount: 1,
-      skippedThisSession: true
-    });
-    expect(skippedSession1.shouldShowBanner).toBe(true);
-    expect(skippedSession1.isBlocking).toBe(false);
-    expect(skippedSession1.skipsRemaining).toBe(2);
-    expect(skippedSession1.isHardRequired).toBe(false);
-
-    const thirdSkipPrompt = evaluateOwnerMfaState({
-      isOwner: true,
-      hasVerifiedFactor: false,
-      skipCount: 2,
-      skippedThisSession: false
-    });
-    expect(thirdSkipPrompt.canSkip).toBe(true);
-    expect(thirdSkipPrompt.skipsRemaining).toBe(1);
-    expect(thirdSkipPrompt.isHardRequired).toBe(false);
-
-    const afterThreeSkips = evaluateOwnerMfaState({
-      isOwner: true,
-      hasVerifiedFactor: false,
-      skipCount: 3,
-      skippedThisSession: false
-    });
-    expect(afterThreeSkips.shouldShowBanner).toBe(true);
-    expect(afterThreeSkips.isBlocking).toBe(true);
-    expect(afterThreeSkips.canSkip).toBe(false);
-    expect(afterThreeSkips.skipsRemaining).toBe(0);
-    expect(afterThreeSkips.isHardRequired).toBe(true);
-  });
-
-  it("hides banner for staff and for owners with a verified TOTP factor", () => {
-    const staff = evaluateOwnerMfaState({
-      isOwner: false,
-      hasVerifiedFactor: false,
-      skipCount: 0,
-      skippedThisSession: false
-    });
-    expect(staff.shouldShowBanner).toBe(false);
-    expect(staff.isBlocking).toBe(false);
-
-    const verifiedOwner = evaluateOwnerMfaState({
-      isOwner: true,
-      hasVerifiedFactor: true,
-      currentLevel: "aal2",
-      nextLevel: "aal2",
-      skipCount: 3,
-      skippedThisSession: false
-    });
-    expect(verifiedOwner.shouldShowBanner).toBe(false);
-    expect(verifiedOwner.isBlocking).toBe(false);
-    expect(verifiedOwner.isHardRequired).toBe(false);
-  });
-});
-
 describe("Round 2 Phase 3 — 3.4 Setup checklist card", () => {
-  it("tracks all 7 required items, links each to the right page, and marks complete when all 7 pass", () => {
+  it("tracks all 6 required items, links each to the right page, and marks complete when all 6 pass", () => {
     const complete = buildSetupChecklist({
       alertsConfigured: true,
       activeRidersCount: 2,
@@ -296,12 +221,11 @@ describe("Round 2 Phase 3 — 3.4 Setup checklist card", () => {
       activeProductsMissingCostCount: 0,
       catalogWarningsProductCount: 0,
       deliveryFeesReviewed: true,
-      legalReviewedAt: "2026-11-27T10:00:00Z",
-      ownerMfaEnabled: true
+      legalReviewedAt: "2026-11-27T10:00:00Z"
     });
 
-    expect(complete.totalCount).toBe(7);
-    expect(complete.completedCount).toBe(7);
+    expect(complete.totalCount).toBe(6);
+    expect(complete.completedCount).toBe(6);
     expect(complete.progressPercent).toBe(100);
     expect(complete.isComplete).toBe(true);
     expect(complete.items.map(item => item.href)).toEqual([
@@ -310,8 +234,7 @@ describe("Round 2 Phase 3 — 3.4 Setup checklist card", () => {
       "/admin/products",
       "/admin/products",
       "/admin/settings?tab=store#delivery-zones",
-      "/admin/settings?tab=store#legal-pages",
-      "/admin?setupMfa=1"
+      "/admin/settings?tab=store#legal-pages"
     ]);
 
     const incomplete = buildSetupChecklist({
@@ -321,8 +244,7 @@ describe("Round 2 Phase 3 — 3.4 Setup checklist card", () => {
       activeProductsMissingCostCount: 2,
       catalogWarningsProductCount: 1,
       deliveryFeesReviewed: false,
-      legalReviewedAt: null,
-      ownerMfaEnabled: false
+      legalReviewedAt: null
     });
 
     expect(incomplete.completedCount).toBe(0);

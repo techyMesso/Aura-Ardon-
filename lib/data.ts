@@ -2212,7 +2212,6 @@ export async function getAnalyticsDashboardData(params: {
 
 export async function getOwnerSetupChecklistData(params: {
   alertsConfigured: boolean;
-  ownerMfaEnabled: boolean;
 }): Promise<SetupChecklistSummary> {
   const supabase = createAdminSupabaseClient();
 
@@ -2271,8 +2270,7 @@ export async function getOwnerSetupChecklistData(params: {
     activeProductsMissingCostCount,
     catalogWarningsProductCount,
     deliveryFeesReviewed: hasZoneAuditEntry || hasEditedZoneTimestamp,
-    legalReviewedAt: settings.legal_reviewed_at ?? null,
-    ownerMfaEnabled: params.ownerMfaEnabled
+    legalReviewedAt: settings.legal_reviewed_at ?? null
   });
 }
 

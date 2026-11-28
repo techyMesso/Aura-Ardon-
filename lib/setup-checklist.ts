@@ -6,8 +6,7 @@ export type SetupChecklistItemId =
   | "cost_prices"
   | "product_specs"
   | "delivery_fees"
-  | "legal_pages"
-  | "owner_mfa";
+  | "legal_pages";
 
 export interface SetupChecklistItem {
   id: SetupChecklistItemId;
@@ -25,7 +24,6 @@ export interface SetupChecklistInput {
   catalogWarningsProductCount: number;
   deliveryFeesReviewed: boolean;
   legalReviewedAt: string | null;
-  ownerMfaEnabled: boolean;
 }
 
 export interface SetupChecklistSummary {
@@ -122,15 +120,6 @@ export function buildSetupChecklist(
         : "Review /privacy and /terms and mark them reviewed in Store Settings.",
       href: "/admin/settings?tab=store#legal-pages",
       completed: hasLegalReview
-    },
-    {
-      id: "owner_mfa",
-      label: "Owner two-step login (MFA) enabled",
-      detail: input.ownerMfaEnabled
-        ? "Authenticator app TOTP factor is verified on your owner account."
-        : "Enable TOTP two-step verification to protect store settings and orders.",
-      href: "/admin?setupMfa=1",
-      completed: input.ownerMfaEnabled
     }
   ];
 

@@ -60,7 +60,6 @@ Configure these under **Vercel → Project `aura-ardon` → Settings → Environ
 #### C. Optional Security & Feature Overrides
 | Variable | Scope | Default / Purpose |
 | --- | --- | --- |
-| `OWNER_MFA_REQUIRED` | Server-only | Default `true` — requires TOTP MFA (`aal2`) for owner accounts on `/admin` |
 | `ADMIN_SESSION_SECRET` | Server-only | Optional dedicated HMAC key for admin inactivity cookie (falls back to `ORDER_STATUS_TOKEN_SECRET`) |
 | `ADMIN_IDLE_TIMEOUT_MINUTES` | Server-only | Optional admin inactivity timeout in minutes (default `30`) |
 | `AFRICAS_TALKING_SMS_ENABLED` | Server-only | Default `false` — leave `false` unless you want automated customer SMS on order status updates |
@@ -76,7 +75,7 @@ Configure these under **Vercel → Project `aura-ardon` → Settings → Environ
 
 ---
 
-### 3. Run Migrations on Production, Create the Owner Account, and Enable MFA
+### 3. Run Migrations on Production and Create the Owner Account
 - [ ] **Take a fresh pre-migration backup** of Production (`bjasoyhcxubrkxrqurfr`) first (see `docs/BACKUP.md`).
 - [ ] **Push your branch to GitHub** (`git push origin main`) so all commits from Phases 0–16 are live in the repo.
 - [ ] **Apply all 16 roadmap migrations in strict chronological order** against Production (`bjasoyhcxubrkxrqurfr`) using `supabase db push` (or the Supabase SQL Editor in order):
@@ -107,7 +106,7 @@ Configure these under **Vercel → Project `aura-ardon` → Settings → Environ
   where lower(email) = lower('aura.ardoncompany@gmail.com')
   on conflict (user_id) do update set role = 'owner', active = true;
   ```
-- [ ] **Sign in at `/login` and enrol TOTP MFA** (Google Authenticator / 1Password / Authy) when prompted — verify the account upgrades to `aal2` and can access `/admin/settings`, `/admin/users`, and `/admin/audit`.
+- [ ] **Sign in at `/login`** with your owner email and password — verify the account can access `/admin/settings`, `/admin/users`, and `/admin/audit`.
 - [ ] *(Optional)* Invite any staff members under `/admin/users` with role `staff` and verify they cannot access `/admin/settings`, `/admin/discounts`, `/admin/audit`, `/admin/users`, or cost/profit data.
 - [ ] **Configure external uptime monitoring** (Better Stack / UptimeRobot) on `https://<your-domain>/` and `https://<your-domain>/api/health` (see `docs/operations.md`).
 
@@ -227,6 +226,6 @@ All Vercel Schedules (`vercel.json` `schedules`) require `CRON_SECRET` set in Ve
 - [x] **Immutable Invoicing & Payments:** Concurrency-safe `INV-YYYY-NNNN` & `CN-YYYY-NNNN` numbering, immutable financial records, A4 & 80mm PDF rendering, expiring/revocable `/i/[token]` share links (404 when invalid/expired/revoked), and cash/M-Pesa payment reconciliation.
 - [x] **Reporting & Analytics:** Daily Cash-Up, Monthly Financial Summary + CSV/PDF, and `/admin` Analytics KPIs excluding cancelled orders from revenue.
 - [x] **Server-Side Discounts & Free Delivery:** Discount codes validated and calculated exclusively inside Postgres.
-- [x] **Security, Roles, MFA & Audit Log:** Owner vs Staff enforcement in RLS (`private.*` helpers), middleware, pages, and APIs; zero `anon` access to private tables; owner TOTP MFA (`aal2`), inactivity session timeout, strict CSP, EXIF stripping, build-time secret scanner, and immutable `audit_log` on every admin write.
+- [x] **Security, Roles & Audit Log:** Owner vs Staff enforcement in RLS (`private.*` helpers), middleware, pages, and APIs; zero `anon` access to private tables; inactivity session timeout, strict CSP, EXIF stripping, build-time secret scanner, and immutable `audit_log` on every admin write.
 - [x] **Monitoring, Backups & Accessibility:** Sentry client/server/edge with PII scrubbing, PII-redacted structured logs, nightly `pg_dump` + `docs/BACKUP.md`, WCAG 2.1 AA contrast, visible focus, screen-reader error announcements, and `prefers-reduced-motion`.
 

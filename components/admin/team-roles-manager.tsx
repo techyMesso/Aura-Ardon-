@@ -136,7 +136,7 @@ export function TeamRolesManager({
           Team &amp; roles
         </h2>
         <p className="mt-1.5 max-w-2xl text-sm text-muted">
-          Roles are enforced in Postgres RLS policies, API routes, and admin pages. Owner accounts require TOTP two-factor authentication at sign-in.
+          Roles are enforced in Postgres RLS policies, API routes, and admin pages.
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -207,7 +207,7 @@ export function TeamRolesManager({
               className="h-10 w-full rounded-[2px] border border-text/20 bg-paper px-3 text-sm text-text focus:border-brass focus:outline-none"
             >
               <option value="staff">Staff</option>
-              <option value="owner">Owner (requires TOTP MFA)</option>
+              <option value="owner">Owner</option>
             </select>
           </label>
           <label className="space-y-1 text-xs text-muted">

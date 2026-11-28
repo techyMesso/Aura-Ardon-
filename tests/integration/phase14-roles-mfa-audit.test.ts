@@ -70,22 +70,21 @@ vi.mock("@/lib/audit", async importOriginal => {
   };
 });
 
-describe("Phase 14 owner vs staff RBAC, owner MFA, inactivity timeout, and audit log routes", () => {
+describe("Phase 14 owner vs staff RBAC, login rate limiting, inactivity timeout, and audit log routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ADMIN_EMAIL = "aura.ardoncompany@gmail.com";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://scukquqkdivnodefqggf.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
-    process.env.OWNER_MFA_REQUIRED = "true";
 
     cookiesGetMock.mockReturnValue(undefined);
     signOutMock.mockResolvedValue({ error: null });
     getAalMock.mockResolvedValue({
-      data: { currentLevel: "aal2", nextLevel: "aal2" },
+      data: { currentLevel: "aal1", nextLevel: "aal1" },
       error: null
     });
     listFactorsMock.mockResolvedValue({
-      data: { totp: [{ id: "11111111-1111-4111-8111-111111111111", status: "verified" }] },
+      data: { totp: [] },
       error: null
     });
     checkRateLimitMock.mockResolvedValue({
@@ -198,7 +197,7 @@ describe("Phase 14 owner vs staff RBAC, owner MFA, inactivity timeout, and audit
     ).toBe(403);
   });
 
-  it("blocks owner at AAL1 with HTTP 403 (MFA_REQUIRED) and allows owner at AAL2 to read audit log & create staff with audit trail", async () => {
+  it("allows owner to read audit log directly without 2FA", async () => {
     getUserMock.mockResolvedValue({
       data: {
         user: {
@@ -209,24 +208,7 @@ describe("Phase 14 owner vs staff RBAC, owner MFA, inactivity timeout, and audit
       }
     });
 
-    // 1. Owner at AAL1 (MFA not yet verified) -> 403 MFA_REQUIRED
-    getAalMock.mockResolvedValueOnce({
-      data: { currentLevel: "aal1", nextLevel: "aal2" },
-      error: null
-    });
     const { GET: getAudit } = await import("@/app/api/admin/audit/route");
-    const aal1Res = await getAudit(
-      new Request("https://aura-ardon.vercel.app/api/admin/audit")
-    );
-    expect(aal1Res.status).toBe(403);
-    const aal1Json = await aal1Res.json();
-    expect(aal1Json.error).toBe("MFA_REQUIRED");
-
-    // 2. Owner at AAL2 -> 200 on audit log
-    getAalMock.mockResolvedValueOnce({
-      data: { currentLevel: "aal2", nextLevel: "aal2" },
-      error: null
-    });
     listAuditLogsMock.mockResolvedValueOnce({
       entries: [
         {
@@ -247,18 +229,18 @@ describe("Phase 14 owner vs staff RBAC, owner MFA, inactivity timeout, and audit
       limit: 50,
       offset: 0
     });
-    const aal2Res = await getAudit(
+    const res = await getAudit(
       new Request("https://aura-ardon.vercel.app/api/admin/audit?entity=store_settings")
     );
-    expect(aal2Res.status).toBe(200);
-    const auditPayload = await aal2Res.json();
+    expect(res.status).toBe(200);
+    const auditPayload = await res.json();
     expect(auditPayload.entries).toHaveLength(1);
     expect(listAuditLogsMock).toHaveBeenCalledWith(
       expect.objectContaining({ entity: "store_settings" })
     );
   });
 
-  it("enforces rate limiting and TOTP MFA prompt on POST /api/admin/login for owner accounts", async () => {
+  it("enforces rate limiting and allows password-only POST /api/admin/login for owner accounts", async () => {
     const { POST } = await import("@/app/api/admin/login/route");
 
     // 1. Rate-limited -> 429
@@ -278,7 +260,7 @@ describe("Phase 14 owner vs staff RBAC, owner MFA, inactivity timeout, and audit
     );
     expect(limitedRes.status).toBe(429);
 
-    // 2. Owner login at AAL1 with verified factor -> mfaRequired: true, mfaStatus: "verify"
+    // 2. Owner login succeeds directly with email + password (no 2FA step)
     signInWithPasswordMock.mockResolvedValueOnce({
       data: {
         user: {
@@ -286,16 +268,6 @@ describe("Phase 14 owner vs staff RBAC, owner MFA, inactivity timeout, and audit
           email: "aura.ardoncompany@gmail.com",
           app_metadata: { role: "owner" }
         }
-      },
-      error: null
-    });
-    getAalMock.mockResolvedValueOnce({
-      data: { currentLevel: "aal1", nextLevel: "aal2" },
-      error: null
-    });
-    listFactorsMock.mockResolvedValueOnce({
-      data: {
-        totp: [{ id: "11111111-1111-4111-8111-111111111111", status: "verified" }]
       },
       error: null
     });
@@ -312,12 +284,9 @@ describe("Phase 14 owner vs staff RBAC, owner MFA, inactivity timeout, and audit
     );
     expect(ownerLoginRes.status).toBe(200);
     const ownerJson = await ownerLoginRes.json();
-    expect(ownerJson).toMatchObject({
+    expect(ownerJson).toEqual({
       ok: true,
-      role: "owner",
-      mfaRequired: true,
-      mfaStatus: "verify",
-      factorId: "11111111-1111-4111-8111-111111111111"
+      role: "owner"
     });
   });
 

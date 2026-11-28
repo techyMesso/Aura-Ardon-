@@ -218,25 +218,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Enforce TOTP MFA (AAL2) for owner accounts that already have a verified factor.
-  // Owners without a verified factor yet enter /admin where OwnerMfaBanner enforces setup (max 3 skips).
-  const mfaRequired =
-    process.env.OWNER_MFA_REQUIRED?.trim().toLowerCase() !== "false";
-  if (role === "owner" && mfaRequired) {
-    const { data: aalData } =
-      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (
-      aalData &&
-      aalData.currentLevel !== "aal2" &&
-      aalData.nextLevel === "aal2"
-    ) {
-      const mfaUrl = new URL("/login", request.url);
-      mfaUrl.searchParams.set("mfa", "required");
-      mfaUrl.searchParams.set("redirectedFrom", pathname);
-      return NextResponse.redirect(mfaUrl);
-    }
-  }
-
   // Defense-in-depth route guard: block staff from owner-only paths
   if (role === "staff" && isOwnerOnlyPath(pathname)) {
     const deniedUrl = new URL("/admin", request.url);

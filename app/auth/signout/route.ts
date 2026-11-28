@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { buildSiteUrl } from "@/lib/env";
-import { OWNER_MFA_SKIP_SESSION_COOKIE } from "@/lib/owner-mfa";
 import { ADMIN_ACTIVITY_COOKIE } from "@/lib/session-timeout";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -19,6 +18,5 @@ export async function POST(request: Request) {
 
   const response = NextResponse.redirect(buildSiteUrl("/", origin));
   response.cookies.delete(ADMIN_ACTIVITY_COOKIE);
-  response.cookies.delete(OWNER_MFA_SKIP_SESSION_COOKIE);
   return response;
 }
